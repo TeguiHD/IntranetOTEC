@@ -9,6 +9,7 @@ import { asignaturas } from "@/db/schema";
 import { activo } from "@/db/filters";
 import { clases } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
 import { crearClaseInputSchema } from "@/lib/validations/admin";
@@ -66,6 +67,8 @@ export async function listarClasesAdmin(
   if (!actorResult.ok) {
     return [];
   }
+
+  await finalizarAsignaturasVencidas();
 
   const db = getDb();
   const { limit, offset } = resolvePagination(pagination);
@@ -130,6 +133,8 @@ export async function crearClaseAction(input: {
     return actorResult.result;
   }
 
+  await finalizarAsignaturasVencidas();
+
   const parsed = crearClaseInputSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -160,11 +165,11 @@ export async function crearClaseAction(input: {
       };
     }
 
-    if (subject.estado === "archivado") {
+    if (subject.estado === "archivado" || subject.estado === "finalizado") {
       return {
         ok: false,
-        code: "asignatura_archived",
-        message: "No puedes crear clases en asignaturas archivadas.",
+        code: "asignatura_closed",
+        message: "No puedes crear clases en asignaturas cerradas.",
       };
     }
 

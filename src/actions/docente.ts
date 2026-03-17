@@ -16,6 +16,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { sanitizeText } from "@/lib/sanitize";
 
 import { requireActionActor, type MutationResult } from "./_security";
@@ -91,6 +92,8 @@ export async function listarAsignaturasDocente() {
   if (!actorResult.ok) {
     return [];
   }
+
+  await finalizarAsignaturasVencidas();
 
   const db = getDb();
 
@@ -234,6 +237,8 @@ export async function crearClaseDocenteAction(input: {
     return actorResult.result;
   }
 
+  await finalizarAsignaturasVencidas();
+
   const parsed = claseDocenteInputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, code: "invalid_input", message: "Clase inválida." };
@@ -245,6 +250,16 @@ export async function crearClaseDocenteAction(input: {
   }
 
   const db = getDb();
+  const [subject] = await db
+    .select({ estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, parsed.data.asignaturaId))
+    .limit(1);
+
+  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+    return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
+  }
+
   const [created] = await db
     .insert(clases)
     .values({
@@ -284,6 +299,8 @@ export async function registrarAsistenciaDocenteAction(input: {
     return actorResult.result;
   }
 
+  await finalizarAsignaturasVencidas();
+
   const parsed = asistenciaDocenteInputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, code: "invalid_input", message: "Asistencia inválida." };
@@ -307,6 +324,16 @@ export async function registrarAsistenciaDocenteAction(input: {
   const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, ctx.asignaturaId);
   if (!isOwner) {
     return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
+  }
+
+  const [subject] = await db
+    .select({ estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, ctx.asignaturaId))
+    .limit(1);
+
+  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+    return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
   }
 
   const [matriculaRow] = await db
@@ -366,6 +393,8 @@ export async function registrarNotaDocenteAction(input: {
     return actorResult.result;
   }
 
+  await finalizarAsignaturasVencidas();
+
   const parsed = notaDocenteInputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, code: "invalid_input", message: "Nota inválida." };
@@ -377,6 +406,16 @@ export async function registrarNotaDocenteAction(input: {
   }
 
   const db = getDb();
+  const [subject] = await db
+    .select({ estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, parsed.data.asignaturaId))
+    .limit(1);
+
+  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+    return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
+  }
+
   const [matriculaRow] = await db
     .select({ id: matriculas.id })
     .from(matriculas)
@@ -419,6 +458,8 @@ export async function registrarObservacionDocenteAction(input: {
     return actorResult.result;
   }
 
+  await finalizarAsignaturasVencidas();
+
   const parsed = observacionDocenteInputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, code: "invalid_input", message: "Observación inválida." };
@@ -430,6 +471,16 @@ export async function registrarObservacionDocenteAction(input: {
   }
 
   const db = getDb();
+  const [subject] = await db
+    .select({ estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, parsed.data.asignaturaId))
+    .limit(1);
+
+  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+    return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
+  }
+
   const [matriculaRow] = await db
     .select({ id: matriculas.id })
     .from(matriculas)

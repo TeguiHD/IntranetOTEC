@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { asignaturas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
 import {
@@ -46,6 +47,8 @@ export async function listarAsignaturas(
   pagination: PaginationInput = {},
   options?: { incluirArchivadas?: boolean },
 ) {
+  await finalizarAsignaturasVencidas();
+
   const db = getDb();
   const { limit, offset } = resolvePagination(pagination);
 
@@ -76,6 +79,8 @@ export async function listarAsignaturasAdmin(
   if (!actorResult.ok) {
     return [];
   }
+
+  await finalizarAsignaturasVencidas();
 
   const db = getDb();
   const { limit, offset } = resolvePagination(pagination);
@@ -250,11 +255,11 @@ export async function asignarDocenteAction(input: {
       };
     }
 
-    if (subject.estado === "archivado") {
+    if (subject.estado === "archivado" || subject.estado === "finalizado") {
       return {
         ok: false,
-        code: "asignatura_archived",
-        message: "No puedes asignar docentes a asignaturas archivadas.",
+        code: "asignatura_closed",
+        message: "No puedes asignar docentes a asignaturas cerradas.",
       };
     }
 

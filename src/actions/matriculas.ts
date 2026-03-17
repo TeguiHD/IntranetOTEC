@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { asignaturas, matriculas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import {
   desmatricularInputSchema,
@@ -49,6 +50,8 @@ export async function listarMatriculasAdmin(
   if (!actorResult.ok) {
     return [];
   }
+
+  await finalizarAsignaturasVencidas();
 
   const db = getDb();
   const { limit, offset } = resolvePagination(pagination);
@@ -116,6 +119,8 @@ export async function matricularAlumnoAction(input: {
     return actorResult.result;
   }
 
+  await finalizarAsignaturasVencidas();
+
   const parsed = matricularAlumnoInputSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -147,11 +152,11 @@ export async function matricularAlumnoAction(input: {
       };
     }
 
-    if (subject.estado === "archivado") {
+    if (subject.estado === "archivado" || subject.estado === "finalizado") {
       return {
         ok: false,
-        code: "asignatura_archived",
-        message: "No puedes matricular en una asignatura archivada.",
+        code: "asignatura_closed",
+        message: "No puedes matricular en una asignatura cerrada.",
       };
     }
 

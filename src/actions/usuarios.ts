@@ -778,7 +778,7 @@ export async function crearDocenteFormAction(formData: FormData): Promise<void> 
   });
 
   revalidatePath("/admin/docentes");
-  redirect(`/admin/docentes?state=${result.ok ? result.code : "error"}`);
+  redirect(`/admin/docentes?state=${result.code}`);
 }
 
 export async function crearAlumnoFormAction(formData: FormData): Promise<void> {

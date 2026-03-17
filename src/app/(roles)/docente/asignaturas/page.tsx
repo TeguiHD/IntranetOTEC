@@ -1,18 +1,276 @@
-export default function DocenteAsignaturasPage() {
+import {
+  crearClaseDocenteFormAction,
+  listarAsignaturasDocente,
+  listarClasesDocente,
+  listarMatriculasDocente,
+  listarNotasDocente,
+  listarObservacionesDocente,
+  registrarAsistenciaDocenteFormAction,
+  registrarNotaDocenteFormAction,
+  registrarObservacionDocenteFormAction,
+} from "@/actions/docente";
+import { formatearRut } from "@/lib/rut";
+
+const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
+  clase_docente_created: { tone: "success", text: "Clase del curso creada correctamente." },
+  asistencia_created: { tone: "success", text: "Asistencia registrada correctamente." },
+  asistencia_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
+  nota_created: { tone: "success", text: "Nota registrada correctamente." },
+  observacion_created: { tone: "success", text: "Observación registrada correctamente." },
+  invalid_input: { tone: "error", text: "Datos inválidos. Revisa los campos requeridos." },
+  forbidden: { tone: "error", text: "No autorizado para operar sobre esta asignatura." },
+  error: { tone: "error", text: "No fue posible completar la acción solicitada." },
+};
+
+type DocenteAsignaturasPageProps = {
+  searchParams?: {
+    state?: string;
+    asignaturaId?: string;
+  };
+};
+
+export default async function DocenteAsignaturasPage({ searchParams }: DocenteAsignaturasPageProps) {
+  const asignaturas = await listarAsignaturasDocente();
+  const selectedAsignaturaId =
+    typeof searchParams?.asignaturaId === "string" && searchParams.asignaturaId.length > 0
+      ? searchParams.asignaturaId
+      : asignaturas[0]?.id;
+
+  const [clases, matriculas, notas, observaciones] = selectedAsignaturaId
+    ? await Promise.all([
+        listarClasesDocente(selectedAsignaturaId),
+        listarMatriculasDocente(selectedAsignaturaId),
+        listarNotasDocente(selectedAsignaturaId),
+        listarObservacionesDocente(selectedAsignaturaId),
+      ])
+    : [[], [], [], []];
+
+  const state = typeof searchParams?.state === "string" ? searchParams.state : undefined;
+  const banner = state ? STATUS_MAP[state] ?? STATUS_MAP.error : null;
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-white">Mis asignaturas</h1>
+        <h1 className="text-2xl font-bold text-text-primary dark:text-white">Gestión docente</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
-          Módulo base para navegar a clases, asistencia y evaluaciones.
+          Crea clases del curso, registra asistencia, notas por fecha/año y observaciones de alumnos.
         </p>
       </header>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <p className="text-sm text-text-secondary dark:text-gray-300">
-          Placeholder Fase 1: estructura de navegación lista para siguientes módulos.
-        </p>
+      <article className="rounded-md border border-primary/30 bg-primary/5 p-4 dark:border-primary/50 dark:bg-primary/10">
+        <h2 className="text-sm font-semibold text-text-primary dark:text-gray-100">Información de solicitudes</h2>
+        <div className="mt-3 flex gap-3 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+          <div className="min-w-[220px] rounded border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            Registrar asistencia al cerrar cada clase.
+          </div>
+          <div className="min-w-[220px] rounded border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            Cargar notas con fecha de registro y control anual.
+          </div>
+          <div className="min-w-[220px] rounded border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            Documentar observaciones por alumno con trazabilidad.
+          </div>
+        </div>
       </article>
+
+      {banner ? (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            banner.tone === "success"
+              ? "border-success/30 bg-success/10 text-text-primary dark:border-green-700 dark:bg-green-950 dark:text-green-100"
+              : "border-danger/30 bg-danger/10 text-text-primary dark:border-red-700 dark:bg-red-950 dark:text-red-100"
+          }`}
+          role="status"
+        >
+          {banner.text}
+        </div>
+      ) : null}
+
+      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Selecciona asignatura</h2>
+        <form className="mt-4 grid gap-4 md:grid-cols-2" method="get">
+          <select
+            name="asignaturaId"
+            defaultValue={selectedAsignaturaId}
+            title="Seleccionar asignatura"
+            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          >
+            {asignaturas.map((asignatura) => (
+              <option key={asignatura.id} value={asignatura.id}>
+                {asignatura.nombre} ({asignatura.codigo ?? "SIN-CODIGO"})
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Cargar
+          </button>
+        </form>
+      </article>
+
+      {selectedAsignaturaId ? (
+        <>
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Crear clase del curso</h2>
+            <form action={crearClaseDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input name="titulo" placeholder="Título de la clase" required minLength={3} maxLength={140} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="fecha" type="date" required title="Fecha de clase" placeholder="Fecha de clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="horaInicio" type="time" title="Hora de inicio" placeholder="Hora de inicio" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="numeroSesion" type="number" min={1} max={1000} required title="Numero de sesion" placeholder="Numero de sesion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+                  Crear clase
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar asistencia</h2>
+            <form action={registrarAsistenciaDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <select name="claseId" required title="Seleccionar clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona clase</option>
+                {clases.map((clase) => (
+                  <option key={clase.id} value={clase.id}>
+                    Sesión {clase.numeroSesion} - {clase.titulo}
+                  </option>
+                ))}
+              </select>
+              <select name="matriculaId" required title="Seleccionar alumno" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona alumno</option>
+                {matriculas.map((m) => (
+                  <option key={m.matriculaId} value={m.matriculaId}>
+                    {m.alumnoNombre} {m.alumnoApellido} ({m.alumnoRut ? formatearRut(m.alumnoRut) : "Sin credencial"})
+                  </option>
+                ))}
+              </select>
+              <select name="estado" required title="Estado de asistencia" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="presente">Presente</option>
+                <option value="ausente">Ausente</option>
+                <option value="tardanza">Tardanza</option>
+                <option value="justificado">Justificado</option>
+              </select>
+              <input name="fechaRegistro" type="date" required title="Fecha de asistencia" placeholder="Fecha de asistencia" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <textarea name="observacion" rows={2} maxLength={300} placeholder="Observación (opcional)" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+                  Registrar asistencia
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar nota</h2>
+            <form action={registrarNotaDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <select name="matriculaId" required title="Seleccionar alumno para nota" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona alumno</option>
+                {matriculas.map((m) => (
+                  <option key={m.matriculaId} value={m.matriculaId}>
+                    {m.alumnoNombre} {m.alumnoApellido} ({m.alumnoRut ? formatearRut(m.alumnoRut) : "Sin credencial"})
+                  </option>
+                ))}
+              </select>
+              <input name="nota" type="number" min={1} max={7} step="0.1" required placeholder="Nota 1.0 a 7.0" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="fechaRegistro" type="date" required title="Fecha de nota" placeholder="Fecha de nota" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+                  Registrar nota
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar observación</h2>
+            <form action={registrarObservacionDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <select name="matriculaId" required title="Seleccionar alumno para observacion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona alumno</option>
+                {matriculas.map((m) => (
+                  <option key={m.matriculaId} value={m.matriculaId}>
+                    {m.alumnoNombre} {m.alumnoApellido} ({m.alumnoRut ? formatearRut(m.alumnoRut) : "Sin credencial"})
+                  </option>
+                ))}
+              </select>
+              <input name="fechaRegistro" type="date" required title="Fecha de observacion" placeholder="Fecha de observacion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <textarea name="observacion" rows={3} required minLength={3} maxLength={500} placeholder="Detalle de la observación" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+                  Guardar observación
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Histórico de notas y observaciones</h2>
+            <div className="mt-4 grid gap-5 lg:grid-cols-2">
+              <div className="overflow-x-auto">
+                <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Notas</h3>
+                <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
+                  <thead>
+                    <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
+                      <th className="px-2 py-2">Alumno</th>
+                      <th className="px-2 py-2">RUT</th>
+                      <th className="px-2 py-2">Nota</th>
+                      <th className="px-2 py-2">Fecha</th>
+                      <th className="px-2 py-2">Año</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {notas.map((n) => (
+                      <tr key={n.id}>
+                        <td className="px-2 py-2">{n.alumnoNombre} {n.alumnoApellido}</td>
+                        <td className="px-2 py-2">{n.alumnoRut ? formatearRut(n.alumnoRut) : "-"}</td>
+                        <td className="px-2 py-2">{n.nota}</td>
+                        <td className="px-2 py-2">{n.fechaRegistro}</td>
+                        <td className="px-2 py-2">{n.anioRegistro}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="overflow-x-auto">
+                <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Observaciones</h3>
+                <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
+                  <thead>
+                    <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
+                      <th className="px-2 py-2">Alumno</th>
+                      <th className="px-2 py-2">RUT</th>
+                      <th className="px-2 py-2">Fecha</th>
+                      <th className="px-2 py-2">Año</th>
+                      <th className="px-2 py-2">Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {observaciones.map((o) => (
+                      <tr key={o.id}>
+                        <td className="px-2 py-2">{o.alumnoNombre} {o.alumnoApellido}</td>
+                        <td className="px-2 py-2">{o.alumnoRut ? formatearRut(o.alumnoRut) : "-"}</td>
+                        <td className="px-2 py-2">{o.fechaRegistro}</td>
+                        <td className="px-2 py-2">{o.anioRegistro}</td>
+                        <td className="px-2 py-2">{o.observacion}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+        </>
+      ) : (
+        <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-sm text-text-secondary dark:text-gray-300">
+            No tienes asignaturas asignadas actualmente.
+          </p>
+        </article>
+      )}
     </section>
   );
 }

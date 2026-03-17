@@ -22,6 +22,22 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
     tone: "success",
     text: "El docente ya estaba inactivo.",
   },
+  invalid_input: {
+    tone: "error",
+    text: "Datos inválidos. Verifica RUT, correo y política de contraseña.",
+  },
+  email_conflict: {
+    tone: "error",
+    text: "El correo ya está registrado por otro usuario.",
+  },
+  rut_conflict: {
+    tone: "error",
+    text: "El RUT ya está asociado a otro tipo de usuario.",
+  },
+  docente_mutation_failed: {
+    tone: "error",
+    text: "No fue posible crear/actualizar el docente por un error interno.",
+  },
   error: {
     tone: "error",
     text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente.",
@@ -154,6 +170,9 @@ export default async function AdminDocentesPage({
               maxLength={128}
               className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
+            <p className="text-xs text-text-secondary dark:text-gray-400">
+              Debe incluir mayúscula, minúscula, número, símbolo y mínimo 12 caracteres.
+            </p>
           </div>
 
           <div className="md:col-span-2">

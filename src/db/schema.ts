@@ -340,6 +340,47 @@ export const solicitudesDocumentos = pgTable(
   }),
 );
 
+export const notasDocente = pgTable(
+  "notas_docente",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    docenteId: uuid("docente_id").notNull().references(() => usuarios.id),
+    asignaturaId: uuid("asignatura_id").notNull().references(() => asignaturas.id),
+    matriculaId: uuid("matricula_id").notNull().references(() => matriculas.id),
+    nota: numeric("nota", { precision: 3, scale: 1 }).notNull(),
+    fechaRegistro: date("fecha_registro").notNull(),
+    anioRegistro: integer("anio_registro").notNull(),
+    createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
+  },
+  (t) => ({
+    alumnoFechaIdx: index("notas_docente_alumno_fecha_idx").on(
+      t.matriculaId,
+      t.fechaRegistro,
+    ),
+  }),
+);
+
+export const observacionesDocente = pgTable(
+  "observaciones_docente",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    docenteId: uuid("docente_id").notNull().references(() => usuarios.id),
+    asignaturaId: uuid("asignatura_id").notNull().references(() => asignaturas.id),
+    matriculaId: uuid("matricula_id").notNull().references(() => matriculas.id),
+    observacion: text("observacion").notNull(),
+    fechaRegistro: date("fecha_registro").notNull(),
+    anioRegistro: integer("anio_registro").notNull(),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    alumnoFechaIdx: index("obs_docente_alumno_fecha_idx").on(
+      t.matriculaId,
+      t.fechaRegistro,
+    ),
+  }),
+);
+
 export const finanzas = pgTable(
   "finanzas",
   {

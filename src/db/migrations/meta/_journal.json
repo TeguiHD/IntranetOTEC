@@ -15,6 +15,13 @@
       "when": 1773709200000,
       "tag": "0001_solicitudes_documentos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773714000000,
+      "tag": "0002_docente_registros",
+      "breakpoints": true
     }
   ]
 }

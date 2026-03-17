@@ -188,8 +188,6 @@ export default async function AdminDocentesPage({
               required
               minLength={12}
               maxLength={128}
-              pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{12,128}$"
-              title="Mínimo 12 caracteres, incluyendo mayúscula, minúscula, número y símbolo."
               className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
             <p className="text-xs text-text-secondary dark:text-gray-400">

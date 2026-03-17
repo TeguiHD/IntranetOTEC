@@ -26,7 +26,19 @@ type DocenteAsignaturasPageProps = {
   searchParams?: {
     state?: string;
     asignaturaId?: string;
+    anio?: string;
   };
+};
+
+const escapeCsvValue = (value: string): string => {
+  const normalized = value.replace(/"/g, '""');
+  return /[",\n]/.test(normalized) ? `"${normalized}"` : normalized;
+};
+
+const toCsvDataUri = (headers: string[], rows: string[][]): string => {
+  const lines = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(","));
+  const csv = `\uFEFF${lines.join("\n")}`;
+  return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
 };
 
 export default async function DocenteAsignaturasPage({ searchParams }: DocenteAsignaturasPageProps) {
@@ -44,6 +56,44 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
         listarObservacionesDocente(selectedAsignaturaId),
       ])
     : [[], [], [], []];
+
+  const anioParam =
+    typeof searchParams?.anio === "string" && /^\d{4}$/.test(searchParams.anio)
+      ? Number.parseInt(searchParams.anio, 10)
+      : null;
+  const aniosDisponibles = Array.from(
+    new Set([
+      ...notas.map((item) => item.anioRegistro),
+      ...observaciones.map((item) => item.anioRegistro),
+    ]),
+  ).sort((a, b) => b - a);
+
+  const notasFiltradas = anioParam ? notas.filter((item) => item.anioRegistro === anioParam) : notas;
+  const observacionesFiltradas = anioParam
+    ? observaciones.filter((item) => item.anioRegistro === anioParam)
+    : observaciones;
+
+  const notasCsvHref = toCsvDataUri(
+    ["Alumno", "RUT", "Nota", "Fecha", "Año"],
+    notasFiltradas.map((n) => [
+      `${n.alumnoNombre} ${n.alumnoApellido}`,
+      n.alumnoRut ? formatearRut(n.alumnoRut) : "",
+      String(n.nota),
+      n.fechaRegistro,
+      String(n.anioRegistro),
+    ]),
+  );
+
+  const observacionesCsvHref = toCsvDataUri(
+    ["Alumno", "RUT", "Fecha", "Año", "Observación"],
+    observacionesFiltradas.map((o) => [
+      `${o.alumnoNombre} ${o.alumnoApellido}`,
+      o.alumnoRut ? formatearRut(o.alumnoRut) : "",
+      o.fechaRegistro,
+      String(o.anioRegistro),
+      o.observacion,
+    ]),
+  );
 
   const state = typeof searchParams?.state === "string" ? searchParams.state : undefined;
   const banner = state ? STATUS_MAP[state] ?? STATUS_MAP.error : null;
@@ -87,7 +137,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
 
       <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Selecciona asignatura</h2>
-        <form className="mt-4 grid gap-4 md:grid-cols-2" method="get">
+        <form className="mt-4 grid gap-4 md:grid-cols-3" method="get">
           <select
             name="asignaturaId"
             defaultValue={selectedAsignaturaId}
@@ -97,6 +147,19 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
             {asignaturas.map((asignatura) => (
               <option key={asignatura.id} value={asignatura.id}>
                 {asignatura.nombre} ({asignatura.codigo ?? "SIN-CODIGO"})
+              </option>
+            ))}
+          </select>
+          <select
+            name="anio"
+            defaultValue={anioParam ? String(anioParam) : ""}
+            title="Filtrar por año"
+            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          >
+            <option value="">Todos los años</option>
+            {aniosDisponibles.map((anio) => (
+              <option key={anio} value={anio}>
+                {anio}
               </option>
             ))}
           </select>
@@ -209,6 +272,22 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
 
           <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Histórico de notas y observaciones</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href={notasCsvHref}
+                download={`notas${anioParam ? `-${anioParam}` : ""}.csv`}
+                className="inline-flex h-9 items-center rounded border border-primary px-3 text-xs font-semibold text-primary hover:bg-primary/10"
+              >
+                Exportar notas CSV
+              </a>
+              <a
+                href={observacionesCsvHref}
+                download={`observaciones${anioParam ? `-${anioParam}` : ""}.csv`}
+                className="inline-flex h-9 items-center rounded border border-primary px-3 text-xs font-semibold text-primary hover:bg-primary/10"
+              >
+                Exportar observaciones CSV
+              </a>
+            </div>
             <div className="mt-4 grid gap-5 lg:grid-cols-2">
               <div className="overflow-x-auto">
                 <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Notas</h3>
@@ -223,7 +302,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {notas.map((n) => (
+                    {notasFiltradas.map((n) => (
                       <tr key={n.id}>
                         <td className="px-2 py-2">{n.alumnoNombre} {n.alumnoApellido}</td>
                         <td className="px-2 py-2">{n.alumnoRut ? formatearRut(n.alumnoRut) : "-"}</td>
@@ -249,7 +328,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {observaciones.map((o) => (
+                    {observacionesFiltradas.map((o) => (
                       <tr key={o.id}>
                         <td className="px-2 py-2">{o.alumnoNombre} {o.alumnoApellido}</td>
                         <td className="px-2 py-2">{o.alumnoRut ? formatearRut(o.alumnoRut) : "-"}</td>

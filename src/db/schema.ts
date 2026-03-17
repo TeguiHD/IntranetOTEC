@@ -100,21 +100,27 @@ export const tipoVideoEnum = pgEnum("tipo_video", [
   "directo",
 ]);
 
-export const usuarios = pgTable("usuarios", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  rut: text("rut").unique(),
-  nombre: text("nombre").notNull(),
-  apellido: text("apellido").notNull(),
-  email: text("email").unique(),
-  password: text("password"),
-  rol: rolEnum("rol").notNull(),
-  avatarUrl: text("avatar_url"),
-  activo: boolean("activo").default(true),
-  eliminadoAt: tstz("eliminado_at"),
-  eliminadoPor: uuid("eliminado_por"),
-  createdAt: tstz("created_at").defaultNow(),
-  updatedAt: tstz("updated_at").defaultNow(),
-});
+export const usuarios = pgTable(
+  "usuarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rut: text("rut"),
+    nombre: text("nombre").notNull(),
+    apellido: text("apellido").notNull(),
+    email: text("email").unique(),
+    password: text("password"),
+    rol: rolEnum("rol").notNull(),
+    avatarUrl: text("avatar_url"),
+    activo: boolean("activo").default(true),
+    eliminadoAt: tstz("eliminado_at"),
+    eliminadoPor: uuid("eliminado_por"),
+    createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
+  },
+  (t) => ({
+    uniqRutRol: unique().on(t.rut, t.rol),
+  }),
+);
 
 export const asignaturas = pgTable("asignaturas", {
   id: uuid("id").primaryKey().defaultRandom(),

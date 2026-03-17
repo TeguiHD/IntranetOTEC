@@ -356,34 +356,39 @@ export async function crearDocenteAction(input: {
     const [existingByEmail] = await db
       .select({
         id: usuarios.id,
+        rol: usuarios.rol,
         activo: usuarios.activo,
       })
       .from(usuarios)
       .where(eq(usuarios.email, email))
       .limit(1);
 
-    const [existingByRut] = await db
+    const [existingDocenteByRut] = await db
       .select({
         id: usuarios.id,
-        rol: usuarios.rol,
         activo: usuarios.activo,
       })
       .from(usuarios)
-      .where(or(eq(usuarios.rut, rutNormalizado), eq(usuarios.rut, rutFormateado)))
+      .where(
+        and(
+          eq(usuarios.rol, "docente"),
+          or(eq(usuarios.rut, rutNormalizado), eq(usuarios.rut, rutFormateado)),
+        ),
+      )
       .limit(1);
 
-    if (existingByRut && existingByRut.rol !== "docente") {
+    if (existingByEmail && existingByEmail.rol !== "docente") {
       return {
         ok: false,
-        code: "rut_conflict",
-        message: "El RUT ya está asociado a otro tipo de usuario.",
+        code: "email_conflict",
+        message: "El correo ya está registrado por otro usuario.",
       };
     }
 
     if (
       existingByEmail &&
-      existingByRut &&
-      existingByEmail.id !== existingByRut.id
+      existingDocenteByRut &&
+      existingByEmail.id !== existingDocenteByRut.id
     ) {
       return {
         ok: false,
@@ -392,7 +397,10 @@ export async function crearDocenteAction(input: {
       };
     }
 
-    const existing = existingByEmail ?? existingByRut;
+    const existing =
+      existingByEmail && existingByEmail.rol === "docente"
+        ? existingByEmail
+        : existingDocenteByRut;
     const isRestore = Boolean(existing && !existing.activo);
 
     if (existing) {
@@ -556,13 +564,15 @@ export async function crearAlumnoAction(input: {
     const [existingByRut] = await db
       .select({
         id: usuarios.id,
-        rol: usuarios.rol,
       })
       .from(usuarios)
       .where(
-        isRutCredential && rutNormalizado && rutFormateado
-          ? or(eq(usuarios.rut, rutNormalizado), eq(usuarios.rut, rutFormateado))
-          : eq(usuarios.rut, identificadorLogin),
+        and(
+          eq(usuarios.rol, "alumno"),
+          isRutCredential && rutNormalizado && rutFormateado
+            ? or(eq(usuarios.rut, rutNormalizado), eq(usuarios.rut, rutFormateado))
+            : eq(usuarios.rut, identificadorLogin),
+        ),
       )
       .limit(1);
 
@@ -580,14 +590,6 @@ export async function crearAlumnoAction(input: {
           message: "El correo ya está registrado por otro usuario.",
         };
       }
-    }
-
-    if (existingByRut && existingByRut.rol !== "alumno") {
-      return {
-        ok: false,
-        code: "rut_conflict",
-        message: "El RUT ya está asociado a otro tipo de usuario.",
-      };
     }
 
     if (existingByRut) {

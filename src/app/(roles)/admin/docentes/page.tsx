@@ -26,6 +26,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
     tone: "error",
     text: "Datos inválidos. Verifica RUT, correo y política de contraseña.",
   },
+  invalid_name: {
+    tone: "error",
+    text: "Nombre o apellido inválido. Deben tener al menos 2 caracteres.",
+  },
   email_conflict: {
     tone: "error",
     text: "El correo ya está registrado por otro usuario.",
@@ -37,6 +41,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   docente_mutation_failed: {
     tone: "error",
     text: "No fue posible crear/actualizar el docente por un error interno.",
+  },
+  forbidden: {
+    tone: "error",
+    text: "Tu sesión no tiene permisos de administrador para esta acción.",
   },
   error: {
     tone: "error",

@@ -26,6 +26,18 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
     tone: "error",
     text: "Datos inválidos. Verifica RUT, correo y política de contraseña.",
   },
+  invalid_rut: {
+    tone: "error",
+    text: "RUT inválido. Revisa formato y dígito verificador.",
+  },
+  invalid_email: {
+    tone: "error",
+    text: "Correo inválido. Verifica el formato ingresado.",
+  },
+  invalid_password_policy: {
+    tone: "error",
+    text: "La contraseña no cumple política: mínimo 12, mayúscula, minúscula, número y símbolo.",
+  },
   invalid_name: {
     tone: "error",
     text: "Nombre o apellido inválido. Deben tener al menos 2 caracteres.",
@@ -176,6 +188,8 @@ export default async function AdminDocentesPage({
               required
               minLength={12}
               maxLength={128}
+              pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{12,128}$"
+              title="Mínimo 12 caracteres, incluyendo mayúscula, minúscula, número y símbolo."
               className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
             <p className="text-xs text-text-secondary dark:text-gray-400">

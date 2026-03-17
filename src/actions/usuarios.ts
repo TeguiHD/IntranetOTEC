@@ -311,9 +311,25 @@ export async function crearDocenteAction(input: {
   const parsed = docenteInputSchema.safeParse(input);
 
   if (!parsed.success) {
+    const issuePaths = new Set(
+      parsed.error.issues
+        .map((issue) => issue.path[0])
+        .filter((path): path is string => typeof path === "string"),
+    );
+
+    const code = issuePaths.has("rut")
+      ? "invalid_rut"
+      : issuePaths.has("email")
+        ? "invalid_email"
+        : issuePaths.has("password")
+          ? "invalid_password_policy"
+          : issuePaths.has("nombre") || issuePaths.has("apellido")
+            ? "invalid_name"
+            : "invalid_input";
+
     return {
       ok: false,
-      code: "invalid_input",
+      code,
       message: "Datos inválidos para crear docente.",
     };
   }

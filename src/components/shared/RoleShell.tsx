@@ -46,7 +46,7 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-bg-light dark:bg-gray-950">
+    <div className="senior-friendly min-h-screen bg-bg-light dark:bg-gray-950">
       <Topbar
         role={role}
         userName={userName}

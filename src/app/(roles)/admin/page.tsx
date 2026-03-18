@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { obtenerMetricasGlobales, obtenerMetricasPorAsignatura } from "@/actions/admin-metricas";
 import { obtenerResumenDatosDocentes } from "@/actions/admin-resumen";
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
 import { AccordionItem } from "@/components/shared/Accordion";
@@ -16,77 +17,72 @@ const MODULE_ICONS: Record<string, string> = {
 };
 
 const MODULE_CARDS = [
-  {
-    href: "/admin/docentes",
-    title: "Docentes",
-    description: "Crear y desactivar cuentas docentes con politica segura.",
-  },
-  {
-    href: "/admin/alumnos",
-    title: "Alumnos",
-    description: "Registrar alumnos con RUT validado y controlar su acceso.",
-  },
-  {
-    href: "/admin/asignaturas",
-    title: "Asignaturas",
-    description: "Crear asignaturas y asignar docentes responsables.",
-  },
-  {
-    href: "/admin/matriculas",
-    title: "Matriculas",
-    description: "Vincular alumnos a asignaturas y gestionar pagos.",
-  },
-  {
-    href: "/admin/clases",
-    title: "Clases",
-    description: "Programar sesiones y definir publicacion de contenido.",
-  },
-  {
-    href: "/admin/solicitudes",
-    title: "Solicitudes",
-    description: "Gestionar solicitudes de credencial, certificados y tarjetas de beneficio.",
-  },
+  { href: "/admin/docentes", title: "Docentes", description: "Crear y desactivar cuentas docentes." },
+  { href: "/admin/alumnos", title: "Alumnos", description: "Registrar alumnos y controlar su acceso." },
+  { href: "/admin/asignaturas", title: "Asignaturas", description: "Crear asignaturas y asignar docentes." },
+  { href: "/admin/matriculas", title: "Matriculas", description: "Vincular alumnos a asignaturas." },
+  { href: "/admin/clases", title: "Clases", description: "Programar sesiones y publicar contenido." },
+  { href: "/admin/solicitudes", title: "Solicitudes", description: "Gestionar solicitudes de documentos." },
 ] as const;
 
 type AdminDashboardPageProps = {
-  searchParams?: {
-    rut?: string;
-  };
+  searchParams?: { rut?: string };
 };
 
 const formatDate = (value: Date | null): string => {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("es-CL", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(value);
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("es-CL", { year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
 };
 
-export default async function AdminDashboardPage({
-  searchParams,
-}: AdminDashboardPageProps) {
+const ESTADO_COLORS: Record<string, string> = {
+  activo: "text-success",
+  finalizado: "text-amber-600 dark:text-amber-400",
+  borrador: "text-text-secondary dark:text-gray-400",
+  archivado: "text-text-muted dark:text-gray-500",
+};
+
+export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
   const rutConsulta = typeof searchParams?.rut === "string" ? searchParams.rut.trim() : "";
-  const [resultadoBusqueda, resumenDocentes] = await Promise.all([
+
+  const [resultadoBusqueda, resumenDocentes, metricas, asigMetricas] = await Promise.all([
     rutConsulta ? buscarPersonaPorRutAdmin({ rut: rutConsulta }) : null,
     obtenerResumenDatosDocentes(),
+    obtenerMetricasGlobales(),
+    obtenerMetricasPorAsignatura(),
   ]);
 
   return (
     <section className="space-y-5">
-      {/* Hero header */}
+      {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
         <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Panel Admin</h1>
         <p className="mt-1 text-sm text-white/80">
-          Centro operativo para administracion academica y control de usuarios.
+          Centro operativo para administración académica y control de usuarios.
         </p>
       </div>
 
-      {/* Module cards grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
+      {/* Global metrics */}
+      {metricas && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          {[
+            { label: "Docentes", value: metricas.totalDocentes, color: "text-primary" },
+            { label: "Alumnos", value: metricas.totalAlumnos, color: "text-primary" },
+            { label: "Asignaturas", value: metricas.totalAsignaturas, color: "text-primary" },
+            { label: "Activas", value: metricas.asignaturasActivas, color: "text-success" },
+            { label: "Finalizadas", value: metricas.asignaturasPorFinalizar, color: "text-amber-600 dark:text-amber-400" },
+            { label: "Clases", value: metricas.totalClases, color: "text-secondary" },
+            { label: "Solicitudes", value: metricas.solicitudesPendientes, color: metricas.solicitudesPendientes > 0 ? "text-danger" : "text-success" },
+          ].map((m) => (
+            <div key={m.label} className="rounded-xl border border-gray-100 bg-white p-3 text-center dark:border-gray-800 dark:bg-gray-900">
+              <p className={`text-2xl font-bold ${m.color}`}>{m.value}</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">{m.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Module cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {MODULE_CARDS.map((card) => (
           <Link
             key={card.href}
@@ -99,27 +95,100 @@ export default async function AdminDashboardPage({
               </svg>
             </div>
             <h2 className="text-sm font-semibold text-text-primary dark:text-white sm:text-base">{card.title}</h2>
-            <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">
-              {card.description}
-            </p>
+            <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">{card.description}</p>
           </Link>
         ))}
       </div>
 
+      {/* Asignatura metrics */}
+      {asigMetricas.length > 0 && (
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+            Métricas por Asignatura
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+            Alumnos inscritos, clases dictadas y asistencia promedio por asignatura.
+          </p>
+
+          {/* Mobile: cards */}
+          <div className="mt-4 space-y-3 sm:hidden">
+            {asigMetricas.map((a) => (
+              <div key={a.id} className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-800/50">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-text-primary dark:text-white">{a.nombre}</p>
+                    <p className="text-xs text-text-secondary dark:text-gray-400">
+                      {a.docenteNombre ?? "Sin docente"} · <span className={ESTADO_COLORS[a.estado ?? ""] ?? ""}>{a.estado ?? "-"}</span>
+                    </p>
+                  </div>
+                  {a.asistenciaPromedio !== null && (
+                    <span className={`text-sm font-bold ${a.asistenciaPromedio >= 75 ? "text-success" : a.asistenciaPromedio >= 50 ? "text-amber-600 dark:text-amber-400" : "text-danger"}`}>
+                      {a.asistenciaPromedio}%
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-4 text-xs text-text-secondary dark:text-gray-400">
+                  <span><strong className="text-text-primary dark:text-white">{a.totalAlumnos}</strong> alumnos</span>
+                  <span><strong className="text-text-primary dark:text-white">{a.totalClases}</strong> clases</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="mt-4 hidden overflow-x-auto sm:block">
+            <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  <th className="px-3 py-2.5">Asignatura</th>
+                  <th className="px-3 py-2.5">Docente</th>
+                  <th className="px-3 py-2.5">Estado</th>
+                  <th className="px-3 py-2.5 text-right">Alumnos</th>
+                  <th className="px-3 py-2.5 text-right">Clases</th>
+                  <th className="px-3 py-2.5 text-right">Asistencia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                {asigMetricas.map((a) => (
+                  <tr key={a.id} className="transition-colors hover:bg-primary/[0.03] dark:hover:bg-primary/5">
+                    <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">{a.nombre}</td>
+                    <td className="px-3 py-3 text-text-secondary dark:text-gray-400">{a.docenteNombre ?? "—"}</td>
+                    <td className="px-3 py-3">
+                      <span className={`text-xs font-semibold ${ESTADO_COLORS[a.estado ?? ""] ?? "text-text-secondary dark:text-gray-400"}`}>
+                        {a.estado ?? "—"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-right font-semibold text-text-primary dark:text-white">{a.totalAlumnos}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-text-primary dark:text-white">{a.totalClases}</td>
+                    <td className="px-3 py-3 text-right">
+                      {a.asistenciaPromedio !== null ? (
+                        <span className={`font-bold ${a.asistenciaPromedio >= 75 ? "text-success" : a.asistenciaPromedio >= 50 ? "text-amber-600 dark:text-amber-400" : "text-danger"}`}>
+                          {a.asistenciaPromedio}%
+                        </span>
+                      ) : (
+                        <span className="text-text-muted dark:text-gray-500">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      )}
+
       {/* RUT search */}
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
         <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-          Busqueda por RUT
+          Búsqueda por RUT
         </h2>
         <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-          Consulta historico de estudiante o docente con metricas operativas.
+          Consulta histórico de estudiante o docente con métricas operativas.
         </p>
 
         <form action="/admin" method="get" className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="w-full space-y-1.5 sm:max-w-sm">
-            <label htmlFor="buscar-rut" className="text-sm font-medium text-text-primary dark:text-gray-200">
-              RUT
-            </label>
+            <label htmlFor="buscar-rut" className="text-sm font-medium text-text-primary dark:text-gray-200">RUT</label>
             <input
               id="buscar-rut"
               name="rut"
@@ -141,11 +210,11 @@ export default async function AdminDashboardPage({
           </button>
         </form>
 
-        {resultadoBusqueda && !resultadoBusqueda.ok ? (
+        {resultadoBusqueda && !resultadoBusqueda.ok && (
           <MessageToast message={resultadoBusqueda.message} tone="error" />
-        ) : null}
+        )}
 
-        {resultadoBusqueda && resultadoBusqueda.ok ? (
+        {resultadoBusqueda?.ok && (
           <div className="mt-5 space-y-4">
             <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm dark:border-primary/30 dark:bg-primary/10">
               <p className="font-semibold text-text-primary dark:text-white">
@@ -160,24 +229,16 @@ export default async function AdminDashboardPage({
               <>
                 <div className="grid gap-3 grid-cols-2">
                   <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                      Asignaturas historicas
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-primary">
-                      {resultadoBusqueda.metrics.asignaturasHistoricas}
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">Asignaturas históricas</p>
+                    <p className="mt-1 text-2xl font-bold text-primary">{resultadoBusqueda.metrics.asignaturasHistoricas}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                      Asignaturas activas
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-success">
-                      {resultadoBusqueda.metrics.asignaturasActivas}
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">Asignaturas activas</p>
+                    <p className="mt-1 text-2xl font-bold text-success">{resultadoBusqueda.metrics.asignaturasActivas}</p>
                   </div>
                 </div>
 
-                {/* Mobile: cards / Desktop: table */}
+                {/* Mobile cards */}
                 <div className="space-y-2 sm:hidden">
                   {resultadoBusqueda.historial.length > 0 ? (
                     resultadoBusqueda.historial.map((row) => (
@@ -195,6 +256,7 @@ export default async function AdminDashboardPage({
                     <p className="text-sm text-text-secondary dark:text-gray-400">Sin historial.</p>
                   )}
                 </div>
+                {/* Desktop table */}
                 <div className="hidden overflow-x-auto sm:block">
                   <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
                     <thead>
@@ -202,7 +264,7 @@ export default async function AdminDashboardPage({
                         <th className="px-3 py-2.5">Asignatura</th>
                         <th className="px-3 py-2.5">Estado</th>
                         <th className="px-3 py-2.5">Pago</th>
-                        <th className="px-3 py-2.5">Matricula</th>
+                        <th className="px-3 py-2.5">Matrícula</th>
                         <th className="px-3 py-2.5">Fecha</th>
                       </tr>
                     </thead>
@@ -213,18 +275,12 @@ export default async function AdminDashboardPage({
                             <td className="px-3 py-2.5 text-text-primary dark:text-gray-100">{row.asignaturaNombre}</td>
                             <td className="px-3 py-2.5 text-text-secondary dark:text-gray-400">{row.estadoAsignatura ?? "-"}</td>
                             <td className="px-3 py-2.5 text-text-secondary dark:text-gray-400">{row.estadoPago ?? "-"}</td>
-                            <td className="px-3 py-2.5 text-text-secondary dark:text-gray-400">
-                              {row.activa ? "Activa" : "Inactiva"}
-                            </td>
+                            <td className="px-3 py-2.5 text-text-secondary dark:text-gray-400">{row.activa ? "Activa" : "Inactiva"}</td>
                             <td className="px-3 py-2.5 text-text-secondary dark:text-gray-400">{formatDate(row.fechaMatricula)}</td>
                           </tr>
                         ))
                       ) : (
-                        <tr>
-                          <td colSpan={5} className="px-3 py-4 text-center text-text-secondary dark:text-gray-400">
-                            No hay historial de matriculas para este alumno.
-                          </td>
-                        </tr>
+                        <tr><td colSpan={5} className="px-3 py-4 text-center text-text-secondary dark:text-gray-400">Sin historial.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -234,20 +290,12 @@ export default async function AdminDashboardPage({
               <>
                 <div className="grid gap-3 grid-cols-2">
                   <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                      Cursos impartidos
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-primary">
-                      {resultadoBusqueda.metrics.cursosHistoricos}
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">Cursos impartidos</p>
+                    <p className="mt-1 text-2xl font-bold text-primary">{resultadoBusqueda.metrics.cursosHistoricos}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                      Material cargado
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-secondary">
-                      {resultadoBusqueda.metrics.materialCargado}
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">Material cargado</p>
+                    <p className="mt-1 text-2xl font-bold text-secondary">{resultadoBusqueda.metrics.materialCargado}</p>
                   </div>
                 </div>
 
@@ -270,17 +318,12 @@ export default async function AdminDashboardPage({
                           </tr>
                         ))
                       ) : (
-                        <tr>
-                          <td colSpan={3} className="px-3 py-4 text-center text-text-secondary dark:text-gray-400">
-                            Este docente no tiene asignaturas registradas.
-                          </td>
-                        </tr>
+                        <tr><td colSpan={3} className="px-3 py-4 text-center text-text-secondary dark:text-gray-400">Sin asignaturas.</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
 
-                {/* Mobile: card view for docente asignaturas */}
                 <div className="space-y-2 sm:hidden">
                   {resultadoBusqueda.asignaturas.length > 0 ? (
                     resultadoBusqueda.asignaturas.map((row) => (
@@ -299,11 +342,11 @@ export default async function AdminDashboardPage({
               </>
             )}
           </div>
-        ) : null}
+        )}
       </article>
 
-      {/* Resumen docentes */}
-      {resumenDocentes.length > 0 ? (
+      {/* Docente summaries */}
+      {resumenDocentes.length > 0 && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
             Datos Subidos por Docentes
@@ -317,36 +360,24 @@ export default async function AdminDashboardPage({
                 (sum, a) => sum + a.totalClases + a.totalAsistencias + a.totalNotas + a.totalObservaciones,
                 0,
               );
-
               return (
-                <AccordionItem
-                  key={docente.docenteId}
-                  title={`${docente.docenteNombre} ${docente.docenteApellido}`}
-                  badge={`${totalActividad} registros`}
-                >
+                <AccordionItem key={docente.docenteId} title={`${docente.docenteNombre} ${docente.docenteApellido}`} badge={`${totalActividad} registros`}>
                   <div className="space-y-3">
                     {docente.asignaturas.map((asig) => (
                       <div key={asig.asignaturaId} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800/50">
-                        <p className="text-sm font-medium text-text-primary dark:text-gray-100">
-                          {asig.asignaturaNombre}
-                        </p>
+                        <p className="text-sm font-medium text-text-primary dark:text-gray-100">{asig.asignaturaNombre}</p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          <div className="rounded-lg bg-white p-2 text-center dark:bg-gray-900">
-                            <p className="text-lg font-bold text-primary">{asig.totalClases}</p>
-                            <p className="text-xs text-text-secondary dark:text-gray-400">Clases</p>
-                          </div>
-                          <div className="rounded-lg bg-white p-2 text-center dark:bg-gray-900">
-                            <p className="text-lg font-bold text-success">{asig.totalAsistencias}</p>
-                            <p className="text-xs text-text-secondary dark:text-gray-400">Asistencias</p>
-                          </div>
-                          <div className="rounded-lg bg-white p-2 text-center dark:bg-gray-900">
-                            <p className="text-lg font-bold text-secondary">{asig.totalNotas}</p>
-                            <p className="text-xs text-text-secondary dark:text-gray-400">Notas</p>
-                          </div>
-                          <div className="rounded-lg bg-white p-2 text-center dark:bg-gray-900">
-                            <p className="text-lg font-bold text-warning">{asig.totalObservaciones}</p>
-                            <p className="text-xs text-text-secondary dark:text-gray-400">Observaciones</p>
-                          </div>
+                          {[
+                            { value: asig.totalClases, label: "Clases", color: "text-primary" },
+                            { value: asig.totalAsistencias, label: "Asistencias", color: "text-success" },
+                            { value: asig.totalNotas, label: "Notas", color: "text-secondary" },
+                            { value: asig.totalObservaciones, label: "Observaciones", color: "text-warning" },
+                          ].map((m) => (
+                            <div key={m.label} className="rounded-lg bg-white p-2 text-center dark:bg-gray-900">
+                              <p className={`text-lg font-bold ${m.color}`}>{m.value}</p>
+                              <p className="text-xs text-text-secondary dark:text-gray-400">{m.label}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))}
@@ -356,7 +387,7 @@ export default async function AdminDashboardPage({
             })}
           </div>
         </article>
-      ) : null}
+      )}
     </section>
   );
 }

@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-type ToastTone = "success" | "error" | "info";
+type ToastTone = "success" | "error" | "info" | "warning";
 
 export type RouteStateToastMap = Record<
   string,
   {
     tone: ToastTone;
     text: string;
+    description?: string;
   }
 >;
 
@@ -54,12 +55,24 @@ export function RouteStateToast({
 
     lastToastIdRef.current = toastId;
 
-    if (notification.tone === "success") {
-      toast.success(notification.text, { id: toastId });
-    } else if (notification.tone === "info") {
-      toast(notification.text, { id: toastId });
-    } else {
-      toast.error(notification.text, { id: toastId });
+    const opts = {
+      id: toastId,
+      description: notification.description,
+    };
+
+    switch (notification.tone) {
+      case "success":
+        toast.success(notification.text, opts);
+        break;
+      case "warning":
+        toast.warning(notification.text, opts);
+        break;
+      case "info":
+        toast.info(notification.text, opts);
+        break;
+      default:
+        toast.error(notification.text, opts);
+        break;
     }
 
     if (!clearParam) {

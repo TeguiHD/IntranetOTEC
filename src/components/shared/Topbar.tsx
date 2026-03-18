@@ -7,14 +7,27 @@ import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 
+import {
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  LogOut,
+  Menu,
+  Moon,
+  PanelLeft,
+  Sun,
+} from "lucide-react";
+
 import type { AppRole } from "@/lib/authz";
 
 type TopbarProps = {
   role: AppRole;
   userName: string;
   isSidebarCollapsed: boolean;
+  navMode: "grid" | "sidebar";
   onToggleDesktopSidebar: () => void;
   onToggleMobileSidebar: () => void;
+  onToggleNavMode: () => void;
 };
 
 const ROLE_NAMES: Record<AppRole, string> = {
@@ -30,11 +43,7 @@ const toLabel = (segment: string): string =>
 
 const getInitials = (name: string): string => {
   const clean = name.trim();
-
-  if (!clean) {
-    return "US";
-  }
-
+  if (!clean) return "US";
   const words = clean.split(/\s+/).slice(0, 2);
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
 };
@@ -43,8 +52,10 @@ export function Topbar({
   role,
   userName,
   isSidebarCollapsed,
+  navMode,
   onToggleDesktopSidebar,
   onToggleMobileSidebar,
+  onToggleNavMode,
 }: TopbarProps) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
@@ -57,11 +68,9 @@ export function Topbar({
 
   const breadcrumbs = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
-
     return segments.map((segment, index) => {
       const href = `/${segments.slice(0, index + 1).join("/")}`;
       const label = index === 0 ? ROLE_NAMES[role] : toLabel(segment);
-
       return { href, label };
     });
   }, [pathname, role]);
@@ -79,16 +88,14 @@ export function Topbar({
   return (
     <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:px-4">
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-        {/* Mobile menu */}
+        {/* Mobile menu button */}
         <button
           type="button"
-          aria-label="Abrir menu"
+          aria-label="Abrir menú"
           onClick={onToggleMobileSidebar}
           className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-            <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
+          <Menu className="h-5 w-5" />
         </button>
 
         {/* Desktop sidebar toggle */}
@@ -98,20 +105,20 @@ export function Topbar({
           onClick={onToggleDesktopSidebar}
           className="hidden h-10 w-10 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 dark:text-gray-100 dark:hover:bg-primary/20 md:inline-flex"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d={isSidebarCollapsed ? "M8 6l6 6-6 6" : "M16 6l-6 6 6 6"} />
-          </svg>
+          {isSidebarCollapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <ChevronLeft className="h-5 w-5" />
+          )}
         </button>
 
         {/* Breadcrumbs - desktop only */}
         <nav className="hidden min-w-0 items-center text-sm sm:flex" aria-label="Breadcrumb">
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1;
-
             return (
               <div key={crumb.href} className="flex min-w-0 items-center">
                 {index > 0 ? <span className="px-1.5 text-gray-400 dark:text-gray-500">/</span> : null}
-
                 {isLast ? (
                   <span className="truncate font-semibold text-text-primary dark:text-white">{crumb.label}</span>
                 ) : (
@@ -134,6 +141,21 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Mobile nav mode toggle */}
+        <button
+          type="button"
+          aria-label={navMode === "grid" ? "Cambiar a vista de lista" : "Cambiar a vista de iconos"}
+          title={navMode === "grid" ? "Vista de lista" : "Vista de iconos"}
+          onClick={onToggleNavMode}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
+        >
+          {navMode === "grid" ? (
+            <PanelLeft className="h-5 w-5" />
+          ) : (
+            <LayoutGrid className="h-5 w-5" />
+          )}
+        </button>
+
         {/* Theme toggle */}
         <button
           type="button"
@@ -143,16 +165,7 @@ export function Topbar({
           className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
         >
           {mounted ? (
-            isDark ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                <circle cx="12" cy="12" r="4" />
-                <path strokeLinecap="round" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
-              </svg>
-            )
+            isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />
           ) : (
             <span className="h-5 w-5" />
           )}
@@ -178,9 +191,10 @@ export function Topbar({
             });
           }}
           disabled={isSigningOut}
-          className="h-11 rounded-xl border border-danger/30 px-3 text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-white active:scale-95 disabled:opacity-50 dark:border-danger/40 dark:text-red-400 dark:hover:bg-danger dark:hover:text-white sm:px-4"
+          className="inline-flex h-11 items-center gap-2 rounded-xl border border-danger/30 px-3 text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-white active:scale-95 disabled:opacity-50 dark:border-danger/40 dark:text-red-400 dark:hover:bg-danger dark:hover:text-white sm:px-4"
         >
-          {isSigningOut ? "..." : "Salir"}
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline">{isSigningOut ? "..." : "Salir"}</span>
         </button>
       </div>
     </header>

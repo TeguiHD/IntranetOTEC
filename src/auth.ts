@@ -16,6 +16,7 @@ type AuthUserRecord = {
   id: string;
   nombre: string;
   apellido: string;
+  rut: string | null;
   email: string | null;
   password: string | null;
   rol: AppRole;
@@ -110,6 +111,7 @@ const resolveEmergencyStaffUser = async (
     id: `emg-${account.role}-${toSafeSlug(account.email)}`,
     nombre: account.role === "admin" ? "Superadmin" : "Docente",
     apellido: "Prueba",
+    rut: null,
     email: account.email,
     password: null,
     rol: account.role,
@@ -129,6 +131,7 @@ const resolveEmergencyAlumnoUser = (rutLimpio: string): AuthUserRecord | null =>
     id: `emg-alumno-${toSafeSlug(rutLimpio)}`,
     nombre: "Alumno",
     apellido: "Prueba",
+    rut: rutLimpio,
     email: null,
     password: null,
     rol: "alumno",
@@ -192,6 +195,7 @@ const selectAuthFields = {
   id: usuarios.id,
   nombre: usuarios.nombre,
   apellido: usuarios.apellido,
+  rut: usuarios.rut,
   email: usuarios.email,
   password: usuarios.password,
   rol: usuarios.rol,
@@ -315,7 +319,7 @@ const nextAuth = NextAuth({
             );
           }
 
-          const expectedSecret = `${rutSalt}${rutLimpio}${record.id}`;
+          const expectedSecret = `${rutSalt}${record.rut ?? rutLimpio}${record.id}`;
           const passwordOk = await bcrypt.compare(expectedSecret, record.password);
 
           if (!passwordOk) {

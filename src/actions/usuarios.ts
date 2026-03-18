@@ -19,6 +19,8 @@ import {
   comboboxSearchQuerySchema,
   docenteInputSchema,
   desactivarUsuarioInputSchema,
+  editarAlumnoInputSchema,
+  editarDocenteInputSchema,
 } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
@@ -1030,4 +1032,206 @@ export async function activarAlumnoFormAction(
 
   revalidatePath("/admin/alumnos");
   redirect(`/admin/alumnos?state=${result.ok ? result.code : "error"}`);
+}
+
+// ── Edit actions ──────────────────────────────────────────────────
+
+export async function editarDocenteAction(input: {
+  userId: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_edit_docente", ["admin"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = editarDocenteInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [target] = await db
+      .select({ id: usuarios.id, rol: usuarios.rol })
+      .from(usuarios)
+      .where(and(eq(usuarios.id, parsed.data.userId), eq(usuarios.rol, "docente")))
+      .limit(1);
+
+    if (!target) {
+      return { ok: false, code: "user_not_found", message: "Docente no encontrado." };
+    }
+
+    // Check email uniqueness (excluding self)
+    const [emailConflict] = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(
+        and(
+          eq(usuarios.email, parsed.data.email),
+          sql`${usuarios.id} != ${target.id}`,
+        ),
+      )
+      .limit(1);
+
+    if (emailConflict) {
+      return { ok: false, code: "email_conflict", message: "El correo ya está en uso por otro usuario." };
+    }
+
+    await db
+      .update(usuarios)
+      .set({
+        nombre: sanitizeName(parsed.data.nombre),
+        apellido: sanitizeName(parsed.data.apellido),
+        email: parsed.data.email,
+        updatedAt: new Date(),
+      })
+      .where(eq(usuarios.id, target.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "usuarios",
+      entidadId: target.id,
+      payload: { nombre: parsed.data.nombre, apellido: parsed.data.apellido, email: parsed.data.email },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "docente_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_edit_docente_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return { ok: false, code: "edit_failed", message: "No fue posible actualizar el docente." };
+  }
+}
+
+export async function editarAlumnoAction(input: {
+  userId: string;
+  nombre: string;
+  apellido: string;
+  email?: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_edit_alumno", ["admin"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = editarAlumnoInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: parsed.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [target] = await db
+      .select({ id: usuarios.id, rol: usuarios.rol })
+      .from(usuarios)
+      .where(and(eq(usuarios.id, parsed.data.userId), eq(usuarios.rol, "alumno")))
+      .limit(1);
+
+    if (!target) {
+      return { ok: false, code: "user_not_found", message: "Alumno no encontrado." };
+    }
+
+    // Check email uniqueness if provided (excluding self)
+    if (parsed.data.email) {
+      const [emailConflict] = await db
+        .select({ id: usuarios.id })
+        .from(usuarios)
+        .where(
+          and(
+            eq(usuarios.email, parsed.data.email),
+            sql`${usuarios.id} != ${target.id}`,
+          ),
+        )
+        .limit(1);
+
+      if (emailConflict) {
+        return { ok: false, code: "email_conflict", message: "El correo ya está en uso por otro usuario." };
+      }
+    }
+
+    await db
+      .update(usuarios)
+      .set({
+        nombre: sanitizeName(parsed.data.nombre),
+        apellido: sanitizeName(parsed.data.apellido),
+        email: parsed.data.email ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(usuarios.id, target.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "usuarios",
+      entidadId: target.id,
+      payload: { nombre: parsed.data.nombre, apellido: parsed.data.apellido },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "alumno_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_edit_alumno_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return { ok: false, code: "edit_failed", message: "No fue posible actualizar el alumno." };
+  }
+}
+
+export async function editarDocenteFormAction(formData: FormData): Promise<void> {
+  const result = await editarDocenteAction({
+    userId: getStringField(formData, "userId"),
+    nombre: getStringField(formData, "nombre"),
+    apellido: getStringField(formData, "apellido"),
+    email: getStringField(formData, "email"),
+  });
+
+  revalidatePath("/admin/docentes");
+  redirect(`/admin/docentes?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function editarAlumnoFormAction(formData: FormData): Promise<void> {
+  const result = await editarAlumnoAction({
+    userId: getStringField(formData, "userId"),
+    nombre: getStringField(formData, "nombre"),
+    apellido: getStringField(formData, "apellido"),
+    email: getStringField(formData, "email") || undefined,
+  });
+
+  revalidatePath("/admin/alumnos");
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
 }

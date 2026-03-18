@@ -288,6 +288,39 @@ export const desactivarUsuarioInputSchema = z.object({
   userId: z.string().uuid("Usuario inválido."),
 });
 
+export const editarDocenteInputSchema = z.object({
+  userId: z.string().uuid("Usuario inválido."),
+  nombre: safeName,
+  apellido: safeName,
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Correo inválido.")
+    .max(180, "Correo demasiado largo."),
+});
+
+export const editarAlumnoInputSchema = z.object({
+  userId: z.string().uuid("Usuario inválido."),
+  nombre: safeName,
+  apellido: safeName,
+  email: z
+    .union([z.string(), z.undefined()])
+    .transform((value) => {
+      if (typeof value !== "string") return undefined;
+      const trimmed = value.trim().toLowerCase();
+      return trimmed.length > 0 ? trimmed : undefined;
+    })
+    .refine(
+      (value) => !value || z.string().email().safeParse(value).success,
+      "Correo inválido.",
+    )
+    .refine(
+      (value) => !value || value.length <= 180,
+      "Correo demasiado largo.",
+    ),
+});
+
 export const buscarPersonaPorRutInputSchema = z.object({
   rut: rutValue,
 });

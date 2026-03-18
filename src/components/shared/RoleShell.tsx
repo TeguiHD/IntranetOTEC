@@ -6,10 +6,14 @@ import { usePathname } from "next/navigation";
 
 import type { AppRole } from "@/lib/authz";
 
+import { MobileNavGrid } from "./MobileNavGrid";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 const SIDEBAR_STORAGE_KEY = "otec.sidebar.collapsed";
+const NAV_MODE_STORAGE_KEY = "otec.nav.mode";
+
+type NavMode = "grid" | "sidebar";
 
 type RoleShellProps = {
   role: AppRole;
@@ -21,29 +25,35 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
   const pathname = usePathname();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [navMode, setNavMode] = useState<NavMode>("grid");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const storedState = globalThis.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    const storedCollapsed = globalThis.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (storedCollapsed === "1") setIsSidebarCollapsed(true);
 
-    if (storedState === "1") {
-      setIsSidebarCollapsed(true);
-    }
+    const storedMode = globalThis.localStorage.getItem(NAV_MODE_STORAGE_KEY);
+    if (storedMode === "sidebar") setNavMode("sidebar");
 
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hydrated) {
-      return;
-    }
-
+    if (!hydrated) return;
     globalThis.localStorage.setItem(SIDEBAR_STORAGE_KEY, isSidebarCollapsed ? "1" : "0");
   }, [hydrated, isSidebarCollapsed]);
 
   useEffect(() => {
+    if (!hydrated) return;
+    globalThis.localStorage.setItem(NAV_MODE_STORAGE_KEY, navMode);
+  }, [hydrated, navMode]);
+
+  // Close mobile nav on route change
+  useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [pathname]);
+
+  const handleToggleMobile = () => setIsMobileSidebarOpen((prev) => !prev);
 
   return (
     <div className="min-h-screen bg-bg-light dark:bg-bg-dark">
@@ -51,14 +61,25 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
         role={role}
         userName={userName}
         isSidebarCollapsed={isSidebarCollapsed}
+        navMode={navMode}
         onToggleDesktopSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
-        onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+        onToggleMobileSidebar={handleToggleMobile}
+        onToggleNavMode={() => setNavMode((m) => (m === "grid" ? "sidebar" : "grid"))}
       />
 
+      {/* Mobile: grid overlay (default) */}
+      <MobileNavGrid
+        role={role}
+        userName={userName}
+        open={isMobileSidebarOpen && navMode === "grid"}
+        onClose={() => setIsMobileSidebarOpen(false)}
+      />
+
+      {/* Desktop sidebar + Mobile sidebar (when mode is "sidebar") */}
       <Sidebar
         role={role}
         collapsed={isSidebarCollapsed}
-        mobileOpen={isMobileSidebarOpen}
+        mobileOpen={isMobileSidebarOpen && navMode === "sidebar"}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 

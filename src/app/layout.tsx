@@ -45,17 +45,22 @@ export default function RootLayout({
             closeButton
             expand
             visibleToasts={5}
+            gap={8}
             toastOptions={{
+              duration: 4000,
               classNames: {
                 toast:
-                  "!border !border-gray-200 !bg-white dark:!border-gray-700 dark:!bg-gray-900",
+                  "!rounded-xl !border !border-gray-200/80 !bg-white !shadow-lg !shadow-gray-200/30 dark:!border-gray-700 dark:!bg-gray-900 dark:!shadow-none",
                 title:
                   "!text-sm !font-semibold !text-text-primary dark:!text-gray-100",
                 description:
                   "!text-xs !text-text-secondary dark:!text-gray-300",
-                actionButton: "!bg-primary !text-white",
+                actionButton:
+                  "!rounded-lg !bg-primary !text-white !font-medium !text-xs",
                 cancelButton:
-                  "!bg-gray-100 !text-text-primary dark:!bg-gray-800 dark:!text-gray-100",
+                  "!rounded-lg !bg-gray-100 !text-text-primary dark:!bg-gray-800 dark:!text-gray-100 !font-medium !text-xs",
+                closeButton:
+                  "!border-gray-200 dark:!border-gray-700 !bg-white dark:!bg-gray-800",
               },
             }}
           />

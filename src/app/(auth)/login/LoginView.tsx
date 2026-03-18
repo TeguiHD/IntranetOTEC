@@ -6,13 +6,22 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  User,
+} from "lucide-react";
+
 import { RutInput } from "@/components/shared/RutInput";
 import { normalizarRut } from "@/lib/rut";
 
 type LoginTab = "alumno" | "staff";
 
 const TAB_LABELS: Record<LoginTab, string> = {
-  alumno: "Alumno (RUT)",
+  alumno: "Alumno",
   staff: "Docente / Admin",
 };
 
@@ -36,6 +45,22 @@ type LoginViewProps = {
   authError?: string;
 };
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />;
+}
+
+function OtecLogo() {
+  return (
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark shadow-lg shadow-primary/30">
+      <svg viewBox="0 0 32 32" fill="none" className="h-8 w-8">
+        <path d="M6 26V12L16 4l10 8v14H6Z" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+        <rect x="11" y="17" width="4" height="9" rx="1" fill="white" />
+        <rect x="17" y="13" width="4" height="4" rx="1" fill="white" fillOpacity="0.85" />
+      </svg>
+    </div>
+  );
+}
+
 export function LoginView({ authError }: LoginViewProps) {
   const router = useRouter();
 
@@ -44,6 +69,7 @@ export function LoginView({ authError }: LoginViewProps) {
   const [isRutValid, setIsRutValid] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const lastQueryErrorRef = useRef<string | null>(null);
@@ -120,115 +146,178 @@ export function LoginView({ authError }: LoginViewProps) {
   };
 
   return (
-    <main className="flex min-h-screen items-center bg-bg-light px-4 py-8 dark:bg-gray-950 sm:py-12">
-      <section className="mx-auto w-full max-w-md rounded-md border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <header className="border-b border-gray-200 px-6 py-5 text-center dark:border-gray-700">
-          <h1 className="text-2xl font-bold text-primary dark:text-primary-light">Mi OTEC</h1>
-          <p className="mt-1 text-sm text-text-secondary dark:text-gray-300">
-            Intranet educativa
-          </p>
-        </header>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f3eef9] via-[#ede6f5] to-[#e8dff2] px-4 py-8 dark:from-gray-950 dark:via-[#0d0a14] dark:to-[#100c18]">
+      {/* Decorative background circles */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl dark:bg-primary/5" />
+        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-primary/8 blur-3xl dark:bg-primary/4" />
+      </div>
 
-        <div className="-mx-6 mt-0 flex border-b border-gray-200 px-6 dark:border-gray-700">
-          {(["alumno", "staff"] as const).map((tab) => {
-            const active = activeTab === tab;
-
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => {
-                  setFormError(null);
-                  setActiveTab(tab);
-                }}
-                className={`relative flex-1 border-b-[3px] px-4 py-3 text-sm font-medium ${
-                  active
-                    ? "border-primary text-primary dark:text-primary-light"
-                    : "border-gray-200 text-text-secondary hover:text-text-primary dark:border-gray-700 dark:text-gray-300 dark:hover:text-white"
-                }`}
-              >
-                {TAB_LABELS[tab]}
-              </button>
-            );
-          })}
+      <section className="relative w-full max-w-md">
+        {/* Logo + brand */}
+        <div className="mb-8 flex flex-col items-center gap-3">
+          <OtecLogo />
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
+              Mi OTEC
+            </h1>
+            <p className="mt-0.5 text-sm text-text-secondary dark:text-gray-400">
+              Intranet educativa — acceso seguro
+            </p>
+          </div>
         </div>
 
-        <div className="px-6 py-6">
-          {activeTab === "alumno" ? (
-            <form className="space-y-4" onSubmit={handleAlumnoSubmit} noValidate>
-              <RutInput
-                id="alumno-rut"
-                name="rut"
-                value={rut}
-                required
-                autoFocus
-                disabled={isPending}
-                onChange={setRut}
-                onValidityChange={setIsRutValid}
-              />
-              <button
-                type="submit"
-                disabled={isPending}
-                className="h-11 w-full rounded bg-primary text-sm font-semibold text-white hover:bg-primary-dark focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isPending ? "Validando…" : "Ingresar"}
-              </button>
-            </form>
-          ) : (
-            <form className="space-y-4" onSubmit={handleStaffSubmit} noValidate>
-              <div className="space-y-1">
-                <label htmlFor="staff-email" className="text-sm font-medium text-text-primary dark:text-gray-100">
-                  Correo electrónico
-                </label>
-                <input
-                  id="staff-email"
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="username"
-                  value={email}
+        {/* Card */}
+        <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white/90 shadow-xl shadow-gray-200/50 backdrop-blur-sm dark:border-gray-700/60 dark:bg-gray-900/90 dark:shadow-none">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            {(["alumno", "staff"] as const).map((tab) => {
+              const active = activeTab === tab;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setFormError(null);
+                    setActiveTab(tab);
+                  }}
+                  className={`relative flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
+                    active
+                      ? "bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary-light"
+                      : "text-text-secondary hover:bg-gray-50 hover:text-text-primary dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary dark:bg-primary-light" />
+                  )}
+                  <span className="flex items-center justify-center gap-2">
+                    {tab === "alumno" ? <User className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                    {TAB_LABELS[tab]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="px-6 py-7">
+            {activeTab === "alumno" ? (
+              <form className="space-y-5" onSubmit={handleAlumnoSubmit} noValidate>
+                <div>
+                  <p className="mb-4 text-sm text-text-secondary dark:text-gray-400">
+                    Ingresa con tu <strong className="text-text-primary dark:text-white">RUT</strong> sin puntos y con guión (ej: 12345678-9).
+                  </p>
+                  <RutInput
+                    id="alumno-rut"
+                    name="rut"
+                    value={rut}
+                    required
+                    autoFocus
+                    disabled={isPending}
+                    onChange={setRut}
+                    onValidityChange={setIsRutValid}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isPending || !isRutValid}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/30 focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-primary/10"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Validando…
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="h-4 w-4" />
+                      Ingresar como Alumno
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form className="space-y-5" onSubmit={handleStaffSubmit} noValidate>
+                <div className="space-y-1.5">
+                  <label htmlFor="staff-email" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="staff-email"
+                    name="email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="username"
+                    value={email}
+                    disabled={isPending}
+                    onChange={(event) => setEmail(event.currentTarget.value)}
+                    placeholder="docente@miotec.cl"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="staff-password" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="staff-password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
+                      disabled={isPending}
+                      onChange={(event) => setPassword(event.currentTarget.value)}
+                      placeholder="••••••••"
+                      className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 pr-11 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      onClick={() => setShowPassword((p) => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-text-primary dark:text-gray-500 dark:hover:text-gray-300"
+                    >
+                      <EyeIcon open={showPassword} />
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
                   disabled={isPending}
-                  onChange={(event) => setEmail(event.currentTarget.value)}
-                  placeholder="docente@miotec.cl"
-                  className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary placeholder:text-gray-500 focus:border-transparent focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-400"
-                />
-              </div>
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/30 focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-primary/10"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Validando…
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      Ingresar como Staff
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
 
-              <div className="space-y-1">
-                <label htmlFor="staff-password" className="text-sm font-medium text-text-primary dark:text-gray-100">
-                  Contraseña
-                </label>
-                <input
-                  id="staff-password"
-                  name="password"
-                  type="password"
-                  inputMode="text"
-                  autoComplete="current-password"
-                  value={password}
-                  disabled={isPending}
-                  onChange={(event) => setPassword(event.currentTarget.value)}
-                  className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary placeholder:text-gray-500 focus:border-transparent focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-400"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isPending}
-                className="h-11 w-full rounded bg-primary text-sm font-semibold text-white hover:bg-primary-dark focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isPending ? "Validando…" : "Ingresar"}
-              </button>
-            </form>
-          )}
-
-          <p className="mt-4 text-center text-xs text-text-secondary dark:text-gray-300">
-            ¿Problemas de acceso? Contacta al administrador de la intranet.
-          </p>
-
-          <p className="sr-only" role="status" aria-live="polite">
-            {formError ?? queryError ?? ""}
-          </p>
+            <p className="mt-5 text-center text-xs text-text-secondary dark:text-gray-500">
+              ¿Problemas de acceso?{" "}
+              <span className="text-primary dark:text-primary-light">Contacta al administrador.</span>
+            </p>
+          </div>
         </div>
+
+        <p className="mt-6 text-center text-xs text-text-secondary/60 dark:text-gray-600">
+          Mi OTEC · Intranet educativa segura
+        </p>
+
+        <p className="sr-only" role="status" aria-live="polite">
+          {formError ?? queryError ?? ""}
+        </p>
       </section>
     </main>
   );

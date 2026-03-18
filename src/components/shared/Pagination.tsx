@@ -42,7 +42,7 @@ export function Pagination({ currentPage, totalPages, buildHref }: PaginationPro
   const normalBtn =
     "border-gray-200 bg-white text-text-primary hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800";
   const disabledBtn =
-    "border-gray-100 text-gray-300 cursor-not-allowed dark:border-gray-800 dark:text-gray-600";
+    "border-gray-200 text-gray-400 cursor-not-allowed dark:border-gray-800 dark:text-gray-600";
 
   return (
     <nav

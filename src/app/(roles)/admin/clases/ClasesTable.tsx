@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
+import { CalendarDays, Pencil } from "lucide-react";
+
 import { editarClaseFormAction } from "@/actions/clases";
+import { Modal } from "@/components/shared/Modal";
 
 type Clase = {
   id: string;
@@ -22,6 +25,9 @@ type ClasesTableProps = {
   currentPage: number;
 };
 
+const inputClass =
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
+
 export function ClasesTable({
   clases,
   selectedAsignaturaId,
@@ -31,9 +37,12 @@ export function ClasesTable({
 
   if (clases.length === 0) {
     return (
-      <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-        No hay clases registradas para esta asignatura.
-      </p>
+      <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-6 py-10 text-center dark:border-gray-700">
+        <CalendarDays className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
+        <p className="mt-3 text-sm text-text-secondary dark:text-gray-400">
+          No hay clases registradas para esta asignatura.
+        </p>
+      </div>
     );
   }
 
@@ -77,9 +86,7 @@ export function ClasesTable({
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-text-secondary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-primary-light dark:hover:text-primary-light"
                   aria-label={`Editar sesión ${clase.numeroSesion}`}
                 >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                    <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
-                  </svg>
+                  <Pencil className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -106,10 +113,7 @@ export function ClasesTable({
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
             {clases.map((clase) => (
-              <tr
-                key={clase.id}
-                className="transition-colors hover:bg-primary/3 dark:hover:bg-primary/5"
-              >
+              <tr key={clase.id} className="transition-colors hover:bg-primary/[0.03] dark:hover:bg-primary/5">
                 <td className="px-3 py-3">
                   <p className="font-medium text-text-primary dark:text-gray-100">
                     Sesión {clase.numeroSesion}
@@ -152,170 +156,74 @@ export function ClasesTable({
         </table>
       </div>
 
-      {/* Modal de edición */}
-      {editingClase && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-clase-title"
-        >
-          {/* Overlay */}
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setEditingClase(null)}
-            aria-label="Cerrar edición de clase"
-          />
+      {/* Edit modal using shared Modal component */}
+      <Modal
+        open={editingClase !== null}
+        onClose={() => setEditingClase(null)}
+        title={editingClase ? `Editar Sesión ${editingClase.numeroSesion}` : ""}
+        size="max-w-lg"
+      >
+        {editingClase && (
+          <form action={editarClaseFormAction} className="space-y-4">
+            <input type="hidden" name="id" value={editingClase.id} />
+            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+            <input type="hidden" name="page" value={String(currentPage)} />
 
-          {/* Panel */}
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-gray-200/80 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-              <h3
-                id="edit-clase-title"
-                className="text-base font-semibold text-text-primary dark:text-white"
-              >
-                Editar Sesión {editingClase.numeroSesion}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingClase(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary hover:bg-gray-100 hover:text-text-primary dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-                aria-label="Cerrar"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
-                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                </svg>
-              </button>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                Título <span className="text-danger">*</span>
+              </label>
+              <input name="titulo" type="text" required minLength={3} maxLength={140} defaultValue={editingClase.titulo} className={inputClass} />
             </div>
 
-            {/* Form */}
-            <form action={editarClaseFormAction} className="space-y-4 px-6 py-5">
-              <input type="hidden" name="id" value={editingClase.id} />
-              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
-              <input type="hidden" name="page" value={String(currentPage)} />
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                  Título <span className="text-danger">*</span>
-                </label>
-                <input
-                  name="titulo"
-                  type="text"
-                  inputMode="text"
-                  required
-                  minLength={3}
-                  maxLength={140}
-                  defaultValue={editingClase.titulo}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                  Descripción (opcional)
-                </label>
-                <textarea
-                  name="descripcion"
-                  rows={3}
-                  maxLength={600}
-                  defaultValue={editingClase.descripcion ?? ""}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                    Fecha <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    name="fecha"
-                    type="date"
-                    inputMode="numeric"
-                    required
-                    defaultValue={editingClase.fecha ?? ""}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                    Hora inicio (opcional)
-                  </label>
-                  <input
-                    name="horaInicio"
-                    type="time"
-                    inputMode="numeric"
-                    defaultValue={editingClase.horaInicio ?? ""}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                    Tipo URL (opcional)
-                  </label>
-                  <select
-                    name="tipoUrl"
-                    defaultValue={editingClase.tipoUrl ?? ""}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  >
-                    <option value="">Sin grabación</option>
-                    <option value="youtube">YouTube</option>
-                    <option value="vimeo">Vimeo</option>
-                    <option value="drive">Drive</option>
-                    <option value="directo">Directo</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                    URL grabación (opcional)
-                  </label>
-                  <input
-                    name="urlGrabacion"
-                    type="url"
-                    inputMode="url"
-                    maxLength={500}
-                    defaultValue={editingClase.urlGrabacion ?? ""}
-                    placeholder="https://..."
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  />
-                </div>
-              </div>
-
-              <label className="inline-flex items-center gap-2.5 text-sm text-text-primary dark:text-gray-200">
-                <input
-                  type="checkbox"
-                  inputMode="text"
-                  name="publicada"
-                  defaultChecked={editingClase.publicada ?? false}
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                Publicar clase
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                Descripción (opcional)
               </label>
+              <textarea name="descripcion" rows={2} maxLength={600} defaultValue={editingClase.descripcion ?? ""} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+            </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingClase(null)}
-                  className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-text-primary hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-gradient-to-r from-primary to-primary-dark py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:shadow-md active:scale-[0.98]"
-                >
-                  Guardar cambios
-                </button>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">Fecha <span className="text-danger">*</span></label>
+                <input name="fecha" type="date" required defaultValue={editingClase.fecha ?? ""} className={inputClass} />
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">Hora inicio</label>
+                <input name="horaInicio" type="time" defaultValue={editingClase.horaInicio ?? ""} className={inputClass} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">Tipo URL</label>
+                <select name="tipoUrl" defaultValue={editingClase.tipoUrl ?? ""} className={inputClass}>
+                  <option value="">Sin grabación</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="vimeo">Vimeo</option>
+                  <option value="drive">Drive</option>
+                  <option value="directo">Directo</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">URL grabación</label>
+                <input name="urlGrabacion" type="url" maxLength={500} defaultValue={editingClase.urlGrabacion ?? ""} placeholder="https://..." className={inputClass} />
+              </div>
+            </div>
+
+            <label className="inline-flex items-center gap-2.5 text-sm text-text-primary dark:text-gray-200">
+              <input type="checkbox" name="publicada" defaultChecked={editingClase.publicada ?? false} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+              Publicar clase
+            </label>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
+              <button type="button" onClick={() => setEditingClase(null)} className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                Cancelar
+              </button>
+              <button type="submit" className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]">
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </>
   );
 }

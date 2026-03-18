@@ -3,6 +3,7 @@
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
@@ -41,6 +42,69 @@ const sanitizeOptionalText = (value: string | undefined): string | undefined => 
   const clean = sanitizeText(value).replace(/\s+/g, " ").trim();
   return clean.length > 0 ? clean : undefined;
 };
+
+const editarClaseInputSchema = z
+  .object({
+    claseId: z.string().uuid("Clase inválida."),
+    titulo: z.string().trim().min(3).max(140),
+    descripcion: z
+      .union([z.string(), z.undefined()])
+      .transform((value) => {
+        if (typeof value !== "string") {
+          return undefined;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+      })
+      .refine((value) => !value || value.length <= 600, "Descripción demasiado larga."),
+    fecha: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD).")
+      .refine((value) => Number.isFinite(new Date(value + "T00:00:00Z").getTime()), "Fecha inválida."),
+    horaInicio: z
+      .union([z.string(), z.undefined()])
+      .transform((value) => {
+        if (typeof value !== "string") {
+          return undefined;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+      })
+      .refine((value) => !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(value), "Hora inválida (HH:MM)."),
+    numeroSesion: z.number().int().min(1).max(1000),
+    tipoUrl: z.union([z.enum(["youtube", "vimeo", "drive", "directo"]), z.undefined()]).optional(),
+    urlGrabacion: z
+      .union([z.string(), z.undefined()])
+      .transform((value) => {
+        if (typeof value !== "string") {
+          return undefined;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+      })
+      .refine((value) => !value || value.length <= 500, "URL demasiado larga."),
+    publicada: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (value.urlGrabacion && !value.tipoUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tipoUrl"],
+        message: "Debes seleccionar el tipo de video.",
+      });
+    }
+
+    if (!value.urlGrabacion && value.tipoUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urlGrabacion"],
+        message: "Debes ingresar la URL de grabación.",
+      });
+    }
+  });
 
 export async function listarClasesPorAsignatura(
   asignaturaId: string,
@@ -235,6 +299,144 @@ export async function crearClaseAction(input: {
       message: "No fue posible crear la clase.",
     };
   }
+}
+
+export async function editarClaseAction(input: {
+  claseId: string;
+  titulo: string;
+  descripcion?: string;
+  fecha: string;
+  horaInicio?: string;
+  numeroSesion: number;
+  tipoUrl?: "youtube" | "vimeo" | "drive" | "directo";
+  urlGrabacion?: string;
+  publicada: boolean;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_clase_update", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  await finalizarAsignaturasVencidas();
+
+  const parsed = editarClaseInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Datos inválidos para editar clase.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({
+        id: clases.id,
+        asignaturaId: clases.asignaturaId,
+      })
+      .from(clases)
+      .where(eq(clases.id, parsed.data.claseId))
+      .limit(1);
+
+    if (!existing) {
+      return {
+        ok: false,
+        code: "clase_not_found",
+        message: "No se encontró la clase.",
+      };
+    }
+
+    const [subject] = await db
+      .select({ estado: asignaturas.estado })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, existing.asignaturaId))
+      .limit(1);
+
+    if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+      return {
+        ok: false,
+        code: "asignatura_closed",
+        message: "No puedes editar clases en asignaturas cerradas.",
+      };
+    }
+
+    await db
+      .update(clases)
+      .set({
+        titulo: sanitizeText(parsed.data.titulo),
+        descripcion: sanitizeOptionalText(parsed.data.descripcion) ?? null,
+        fecha: parsed.data.fecha,
+        horaInicio: parsed.data.horaInicio ?? null,
+        numeroSesion: parsed.data.numeroSesion,
+        tipoUrl: parsed.data.tipoUrl ?? null,
+        urlGrabacion: parsed.data.urlGrabacion ?? null,
+        publicada: parsed.data.publicada,
+      })
+      .where(eq(clases.id, parsed.data.claseId));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "clases",
+      entidadId: parsed.data.claseId,
+      payload: {
+        numeroSesion: parsed.data.numeroSesion,
+      },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "clase_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    if (message.includes("clases_asignatura_id_numero_sesion") || message.includes("duplicate key")) {
+      return {
+        ok: false,
+        code: "clase_sesion_conflict",
+        message: "Ya existe una clase con ese número de sesión.",
+      };
+    }
+
+    return {
+      ok: false,
+      code: "clase_update_failed",
+      message: "No fue posible editar la clase.",
+    };
+  }
+}
+
+export async function editarClaseFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await editarClaseAction({
+    claseId: getStringField(formData, "claseId"),
+    titulo: getStringField(formData, "titulo"),
+    descripcion: getStringField(formData, "descripcion") || undefined,
+    fecha: getStringField(formData, "fecha"),
+    horaInicio: getStringField(formData, "horaInicio") || undefined,
+    numeroSesion: parseIntegerField(getStringField(formData, "numeroSesion")) as number,
+    tipoUrl: (getStringField(formData, "tipoUrl") || undefined) as
+      | "youtube"
+      | "vimeo"
+      | "drive"
+      | "directo"
+      | undefined,
+    urlGrabacion: getStringField(formData, "urlGrabacion") || undefined,
+    publicada: getStringField(formData, "publicada") === "on",
+  });
+
+  revalidatePath("/admin/clases");
+  const filterQuery = asignaturaId
+    ? "&asignaturaId=" + encodeURIComponent(asignaturaId)
+    : "";
+
+  const stateCode = result.ok ? result.code : result.code || "error";
+  redirect("/admin/clases?state=" + stateCode + filterQuery);
 }
 
 export async function crearClaseFormAction(formData: FormData): Promise<void> {

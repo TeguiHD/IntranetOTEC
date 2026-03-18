@@ -47,6 +47,10 @@ const claseDocenteInputSchema = z.object({
   numeroSesion: z.coerce.number().int().min(1).max(1000),
 });
 
+const editarClaseDocenteInputSchema = claseDocenteInputSchema.extend({
+  claseId: z.string().uuid(),
+});
+
 const asistenciaDocenteInputSchema = z.object({
   claseId: z.string().uuid(),
   matriculaId: z.string().uuid(),
@@ -287,6 +291,94 @@ export async function crearClaseDocenteAction(input: {
   return { ok: true, code: "clase_docente_created" };
 }
 
+export async function editarClaseDocenteAction(input: {
+  claseId: string;
+  asignaturaId: string;
+  titulo: string;
+  fecha: string;
+  horaInicio?: string;
+  numeroSesion: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_clase_update", ["docente"]);
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  await finalizarAsignaturasVencidas();
+
+  const parsed = editarClaseDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Clase inválida." };
+  }
+
+  const db = getDb();
+
+  const [ctx] = await db
+    .select({
+      id: clases.id,
+      asignaturaId: clases.asignaturaId,
+    })
+    .from(clases)
+    .where(eq(clases.id, parsed.data.claseId))
+    .limit(1);
+
+  if (!ctx || ctx.asignaturaId !== parsed.data.asignaturaId) {
+    return { ok: false, code: "clase_not_found", message: "Clase no encontrada." };
+  }
+
+  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, ctx.asignaturaId);
+  if (!isOwner) {
+    return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
+  }
+
+  const [subject] = await db
+    .select({ estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, ctx.asignaturaId))
+    .limit(1);
+
+  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+    return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
+  }
+
+  try {
+    await db
+      .update(clases)
+      .set({
+        titulo: sanitizeText(parsed.data.titulo),
+        fecha: parsed.data.fecha,
+        horaInicio: parsed.data.horaInicio ?? null,
+        numeroSesion: parsed.data.numeroSesion,
+      })
+      .where(eq(clases.id, parsed.data.claseId));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "clases",
+      entidadId: parsed.data.claseId,
+      payload: { origen: "docente" },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "clase_docente_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    if (message.includes("clases_asignatura_id_numero_sesion") || message.includes("duplicate key")) {
+      return {
+        ok: false,
+        code: "clase_sesion_conflict",
+        message: "Ya existe una clase con ese número de sesión.",
+      };
+    }
+
+    return { ok: false, code: "clase_update_failed", message: "No se pudo editar la clase." };
+  }
+}
+
 export async function registrarAsistenciaDocenteAction(input: {
   claseId: string;
   matriculaId: string;
@@ -521,6 +613,26 @@ export async function crearClaseDocenteFormAction(formData: FormData): Promise<v
 
   revalidatePath("/docente/asignaturas");
   redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+export async function editarClaseDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await editarClaseDocenteAction({
+    claseId: getStringField(formData, "claseId"),
+    asignaturaId,
+    titulo: getStringField(formData, "titulo"),
+    fecha: getStringField(formData, "fecha"),
+    horaInicio: getStringField(formData, "horaInicio") || undefined,
+    numeroSesion: Number.parseInt(getStringField(formData, "numeroSesion"), 10),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(
+    "/docente/asignaturas?state=" +
+      result.code +
+      "&asignaturaId=" +
+      encodeURIComponent(asignaturaId),
+  );
 }
 
 export async function registrarAsistenciaDocenteFormAction(formData: FormData): Promise<void> {

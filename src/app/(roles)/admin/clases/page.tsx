@@ -1,11 +1,19 @@
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
-import { crearClaseFormAction, listarClasesAdmin } from "@/actions/clases";
+import { crearClaseFormAction, editarClaseFormAction, listarClasesAdmin } from "@/actions/clases";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   clase_created: {
     tone: "success",
     text: "Clase creada correctamente.",
+  },
+  clase_updated: {
+    tone: "success",
+    text: "Clase actualizada correctamente.",
+  },
+  clase_sesion_conflict: {
+    tone: "error",
+    text: "Ya existe una clase con ese número de sesión.",
   },
   error: {
     tone: "error",
@@ -202,6 +210,40 @@ export default async function AdminClasesPage({
             >
               Crear clase
             </button>
+          </div>
+        </form>
+      </article>
+
+      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Editar clase</h2>
+        <form action={editarClaseFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+          <select name="claseId" required className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <option value="">Selecciona clase</option>
+            {clases.map((clase) => (
+              <option key={clase.id} value={clase.id}>
+                Sesión {clase.numeroSesion} - {clase.titulo}
+              </option>
+            ))}
+          </select>
+          <input name="titulo" type="text" required minLength={3} maxLength={140} placeholder="Nuevo título" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+          <input name="fecha" type="date" required className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+          <input name="horaInicio" type="time" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+          <input name="numeroSesion" type="number" min={1} max={1000} required className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+          <select name="tipoUrl" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+            <option value="">Sin grabación</option>
+            <option value="youtube">YouTube</option>
+            <option value="vimeo">Vimeo</option>
+            <option value="drive">Drive</option>
+            <option value="directo">Directo</option>
+          </select>
+          <input name="urlGrabacion" type="url" maxLength={500} placeholder="URL grabación" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+          <label className="md:col-span-2 inline-flex items-center gap-2 text-sm text-text-primary dark:text-gray-100">
+            <input type="checkbox" name="publicada" className="h-4 w-4 rounded border-gray-300" />
+            Publicada
+          </label>
+          <div className="md:col-span-2">
+            <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark focus:ring-2 focus:ring-primary focus:ring-offset-2">Guardar cambios</button>
           </div>
         </form>
       </article>

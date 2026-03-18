@@ -1,5 +1,6 @@
 import {
   crearClaseDocenteFormAction,
+  editarClaseDocenteFormAction,
   listarAsignaturasDocente,
   listarClasesDocente,
   listarMatriculasDocente,
@@ -14,6 +15,9 @@ import { formatearRut } from "@/lib/rut";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   clase_docente_created: { tone: "success", text: "Clase del curso creada correctamente." },
+  clase_docente_updated: { tone: "success", text: "Clase actualizada correctamente." },
+  clase_sesion_conflict: { tone: "error", text: "Ya existe una clase con ese número de sesión." },
+  clase_not_found: { tone: "error", text: "No se encontró la clase seleccionada." },
   asistencia_created: { tone: "success", text: "Asistencia registrada correctamente." },
   asistencia_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
   nota_created: { tone: "success", text: "Nota registrada correctamente." },
@@ -173,6 +177,29 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
                   Crear clase
                 </button>
+              </div>
+            </form>
+          </article>
+
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Editar clase del curso</h2>
+            <form action={editarClaseDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <select name="claseId" required title="Seleccionar clase a editar" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona clase</option>
+                {clases.map((clase) => (
+                  <option key={clase.id} value={clase.id}>
+                    Sesión {clase.numeroSesion} - {clase.titulo}
+                  </option>
+                ))}
+              </select>
+              <input name="titulo" placeholder="Nuevo título" required minLength={3} maxLength={140} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="fecha" type="date" required title="Nueva fecha" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="horaInicio" type="time" title="Nueva hora de inicio" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <input name="numeroSesion" type="number" min={1} max={1000} required title="Nuevo número de sesión" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">Guardar cambios de clase</button>
               </div>
             </form>
           </article>

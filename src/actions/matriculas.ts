@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -39,6 +39,16 @@ const formatMoneyForDb = (value: number | undefined): string | null => {
   }
 
   return value.toFixed(2);
+};
+
+const parsePageField = (value: string): number | null => {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
 };
 
 export async function listarMatriculasAdmin(
@@ -105,6 +115,42 @@ export async function listarMatriculasAdmin(
   return baseQuery.where(
     and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
   );
+}
+
+export async function countMatriculasAdmin(
+  options?: { asignaturaId?: string; incluirInactivas?: boolean },
+): Promise<number> {
+  const actorResult = await requireActionActor("admin_matricula_list", ["admin"]);
+
+  if (!actorResult.ok) {
+    return 0;
+  }
+
+  const db = getDb();
+
+  const byAsignatura = options?.asignaturaId
+    ? eq(matriculas.asignaturaId, options.asignaturaId)
+    : undefined;
+
+  const baseQuery = db.select({ total: count() }).from(matriculas);
+
+  let result;
+
+  if (options?.incluirInactivas) {
+    result = byAsignatura
+      ? await baseQuery.where(byAsignatura)
+      : await baseQuery;
+  } else if (byAsignatura) {
+    result = await baseQuery.where(
+      and(byAsignatura, eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
+    );
+  } else {
+    result = await baseQuery.where(
+      and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
+    );
+  }
+
+  return Number(result[0]?.total ?? 0);
 }
 
 export async function matricularAlumnoAction(input: {
@@ -355,6 +401,7 @@ export async function desmatricularAlumnoAction(input: {
 
 export async function matricularAlumnoFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
   const result = await matricularAlumnoAction({
     asignaturaId,
     alumnoId: getStringField(formData, "alumnoId"),
@@ -367,14 +414,16 @@ export async function matricularAlumnoFormAction(formData: FormData): Promise<vo
   const filterQuery = asignaturaId
     ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
     : "";
+  const pageQuery = page ? `&page=${page}` : "";
 
-  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }
 
 export async function desmatricularAlumnoFormAction(
   formData: FormData,
 ): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
   const result = await desmatricularAlumnoAction({
     matriculaId: getStringField(formData, "matriculaId"),
   });
@@ -383,6 +432,7 @@ export async function desmatricularAlumnoFormAction(
   const filterQuery = asignaturaId
     ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
     : "";
+  const pageQuery = page ? `&page=${page}` : "";
 
-  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }

@@ -77,7 +77,7 @@ const ROLE_NAV: Record<AppRole, NavItem[]> = {
   admin: [
     { href: "/admin", label: "Panel", Icon: HomeIcon },
     { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookIcon },
-    { href: "/admin/matriculas", label: "Matrículas", Icon: CoinIcon },
+    { href: "/admin/matriculas", label: "Matriculas", Icon: CoinIcon },
     { href: "/admin/clases", label: "Clases", Icon: CalendarIcon },
     { href: "/admin/docentes", label: "Docentes", Icon: UserIcon },
     { href: "/admin/alumnos", label: "Alumnos", Icon: UsersIcon },
@@ -133,11 +133,13 @@ function SidebarNav({
             href={item.href}
             title={collapsed ? item.label : undefined}
             onClick={onNavigate}
-            className={`flex h-10 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
+            className={`flex items-center rounded-xl text-sm font-medium transition-colors duration-200 ${
+              collapsed ? "h-11 w-11 justify-center mx-auto" : "h-12 gap-3 px-3"
+            } ${
               active
-                ? "bg-primary text-white shadow-sm"
-                : "text-text-secondary hover:bg-gray-100 hover:text-text-primary dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
-            } ${collapsed ? "justify-center" : "gap-3"}`}
+                ? "bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/25"
+                : "text-text-secondary hover:bg-primary/8 hover:text-primary dark:text-gray-300 dark:hover:bg-primary/15 dark:hover:text-primary-light"
+            }`}
           >
             <item.Icon className="h-5 w-5 flex-shrink-0" />
             {!collapsed ? <span className="truncate">{item.label}</span> : null}
@@ -149,58 +151,73 @@ function SidebarNav({
 }
 
 export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
-  const widthClass = collapsed ? "w-16" : "w-64";
+  const widthClass = collapsed ? "w-[4.5rem]" : "w-64";
 
   return (
     <>
+      {/* Mobile overlay */}
       {mobileOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-30 bg-black/40 md:hidden"
-          aria-label="Cerrar menú"
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={onCloseMobile}
+          aria-label="Cerrar menú lateral"
         />
       ) : null}
 
+      {/* Mobile sidebar */}
       <aside
-        className={`fixed left-0 top-16 z-40 flex h-[calc(100dvh-4rem)] w-64 flex-col border-r border-gray-200 bg-white shadow-md transition-transform duration-300 dark:border-gray-700 dark:bg-gray-950 md:hidden ${
+        className={`fixed left-0 top-0 z-40 flex h-full w-72 flex-col bg-white shadow-2xl transition-transform duration-300 ease-out dark:bg-gray-950 md:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-14 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
-          <div>
-            <p className="text-sm font-semibold text-text-primary dark:text-white">Mi OTEC</p>
-            <p className="text-xs text-text-secondary dark:text-gray-300">{ROLE_LABELS[role]}</p>
+        <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
+              <span className="text-sm font-bold text-white">O</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_LABELS[role]}</p>
+            </div>
           </div>
           <button
             type="button"
-            aria-label="Cerrar menú lateral"
+            aria-label="Cerrar menu lateral"
             onClick={onCloseMobile}
-            className="rounded px-2 py-1 text-sm font-medium text-text-primary hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-text-secondary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
           >
-            Cerrar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+              <path strokeLinecap="round" d="M18 6 6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         <SidebarNav role={role} collapsed={false} onNavigate={onCloseMobile} />
 
-        <div className="border-t border-gray-200 px-4 py-3 text-xs text-text-secondary dark:border-gray-700 dark:text-gray-400">
-          Navegación por rol
+        <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+          <p className="text-xs text-text-muted dark:text-gray-500">Entorno seguro</p>
         </div>
       </aside>
 
+      {/* Desktop sidebar */}
       <aside
-        className={`fixed left-0 top-16 z-20 hidden h-[calc(100dvh-4rem)] flex-col border-r border-gray-200 bg-white transition-[width] duration-300 dark:border-gray-700 dark:bg-gray-950 md:flex ${widthClass}`}
+        className={`fixed left-0 top-16 z-20 hidden h-[calc(100dvh-4rem)] flex-col border-r border-gray-100 bg-white/80 backdrop-blur-sm transition-[width] duration-300 ease-out dark:border-gray-800 dark:bg-gray-950/80 md:flex ${widthClass}`}
       >
-        <div className={`flex h-14 items-center border-b border-gray-200 px-3 dark:border-gray-700 ${collapsed ? "justify-center" : "justify-start"}`}>
+        <div className={`flex h-14 items-center border-b border-gray-100 dark:border-gray-800 ${collapsed ? "justify-center px-2" : "px-4"}`}>
           {collapsed ? (
-            <span className="text-lg font-bold text-primary" aria-hidden>
-              O
-            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
+              <span className="text-sm font-bold text-white">O</span>
+            </div>
           ) : (
-            <div>
-              <p className="text-sm font-semibold text-text-primary dark:text-white">Mi OTEC</p>
-              <p className="text-xs text-text-secondary dark:text-gray-300">{ROLE_LABELS[role]}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
+                <span className="text-sm font-bold text-white">O</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
+                <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_LABELS[role]}</p>
+              </div>
             </div>
           )}
         </div>
@@ -208,14 +225,10 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarP
         <SidebarNav role={role} collapsed={collapsed} />
 
         {!collapsed ? (
-          <div className="border-t border-gray-200 px-4 py-3 text-xs text-text-secondary dark:border-gray-700 dark:text-gray-400">
-            Entorno seguro
+          <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+            <p className="text-xs text-text-muted dark:text-gray-500">Entorno seguro</p>
           </div>
-        ) : (
-          <div className="flex justify-center border-t border-gray-200 py-3 dark:border-gray-700">
-            <CoinIcon className="h-5 w-5 text-text-secondary dark:text-gray-400" />
-          </div>
-        )}
+        ) : null}
       </aside>
     </>
   );

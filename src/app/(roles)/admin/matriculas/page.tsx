@@ -1,307 +1,391 @@
-import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
+  listarAsignaturasAdmin,
+  type AsignaturaBusqueda,
+} from "@/actions/asignaturas";
+import {
+  countMatriculasAdmin,
   desmatricularAlumnoFormAction,
   listarMatriculasAdmin,
   matricularAlumnoFormAction,
 } from "@/actions/matriculas";
-import { listarUsuariosPorRol } from "@/actions/usuarios";
+import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { AlumnoCombobox } from "./AlumnoCombobox";
+import { AsignaturaCombobox } from "./AsignaturaCombobox";
 import { ExportCsvButton } from "./ExportCsvButton";
 
+const PAGE_SIZE = 20;
+
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
-  matricula_created: {
-    tone: "success",
-    text: "Matrícula creada correctamente.",
-  },
-  matricula_updated: {
-    tone: "success",
-    text: "Matrícula actualizada/reactivada correctamente.",
-  },
-  matricula_deactivated: {
-    tone: "success",
-    text: "Matrícula desactivada correctamente.",
-  },
-  already_inactive: {
-    tone: "success",
-    text: "La matrícula ya estaba inactiva.",
-  },
-  error: {
-    tone: "error",
-    text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente.",
-  },
+  matricula_created: { tone: "success", text: "Matrícula creada correctamente." },
+  matricula_updated: { tone: "success", text: "Matrícula actualizada/reactivada correctamente." },
+  matricula_deactivated: { tone: "success", text: "Matrícula desactivada correctamente." },
+  already_inactive: { tone: "success", text: "La matrícula ya estaba inactiva." },
+  error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
 };
 
 type AdminMatriculasPageProps = {
   searchParams?: {
     state?: string;
     asignaturaId?: string;
+    page?: string;
   };
 };
 
 const estaPagado = (estadoPago: string | null | undefined): boolean =>
   estadoPago === "pagado" || estadoPago === "becado";
 
-export default async function AdminMatriculasPage({
-  searchParams,
-}: AdminMatriculasPageProps) {
-  const [asignaturas, alumnos] = await Promise.all([
-    listarAsignaturasAdmin({ limit: 50, offset: 0 }, { incluirArchivadas: false }),
-    listarUsuariosPorRol("alumno", { limit: 50, offset: 0 }),
-  ]);
+const ESTADO_PAGO_LABELS: Record<string, string> = {
+  pendiente: "Pendiente",
+  pagado: "Pagado",
+  mora: "Mora",
+  becado: "Becado",
+};
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export default async function AdminMatriculasPage({ searchParams }: AdminMatriculasPageProps) {
+  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
+  const asignaturas = await listarAsignaturasAdmin(
+    { limit: 100, offset: 0 },
+    { incluirArchivadas: false },
+  );
 
   const selectedAsignaturaIdRaw =
     typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
   const selectedAsignaturaId =
-    selectedAsignaturaIdRaw && asignaturas.some((item) => item.id === selectedAsignaturaIdRaw)
+    selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
       : asignaturas[0]?.id;
 
-  const matriculas = selectedAsignaturaId
-    ? await listarMatriculasAdmin(
-        { limit: 50, offset: 0 },
-        { asignaturaId: selectedAsignaturaId, incluirInactivas: true },
-      )
-    : [];
+  const selectedAsignaturaCombobox: AsignaturaBusqueda | null = selectedAsignaturaId
+    ? (() => {
+        const selected = asignaturas.find((item) => item.id === selectedAsignaturaId);
 
-  const totalActivas = matriculas.filter((matricula) => matricula.activa).length;
-  const totalPagadas = matriculas.filter(
-    (matricula) => matricula.activa && estaPagado(matricula.estadoPago),
-  ).length;
+        if (!selected) {
+          return null;
+        }
+
+        return {
+          id: selected.id,
+          nombre: selected.nombre,
+          codigo: selected.codigo,
+          estado: selected.estado,
+        };
+      })()
+    : null;
+
+  const [matriculas, totalCount] = selectedAsignaturaId
+    ? await Promise.all([
+        listarMatriculasAdmin(
+          { limit: PAGE_SIZE, offset },
+          { asignaturaId: selectedAsignaturaId, incluirInactivas: true },
+        ),
+        countMatriculasAdmin({ asignaturaId: selectedAsignaturaId, incluirInactivas: true }),
+      ])
+    : [[], 0];
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const totalActivas = matriculas.filter((m) => m.activa).length;
+  const totalPagadas = matriculas.filter((m) => m.activa && estaPagado(m.estadoPago)).length;
   const totalNoPagadas = Math.max(totalActivas - totalPagadas, 0);
 
+  function buildHref(page: number) {
+    const params = new URLSearchParams();
+    if (selectedAsignaturaId) params.set("asignaturaId", selectedAsignaturaId);
+    params.set("page", String(page));
+    return `/admin/matriculas?${params.toString()}`;
+  }
+
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
 
       <header>
-        <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-gray-100">Matrículas</h1>
-        <p className="text-sm text-text-secondary dark:text-gray-300">
+        <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
+          Matrículas
+        </h1>
+        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
           Matricula alumnos por asignatura y controla indicador de pagó/no pagó.
         </p>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <article className="rounded-md border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
+      {/* Métricas */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">
             Matrículas activas
           </p>
-          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-gray-100">{totalActivas}</p>
+          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">{totalActivas}</p>
         </article>
-
-        <article className="rounded-md border border-success/30 bg-success/10 p-4 shadow-sm dark:border-green-700 dark:bg-green-950">
-          <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-green-100">
+        <article className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm dark:border-green-900 dark:bg-green-950">
+          <p className="text-xs font-medium uppercase tracking-wide text-green-800 dark:text-green-300">
             Pagó / cubierto
           </p>
-          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-green-100">{totalPagadas}</p>
+          <p className="mt-1 text-2xl font-bold text-green-800 dark:text-green-200">{totalPagadas}</p>
         </article>
-
-        <article className="rounded-md border border-warning/40 bg-warning/10 p-4 shadow-sm dark:border-amber-700 dark:bg-amber-950">
-          <p className="text-xs uppercase tracking-wide text-text-secondary dark:text-amber-100">
+        <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-300">
             No pagado
           </p>
-          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-amber-100">{totalNoPagadas}</p>
+          <p className="mt-1 text-2xl font-bold text-amber-800 dark:text-amber-200">{totalNoPagadas}</p>
         </article>
       </div>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+      {/* Filtro asignatura */}
+      <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+          <AsignaturaCombobox
+            name="asignaturaId"
+            label="Asignatura (filtro de tabla)"
+            required={asignaturas.length > 0}
+            defaultAsignatura={selectedAsignaturaCombobox}
+          />
+          <button
+            type="submit"
+            className="h-12 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:shadow-md active:scale-[0.98]"
+          >
+            Filtrar
+          </button>
+        </div>
+      </form>
+
+      {/* Formulario nueva matrícula */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
           Registrar matrícula
         </h2>
 
-        <form action={matricularAlumnoFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="mat-asignatura" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Asignatura
-            </label>
-            <select
-              id="mat-asignatura"
-              name="asignaturaId"
-              required
-              defaultValue={selectedAsignaturaId ?? ""}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              <option value="">Selecciona asignatura</option>
-              {asignaturas.map((asignatura) => (
-                <option key={asignatura.id} value={asignatura.id}>
-                  {asignatura.nombre}
-                </option>
-              ))}
-            </select>
+        <form action={matricularAlumnoFormAction} className="mt-4 space-y-4">
+          <input type="hidden" name="page" value={String(currentPage)} />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <AsignaturaCombobox
+                name="asignaturaId"
+                label="Asignatura"
+                required
+                defaultAsignatura={selectedAsignaturaCombobox}
+              />
+            </div>
+
+            {/* Combobox alumno */}
+            <div className="sm:col-span-2">
+              <AlumnoCombobox />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="mat-estado" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Estado de pago <span className="text-danger">*</span>
+              </label>
+              <select
+                id="mat-estado"
+                name="estadoPago"
+                required
+                defaultValue="pendiente"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="pagado">Pagado</option>
+                <option value="mora">Mora</option>
+                <option value="becado">Becado</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="mat-monto" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Monto arancel (opcional)
+              </label>
+              <input
+                id="mat-monto"
+                name="montoArancel"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                placeholder="0.00"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="mat-alumno" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Alumno
-            </label>
-            <select
-              id="mat-alumno"
-              name="alumnoId"
-              required
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              <option value="">Selecciona alumno</option>
-              {alumnos.map((alumno) => (
-                <option key={alumno.id} value={alumno.id}>
-                  {alumno.nombre} {alumno.apellido} ({alumno.rut ?? "sin RUT"})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="mat-estado" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Estado de pago
-            </label>
-            <select
-              id="mat-estado"
-              name="estadoPago"
-              required
-              defaultValue="pendiente"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              <option value="pendiente">Pendiente</option>
-              <option value="pagado">Pagado</option>
-              <option value="mora">Mora</option>
-              <option value="becado">Becado</option>
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="mat-monto" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Monto arancel (opcional)
-            </label>
-            <input
-              id="mat-monto"
-              name="montoArancel"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            >
-              Guardar matrícula
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] sm:w-auto"
+          >
+            Guardar matrícula
+          </button>
         </form>
       </article>
 
-      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      {/* Lista matrículas */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
-              Matrículas Registradas
+            <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              Matrículas registradas
             </h2>
-            <ExportCsvButton matriculas={matriculas} />
+            {totalCount > 0 && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                {totalCount}
+              </span>
+            )}
           </div>
-
-          <form method="GET" className="flex items-center gap-2">
-            <label htmlFor="mat-filter" className="text-xs font-medium text-text-secondary dark:text-gray-300">
-              Filtrar asignatura
-            </label>
-            <select
-              id="mat-filter"
-              name="asignaturaId"
-              defaultValue={selectedAsignaturaId}
-              className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              {asignaturas.map((asignatura) => (
-                <option key={asignatura.id} value={asignatura.id}>
-                  {asignatura.nombre}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-text-primary hover:bg-gray-100 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
-            >
-              Aplicar
-            </button>
-          </form>
+          <ExportCsvButton matriculas={matriculas} />
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                <th className="px-3 py-2">Alumno</th>
-                <th className="px-3 py-2">Estado pago</th>
-                <th className="px-3 py-2">Pagó</th>
-                <th className="px-3 py-2">Monto</th>
-                <th className="px-3 py-2">Estado</th>
-                <th className="px-3 py-2 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+        {matriculas.length === 0 ? (
+          <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
+            No hay matrículas registradas para esta asignatura.
+          </p>
+        ) : (
+          <>
+            {/* Mobile: cards */}
+            <div className="mt-4 space-y-3 sm:hidden">
               {matriculas.map((matricula) => (
-                <tr key={matricula.id}>
-                  <td className="px-3 py-2 text-text-primary dark:text-gray-100">
-                    {matricula.alumnoNombre} {matricula.alumnoApellido}
-                    <p className="text-xs text-text-secondary dark:text-gray-400">
-                      {matricula.alumnoRut ?? "Sin RUT"}
-                    </p>
-                  </td>
-                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                    {matricula.estadoPago}
-                  </td>
-                  <td className="px-3 py-2">
+                <div
+                  key={matricula.id}
+                  className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-text-primary dark:text-white">
+                        {matricula.alumnoNombre} {matricula.alumnoApellido}
+                      </p>
+                      <p className="text-xs text-text-secondary dark:text-gray-400">
+                        {matricula.alumnoRut ?? "Sin RUT"}
+                      </p>
+                    </div>
                     <span
-                      className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${
-                        estaPagado(matricula.estadoPago)
-                          ? "bg-success/15 text-text-primary dark:bg-green-950 dark:text-green-100"
-                          : "bg-warning/20 text-text-primary dark:bg-amber-950 dark:text-amber-100"
-                      }`}
-                    >
-                      {estaPagado(matricula.estadoPago) ? "Sí" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                    {matricula.montoArancel ?? "-"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
                         matricula.activa
-                          ? "bg-success/15 text-text-primary dark:bg-green-950 dark:text-green-100"
-                          : "bg-warning/20 text-text-primary dark:bg-amber-950 dark:text-amber-100"
+                          ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                          : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200"
                       }`}
                     >
                       {matricula.activa ? "Activa" : "Inactiva"}
                     </span>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {matricula.activa ? (
-                      <form action={desmatricularAlumnoFormAction} className="inline">
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        estaPagado(matricula.estadoPago)
+                          ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                      }`}
+                    >
+                      {ESTADO_PAGO_LABELS[matricula.estadoPago ?? ""] ?? matricula.estadoPago}
+                    </span>
+                    {matricula.montoArancel && (
+                      <span className="text-xs text-text-secondary dark:text-gray-400">
+                        ${matricula.montoArancel}
+                      </span>
+                    )}
+                  </div>
+                  {matricula.activa && (
+                    <div className="mt-3">
+                      <form action={desmatricularAlumnoFormAction}>
                         <input type="hidden" name="matriculaId" value={matricula.id} />
-                        <input
-                          type="hidden"
-                          name="asignaturaId"
-                          value={selectedAsignaturaId ?? ""}
-                        />
+                        <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                        <input type="hidden" name="page" value={String(currentPage)} />
                         <button
                           type="submit"
-                          className="rounded border border-danger/40 px-3 py-1 text-xs font-medium text-text-primary hover:bg-danger/10 dark:text-gray-100"
+                          className="h-10 w-full rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
                         >
                           Desmatricular
                         </button>
                       </form>
-                    ) : (
-                      <span className="text-xs text-text-secondary dark:text-gray-400">
-                        Sin acciones
-                      </span>
-                    )}
-                  </td>
-                </tr>
+                    </div>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+            {/* Desktop: table */}
+            <div className="mt-4 hidden overflow-x-auto sm:block">
+              <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                    <th className="px-3 py-2.5">Alumno</th>
+                    <th className="px-3 py-2.5">Estado pago</th>
+                    <th className="px-3 py-2.5">Monto</th>
+                    <th className="px-3 py-2.5">Estado</th>
+                    <th className="px-3 py-2.5 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  {matriculas.map((matricula) => (
+                    <tr
+                      key={matricula.id}
+                      className="transition-colors hover:bg-primary/3 dark:hover:bg-primary/5"
+                    >
+                      <td className="px-3 py-3">
+                        <p className="font-medium text-text-primary dark:text-gray-100">
+                          {matricula.alumnoNombre} {matricula.alumnoApellido}
+                        </p>
+                        <p className="text-xs text-text-secondary dark:text-gray-400">
+                          {matricula.alumnoRut ?? "Sin RUT"}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            estaPagado(matricula.estadoPago)
+                              ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                          }`}
+                        >
+                          {ESTADO_PAGO_LABELS[matricula.estadoPago ?? ""] ?? matricula.estadoPago}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
+                        {matricula.montoArancel ? `$${matricula.montoArancel}` : "-"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            matricula.activa
+                              ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                              : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200"
+                          }`}
+                        >
+                          {matricula.activa ? "Activa" : "Inactiva"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {matricula.activa ? (
+                          <form action={desmatricularAlumnoFormAction} className="inline">
+                            <input type="hidden" name="matriculaId" value={matricula.id} />
+                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                            <input type="hidden" name="page" value={String(currentPage)} />
+                            <button
+                              type="submit"
+                              className="rounded-xl border border-danger/30 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
+                            >
+                              Desmatricular
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="text-xs text-text-secondary dark:text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              buildHref={buildHref}
+            />
+          </>
+        )}
       </article>
     </section>
   );

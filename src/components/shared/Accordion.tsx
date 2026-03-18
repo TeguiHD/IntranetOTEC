@@ -13,19 +13,19 @@ export function AccordionItem({ title, badge, children, defaultOpen = false }: A
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="rounded-xl border border-gray-100 dark:border-gray-800">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800/50 dark:active:bg-gray-800"
         aria-expanded={open}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span className="text-sm font-medium text-text-primary dark:text-gray-100">
             {title}
           </span>
           {badge ? (
-            <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+            <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
               {badge}
             </span>
           ) : null}
@@ -45,7 +45,7 @@ export function AccordionItem({ title, badge, children, defaultOpen = false }: A
         </svg>
       </button>
       {open ? (
-        <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
           {children}
         </div>
       ) : null}

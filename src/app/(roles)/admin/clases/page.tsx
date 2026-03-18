@@ -1,88 +1,111 @@
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
-import { crearClaseFormAction, listarClasesAdmin } from "@/actions/clases";
+import { countClasesAdmin, crearClaseFormAction, listarClasesAdmin } from "@/actions/clases";
+import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { ClasesTable } from "./ClasesTable";
+
+const PAGE_SIZE = 20;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
-  clase_created: {
-    tone: "success",
-    text: "Clase creada correctamente.",
-  },
-  error: {
-    tone: "error",
-    text: "No fue posible crear la clase. Revisa los datos e intenta nuevamente.",
-  },
+  clase_created: { tone: "success", text: "Clase creada correctamente." },
+  clase_updated: { tone: "success", text: "Clase actualizada correctamente." },
+  error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
 };
 
 type AdminClasesPageProps = {
   searchParams?: {
     state?: string;
     asignaturaId?: string;
+    page?: string;
   };
 };
 
-export default async function AdminClasesPage({
-  searchParams,
-}: AdminClasesPageProps) {
+export default async function AdminClasesPage({ searchParams }: AdminClasesPageProps) {
+  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
   const asignaturas = await listarAsignaturasAdmin(
-    { limit: 50, offset: 0 },
+    { limit: 100, offset: 0 },
     { incluirArchivadas: false },
   );
 
   const selectedAsignaturaIdRaw =
     typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
   const selectedAsignaturaId =
-    selectedAsignaturaIdRaw && asignaturas.some((item) => item.id === selectedAsignaturaIdRaw)
+    selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
       : asignaturas[0]?.id;
 
-  const clases = await listarClasesAdmin(
-    { limit: 50, offset: 0 },
-    {
-      asignaturaId: selectedAsignaturaId,
-      incluirArchivadas: true,
-    },
-  );
+  const [clases, totalCount] = await Promise.all([
+    listarClasesAdmin(
+      { limit: PAGE_SIZE, offset },
+      { asignaturaId: selectedAsignaturaId, incluirArchivadas: true },
+    ),
+    countClasesAdmin({ asignaturaId: selectedAsignaturaId, incluirArchivadas: true }),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  function buildHref(page: number) {
+    const params = new URLSearchParams();
+    if (selectedAsignaturaId) params.set("asignaturaId", selectedAsignaturaId);
+    params.set("page", String(page));
+    return `/admin/clases?${params.toString()}`;
+  }
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
 
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">Clases</h1>
-        <p className="text-sm text-text-secondary dark:text-gray-300">
+        <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
+          Clases
+        </h1>
+        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
           Crea sesiones por asignatura y publica material audiovisual de forma segura.
         </p>
       </header>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+      {/* Filtro asignatura */}
+      <form method="GET" className="flex flex-wrap items-center gap-2">
+        <label htmlFor="clases-filter" className="text-sm font-medium text-text-primary dark:text-gray-200">
+          Asignatura
+        </label>
+        <select
+          id="clases-filter"
+          name="asignaturaId"
+          defaultValue={selectedAsignaturaId}
+          className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 sm:flex-none sm:min-w-[260px]"
+        >
+          {asignaturas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.nombre}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="h-11 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:shadow-md active:scale-[0.98]"
+        >
+          Filtrar
+        </button>
+      </form>
+
+      {/* Formulario crear clase */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
           Crear clase
         </h2>
 
-        <form action={crearClaseFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-1 md:col-span-2">
-            <label htmlFor="clase-asignatura" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Asignatura
-            </label>
-            <select
-              id="clase-asignatura"
-              name="asignaturaId"
-              required
-              defaultValue={selectedAsignaturaId ?? ""}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              <option value="">Selecciona asignatura</option>
-              {asignaturas.map((asignatura) => (
-                <option key={asignatura.id} value={asignatura.id}>
-                  {asignatura.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+        <form action={crearClaseFormAction} className="mt-4 grid gap-4 sm:grid-cols-2">
+          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+          <input type="hidden" name="page" value={String(currentPage)} />
 
-          <div className="space-y-1 md:col-span-2">
-            <label htmlFor="clase-titulo" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Título
+          <div className="space-y-1.5 sm:col-span-2">
+            <label htmlFor="clase-titulo" className="text-sm font-medium text-text-primary dark:text-gray-200">
+              Título <span className="text-danger">*</span>
             </label>
             <input
               id="clase-titulo"
@@ -92,26 +115,26 @@ export default async function AdminClasesPage({
               required
               minLength={3}
               maxLength={140}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
-          <div className="space-y-1 md:col-span-2">
-            <label htmlFor="clase-descripcion" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Descripción
+          <div className="space-y-1.5 sm:col-span-2">
+            <label htmlFor="clase-descripcion" className="text-sm font-medium text-text-primary dark:text-gray-200">
+              Descripción (opcional)
             </label>
             <textarea
               id="clase-descripcion"
               name="descripcion"
-              rows={3}
+              rows={2}
               maxLength={600}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="clase-fecha" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Fecha
+          <div className="space-y-1.5">
+            <label htmlFor="clase-fecha" className="text-sm font-medium text-text-primary dark:text-gray-200">
+              Fecha <span className="text-danger">*</span>
             </label>
             <input
               id="clase-fecha"
@@ -119,12 +142,12 @@ export default async function AdminClasesPage({
               type="date"
               inputMode="numeric"
               required
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="clase-hora" className="text-sm font-medium text-text-primary dark:text-gray-100">
+          <div className="space-y-1.5">
+            <label htmlFor="clase-hora" className="text-sm font-medium text-text-primary dark:text-gray-200">
               Hora inicio (opcional)
             </label>
             <input
@@ -132,12 +155,12 @@ export default async function AdminClasesPage({
               name="horaInicio"
               type="time"
               inputMode="numeric"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="clase-sesion" className="text-sm font-medium text-text-primary dark:text-gray-100">
+          <div className="space-y-1.5">
+            <label htmlFor="clase-sesion" className="text-sm font-medium text-text-primary dark:text-gray-200">
               Número sesión (opcional)
             </label>
             <input
@@ -147,18 +170,18 @@ export default async function AdminClasesPage({
               inputMode="numeric"
               min={1}
               max={1000}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="clase-tipo-url" className="text-sm font-medium text-text-primary dark:text-gray-100">
+          <div className="space-y-1.5">
+            <label htmlFor="clase-tipo-url" className="text-sm font-medium text-text-primary dark:text-gray-200">
               Tipo URL (opcional)
             </label>
             <select
               id="clase-tipo-url"
               name="tipoUrl"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             >
               <option value="">Sin grabación</option>
               <option value="youtube">YouTube</option>
@@ -168,8 +191,8 @@ export default async function AdminClasesPage({
             </select>
           </div>
 
-          <div className="space-y-1 md:col-span-2">
-            <label htmlFor="clase-url" className="text-sm font-medium text-text-primary dark:text-gray-100">
+          <div className="space-y-1.5 sm:col-span-2">
+            <label htmlFor="clase-url" className="text-sm font-medium text-text-primary dark:text-gray-200">
               URL grabación (opcional)
             </label>
             <input
@@ -179,26 +202,26 @@ export default async function AdminClasesPage({
               inputMode="url"
               maxLength={500}
               placeholder="https://www.youtube-nocookie.com/..."
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
-          <div className="md:col-span-2">
-            <label className="inline-flex items-center gap-2 text-sm text-text-primary dark:text-gray-100">
+          <div className="sm:col-span-2">
+            <label className="inline-flex items-center gap-2.5 text-sm text-text-primary dark:text-gray-200">
               <input
                 type="checkbox"
-                name="publicada"
                 inputMode="text"
-                className="h-4 w-4 rounded border-gray-300"
+                name="publicada"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
               Publicar inmediatamente
             </label>
           </div>
 
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <button
               type="submit"
-              className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] sm:w-auto"
             >
               Crear clase
             </button>
@@ -206,77 +229,28 @@ export default async function AdminClasesPage({
         </form>
       </article>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+      {/* Lista clases */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
             Clases registradas
           </h2>
-
-          <form method="GET" className="flex items-center gap-2">
-            <label htmlFor="clases-filter" className="text-xs font-medium text-text-secondary dark:text-gray-300">
-              Filtrar asignatura
-            </label>
-            <select
-              id="clases-filter"
-              name="asignaturaId"
-              defaultValue={selectedAsignaturaId}
-              className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            >
-              {asignaturas.map((asignatura) => (
-                <option key={asignatura.id} value={asignatura.id}>
-                  {asignatura.nombre}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-text-primary hover:bg-gray-100 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
-            >
-              Aplicar
-            </button>
-          </form>
+          {totalCount > 0 && (
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+              {totalCount}
+            </span>
+          )}
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                <th className="px-3 py-2">Sesión</th>
-                <th className="px-3 py-2">Fecha</th>
-                <th className="px-3 py-2">Grabación</th>
-                <th className="px-3 py-2">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {clases.map((clase) => (
-                <tr key={clase.id}>
-                  <td className="px-3 py-2 text-text-primary dark:text-gray-100">
-                    <p className="font-medium">Sesión {clase.numeroSesion}</p>
-                    <p className="text-xs text-text-secondary dark:text-gray-400">{clase.titulo}</p>
-                  </td>
-                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                    {clase.fecha}
-                    {clase.horaInicio ? ` ${clase.horaInicio}` : ""}
-                  </td>
-                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                    {clase.urlGrabacion ? clase.tipoUrl ?? "URL" : "Sin URL"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${
-                        clase.publicada
-                          ? "bg-success/15 text-text-primary dark:bg-green-950 dark:text-green-100"
-                          : "bg-warning/20 text-text-primary dark:bg-amber-950 dark:text-amber-100"
-                      }`}
-                    >
-                      {clase.publicada ? "Publicada" : "Borrador"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ClasesTable
+          clases={clases}
+          selectedAsignaturaId={selectedAsignaturaId}
+          currentPage={currentPage}
+        />
+
+        {totalPages > 1 && (
+          <Pagination currentPage={currentPage} totalPages={totalPages} buildHref={buildHref} />
+        )}
       </article>
     </section>
   );

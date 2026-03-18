@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, ne, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -13,6 +13,7 @@ import { sanitizeText } from "@/lib/sanitize";
 import {
   asignarDocenteInputSchema,
   asignaturaInputSchema,
+  comboboxSearchQuerySchema,
 } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
@@ -42,6 +43,73 @@ const sanitizeOptionalText = (value: string | undefined): string | undefined => 
   const clean = sanitizeText(value).replace(/\s+/g, " ").trim();
   return clean.length > 0 ? clean : undefined;
 };
+
+export type AsignaturaBusqueda = {
+  id: string;
+  nombre: string;
+  codigo: string | null;
+  estado: "borrador" | "activo" | "finalizado" | "archivado" | null;
+};
+
+export async function buscarAsignaturasAdminAction(
+  query: string,
+): Promise<AsignaturaBusqueda[]> {
+  const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const parsed = comboboxSearchQuerySchema.safeParse(query);
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  await finalizarAsignaturasVencidas();
+
+  const db = getDb();
+  const term = `%${parsed.data}%`;
+
+  return db
+    .select({
+      id: asignaturas.id,
+      nombre: asignaturas.nombre,
+      codigo: asignaturas.codigo,
+      estado: asignaturas.estado,
+    })
+    .from(asignaturas)
+    .where(
+      and(
+        ne(asignaturas.estado, "finalizado"),
+        ne(asignaturas.estado, "archivado"),
+        or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
+      ),
+    )
+    .orderBy(desc(asignaturas.createdAt))
+    .limit(15);
+}
+
+export async function countAsignaturasAdmin(
+  options?: { incluirArchivadas?: boolean },
+): Promise<number> {
+  const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
+
+  if (!actorResult.ok) {
+    return 0;
+  }
+
+  const db = getDb();
+  const baseQuery = db.select({ total: count() }).from(asignaturas);
+
+  if (options?.incluirArchivadas) {
+    const result = await baseQuery;
+    return Number(result[0]?.total ?? 0);
+  }
+
+  const result = await baseQuery.where(ne(asignaturas.estado, "archivado"));
+  return Number(result[0]?.total ?? 0);
+}
 
 export async function listarAsignaturas(
   pagination: PaginationInput = {},

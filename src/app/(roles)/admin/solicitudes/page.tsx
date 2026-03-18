@@ -22,9 +22,9 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 const ESTADO_STYLES: Record<string, string> = {
-  pendiente: "bg-warning/20 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
-  aprobada: "bg-success/15 text-green-700 dark:bg-green-950 dark:text-green-200",
-  rechazada: "bg-danger/15 text-red-700 dark:bg-red-950 dark:text-red-200",
+  pendiente: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  aprobada: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
+  rechazada: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
 };
 
 type AdminSolicitudesPageProps = {
@@ -109,7 +109,7 @@ export default async function AdminSolicitudesPage({ searchParams }: AdminSolici
                     <input type="hidden" name="estado" value="aprobada" />
                     <button
                       type="submit"
-                      className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-success/90 focus:outline-none focus:ring-2 focus:ring-success/50"
+                      className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-success/90 focus:ring-2 focus:ring-success/50"
                     >
                       Aprobar
                     </button>
@@ -119,7 +119,7 @@ export default async function AdminSolicitudesPage({ searchParams }: AdminSolici
                     <input type="hidden" name="estado" value="rechazada" />
                     <button
                       type="submit"
-                      className="rounded-lg border border-danger/40 px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/50 dark:text-red-300"
+                      className="rounded-lg border border-danger/40 px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/10 focus:ring-2 focus:ring-danger/50 dark:text-red-300"
                     >
                       Rechazar
                     </button>

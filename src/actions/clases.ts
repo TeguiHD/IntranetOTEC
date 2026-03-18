@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -40,6 +40,16 @@ const sanitizeOptionalText = (value: string | undefined): string | undefined => 
 
   const clean = sanitizeText(value).replace(/\s+/g, " ").trim();
   return clean.length > 0 ? clean : undefined;
+};
+
+const parsePageField = (value: string): number | null => {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
 };
 
 export async function listarClasesPorAsignatura(
@@ -114,6 +124,138 @@ export async function listarClasesAdmin(
   }
 
   return baseQuery.where(ne(asignaturas.estado, "archivado"));
+}
+
+export async function countClasesAdmin(
+  options?: { asignaturaId?: string; incluirArchivadas?: boolean },
+): Promise<number> {
+  const actorResult = await requireActionActor("admin_clase_list", ["admin"]);
+
+  if (!actorResult.ok) {
+    return 0;
+  }
+
+  const db = getDb();
+
+  const baseQuery = db
+    .select({ total: count() })
+    .from(clases)
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id));
+
+  let result;
+
+  if (options?.asignaturaId && options?.incluirArchivadas) {
+    result = await baseQuery.where(eq(clases.asignaturaId, options.asignaturaId));
+  } else if (options?.asignaturaId) {
+    result = await baseQuery.where(
+      and(eq(clases.asignaturaId, options.asignaturaId), ne(asignaturas.estado, "archivado")),
+    );
+  } else if (options?.incluirArchivadas) {
+    result = await baseQuery;
+  } else {
+    result = await baseQuery.where(ne(asignaturas.estado, "archivado"));
+  }
+
+  return Number(result[0]?.total ?? 0);
+}
+
+export async function editarClaseAction(input: {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  fecha: string;
+  horaInicio?: string;
+  tipoUrl?: "youtube" | "vimeo" | "drive" | "directo";
+  urlGrabacion?: string;
+  publicada: boolean;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_clase_edit", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  if (!input.id || !input.titulo || !input.fecha) {
+    return { ok: false, code: "invalid_input", message: "Datos inválidos." };
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: clases.id })
+      .from(clases)
+      .where(eq(clases.id, input.id))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "clase_not_found", message: "Clase no encontrada." };
+    }
+
+    await db
+      .update(clases)
+      .set({
+        titulo: sanitizeText(input.titulo),
+        descripcion: sanitizeOptionalText(input.descripcion),
+        fecha: input.fecha,
+        horaInicio: input.horaInicio || null,
+        tipoUrl: input.tipoUrl ?? null,
+        urlGrabacion: input.urlGrabacion || null,
+        publicada: input.publicada,
+      })
+      .where(eq(clases.id, input.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "clases",
+      entidadId: input.id,
+      payload: { titulo: input.titulo },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "clase_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_clase_edit_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "clase_edit_failed", message: "No fue posible editar la clase." };
+  }
+}
+
+export async function editarClaseFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
+  const result = await editarClaseAction({
+    id: getStringField(formData, "id"),
+    titulo: getStringField(formData, "titulo"),
+    descripcion: getStringField(formData, "descripcion") || undefined,
+    fecha: getStringField(formData, "fecha"),
+    horaInicio: getStringField(formData, "horaInicio") || undefined,
+    tipoUrl: (getStringField(formData, "tipoUrl") || undefined) as
+      | "youtube"
+      | "vimeo"
+      | "drive"
+      | "directo"
+      | undefined,
+    urlGrabacion: getStringField(formData, "urlGrabacion") || undefined,
+    publicada: getStringField(formData, "publicada") === "on",
+  });
+
+  revalidatePath("/admin/clases");
+  const filterQuery = asignaturaId
+    ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
+    : "";
+  const pageQuery = page ? `&page=${page}` : "";
+  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }
 
 export async function crearClaseAction(input: {
@@ -239,6 +381,7 @@ export async function crearClaseAction(input: {
 
 export async function crearClaseFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
   const result = await crearClaseAction({
     asignaturaId,
     titulo: getStringField(formData, "titulo"),
@@ -256,6 +399,7 @@ export async function crearClaseFormAction(formData: FormData): Promise<void> {
   const filterQuery = asignaturaId
     ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
     : "";
+  const pageQuery = page ? `&page=${page}` : "";
 
-  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }

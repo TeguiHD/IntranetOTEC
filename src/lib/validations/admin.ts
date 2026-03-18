@@ -42,6 +42,10 @@ const safeName = z
 const rutValue = z
   .string()
   .trim()
+  .refine(
+    (value) => !/[<>]/.test(value),
+    "RUT inválido.",
+  )
   .transform((value) => normalizarRut(value))
   .refine((value) => validarRut(value), "RUT inválido.");
 
@@ -309,3 +313,13 @@ export const solicitudDocumentoInputSchema = z.object({
       "La observación contiene caracteres no permitidos.",
     ),
 });
+
+export const comboboxSearchQuerySchema = z
+  .string()
+  .trim()
+  .min(2, "La búsqueda debe tener al menos 2 caracteres.")
+  .max(80, "La búsqueda supera el máximo permitido.")
+  .refine(
+    (value) => !/[<>]/.test(value),
+    "La búsqueda contiene caracteres no permitidos.",
+  );

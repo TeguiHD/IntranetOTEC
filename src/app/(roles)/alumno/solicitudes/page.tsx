@@ -15,11 +15,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   },
   invalid_input: {
     tone: "error",
-    text: "Datos inválidos en la solicitud.",
+    text: "Datos invalidos en la solicitud.",
   },
   forbidden: {
     tone: "error",
-    text: "No autorizado para esta acción.",
+    text: "No autorizado para esta accion.",
   },
   error: {
     tone: "error",
@@ -34,9 +34,9 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 const ESTADO_STYLES: Record<string, string> = {
-  pendiente: "bg-warning/20 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
-  aprobada: "bg-success/15 text-green-700 dark:bg-green-950 dark:text-green-200",
-  rechazada: "bg-danger/15 text-red-700 dark:bg-red-950 dark:text-red-200",
+  pendiente: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  aprobada: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
+  rechazada: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
 };
 
 const ESTADO_LABELS: Record<string, string> = {
@@ -57,125 +57,155 @@ export default async function AlumnoSolicitudesPage({
   const solicitudes = await listarSolicitudesDocumentosAlumno();
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
 
       <header>
-        <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-gray-100">
+        <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
           Solicitudes de Documentos
         </h1>
-        <p className="text-sm text-text-secondary dark:text-gray-300">
+        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
           Solicita credencial, certificado de alumno regular o tarjeta de beneficio.
         </p>
       </header>
 
-      <article className="rounded-xl border border-primary/30 bg-primary/5 p-4 dark:border-primary/50 dark:bg-primary/10">
-        <h2 className="text-sm font-semibold text-text-primary dark:text-gray-100">
-          Información importante
+      {/* Info banner */}
+      <article className="rounded-2xl border border-primary/20 bg-primary/5 p-4 dark:border-primary/30 dark:bg-primary/10">
+        <h2 className="text-sm font-semibold text-text-primary dark:text-white">
+          Informacion importante
         </h2>
-        <div className="mt-3 flex gap-3 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
-          <div className="min-w-[220px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+        <div className="mt-3 space-y-2 sm:flex sm:gap-3 sm:space-y-0 sm:overflow-x-auto sm:pb-1">
+          <div className="rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:min-w-[200px]">
             Solo puedes tener una solicitud pendiente por tipo de documento.
           </div>
-          <div className="min-w-[220px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-            El administrador revisará tu solicitud y la aprobará o rechazará.
+          <div className="rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:min-w-[200px]">
+            El administrador revisara tu solicitud y la aprobara o rechazara.
           </div>
-          <div className="min-w-[220px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-            Revisa el estado de tus solicitudes en la tabla inferior.
+          <div className="rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:min-w-[200px]">
+            Revisa el estado de tus solicitudes en la seccion inferior.
           </div>
         </div>
       </article>
 
-      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+      {/* Form: Nueva solicitud */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
           Nueva Solicitud
         </h2>
 
-        <form action={solicitarDocumentoAlumnoFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="solicitud-tipo" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Tipo de documento <span className="text-danger">*</span>
-            </label>
-            <select
-              id="solicitud-tipo"
-              name="tipo"
-              required
-              defaultValue="credencial"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-            >
-              <option value="credencial">Credencial</option>
-              <option value="alumno_regular">Certificado de alumno regular</option>
-              <option value="tarjeta_beneficio">Tarjeta de beneficio</option>
-            </select>
+        <form action={solicitarDocumentoAlumnoFormAction} className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="solicitud-tipo" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Tipo de documento <span className="text-danger">*</span>
+              </label>
+              <select
+                id="solicitud-tipo"
+                name="tipo"
+                required
+                defaultValue="credencial"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-primary-light dark:focus:ring-primary/30"
+              >
+                <option value="credencial">Credencial</option>
+                <option value="alumno_regular">Certificado de alumno regular</option>
+                <option value="tarjeta_beneficio">Tarjeta de beneficio</option>
+              </select>
+            </div>
           </div>
 
-          <div className="space-y-1 md:col-span-2">
-            <label htmlFor="solicitud-observacion" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Observación (opcional)
+          <div className="space-y-1.5">
+            <label htmlFor="solicitud-observacion" className="text-sm font-medium text-text-primary dark:text-gray-200">
+              Observacion (opcional)
             </label>
             <textarea
               id="solicitud-observacion"
               name="observacion"
               rows={3}
               maxLength={300}
-              placeholder="Ej: Necesito el documento para trámite institucional"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+              placeholder="Ej: Necesito el documento para tramite institucional"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
             />
           </div>
 
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="h-11 rounded-lg bg-primary px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-            >
-              Enviar Solicitud
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] sm:w-auto"
+          >
+            Enviar Solicitud
+          </button>
         </form>
       </article>
 
-      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+      {/* List: Mis solicitudes */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
           Mis Solicitudes
         </h2>
 
         {solicitudes.length === 0 ? (
           <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-            Aún no tienes solicitudes registradas.
+            Aun no tienes solicitudes registradas.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                  <th className="px-3 py-2">Documento</th>
-                  <th className="px-3 py-2">Estado</th>
-                  <th className="px-3 py-2">Fecha</th>
-                  <th className="px-3 py-2">Observación</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {solicitudes.map((solicitud) => (
-                  <tr key={solicitud.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
+          <>
+            {/* Mobile: cards */}
+            <div className="mt-4 space-y-3 sm:hidden">
+              {solicitudes.map((solicitud) => (
+                <div key={solicitud.id} className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
+                  <div className="flex items-start justify-between">
+                    <p className="font-semibold text-text-primary dark:text-white">
                       {TIPO_LABELS[solicitud.tipo] ?? solicitud.tipo}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_STYLES[solicitud.estado] ?? ""}`}>
-                        {ESTADO_LABELS[solicitud.estado] ?? solicitud.estado}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-text-secondary dark:text-gray-300">
-                      {solicitud.createdAt ? new Date(solicitud.createdAt).toLocaleDateString("es-CL") : "-"}
-                    </td>
-                    <td className="px-3 py-3 text-text-secondary dark:text-gray-300">
-                      {solicitud.observacion ?? "-"}
-                    </td>
+                    </p>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_STYLES[solicitud.estado] ?? ""}`}>
+                      {ESTADO_LABELS[solicitud.estado] ?? solicitud.estado}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                    {solicitud.createdAt ? new Date(solicitud.createdAt).toLocaleDateString("es-CL") : "-"}
+                  </p>
+                  {solicitud.observacion ? (
+                    <p className="mt-2 text-sm text-text-secondary dark:text-gray-400">
+                      {solicitud.observacion}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="mt-4 hidden overflow-x-auto sm:block">
+              <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                    <th className="px-3 py-2.5">Documento</th>
+                    <th className="px-3 py-2.5">Estado</th>
+                    <th className="px-3 py-2.5">Fecha</th>
+                    <th className="px-3 py-2.5">Observacion</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  {solicitudes.map((solicitud) => (
+                    <tr key={solicitud.id} className="transition-colors hover:bg-primary/3 dark:hover:bg-primary/5">
+                      <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
+                        {TIPO_LABELS[solicitud.tipo] ?? solicitud.tipo}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_STYLES[solicitud.estado] ?? ""}`}>
+                          {ESTADO_LABELS[solicitud.estado] ?? solicitud.estado}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
+                        {solicitud.createdAt ? new Date(solicitud.createdAt).toLocaleDateString("es-CL") : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
+                        {solicitud.observacion ?? "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </article>
     </section>

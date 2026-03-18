@@ -165,10 +165,10 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Crear clase del curso</h2>
             <form action={crearClaseDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-              <input name="titulo" placeholder="Título de la clase" required minLength={3} maxLength={140} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <input name="fecha" type="date" required title="Fecha de clase" placeholder="Fecha de clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <input name="horaInicio" type="time" title="Hora de inicio" placeholder="Hora de inicio" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <input name="numeroSesion" type="number" min={1} max={1000} required title="Numero de sesion" placeholder="Numero de sesion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="titulo" inputMode="text" placeholder="Título de la clase" required minLength={3} maxLength={140} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="fecha" type="date" inputMode="numeric" required title="Fecha de clase" placeholder="Fecha de clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="horaInicio" type="time" inputMode="numeric" title="Hora de inicio" placeholder="Hora de inicio" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="numeroSesion" type="number" inputMode="numeric" min={1} max={1000} required title="Numero de sesion" placeholder="Numero de sesion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
                   Crear clase
@@ -203,7 +203,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="tardanza">Tardanza</option>
                 <option value="justificado">Justificado</option>
               </select>
-              <input name="fechaRegistro" type="date" required title="Fecha de asistencia" placeholder="Fecha de asistencia" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="fechaRegistro" type="date" inputMode="numeric" required title="Fecha de asistencia" placeholder="Fecha de asistencia" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <textarea name="observacion" rows={2} maxLength={300} placeholder="Observación (opcional)" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
@@ -225,8 +225,8 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                   </option>
                 ))}
               </select>
-              <input name="nota" type="number" min={1} max={7} step="0.1" required placeholder="Nota 1.0 a 7.0" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <input name="fechaRegistro" type="date" required title="Fecha de nota" placeholder="Fecha de nota" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="nota" type="number" inputMode="decimal" min={1} max={7} step="0.1" required placeholder="Nota 1.0 a 7.0" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="fechaRegistro" type="date" inputMode="numeric" required title="Fecha de nota" placeholder="Fecha de nota" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
                   Registrar nota
@@ -247,7 +247,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                   </option>
                 ))}
               </select>
-              <input name="fechaRegistro" type="date" required title="Fecha de observacion" placeholder="Fecha de observacion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="fechaRegistro" type="date" inputMode="numeric" required title="Fecha de observacion" placeholder="Fecha de observacion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <textarea name="observacion" rows={3} required minLength={3} maxLength={500} placeholder="Detalle de la observación" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">

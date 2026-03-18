@@ -46,7 +46,7 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-bg-light dark:bg-gray-950">
+    <div className="min-h-screen bg-bg-light dark:bg-bg-dark">
       <Topbar
         role={role}
         userName={userName}
@@ -64,10 +64,12 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
 
       <div
         className={`pt-16 transition-[margin-left] duration-300 ease-out ${
-          isSidebarCollapsed ? "md:ml-16" : "md:ml-64"
+          isSidebarCollapsed ? "md:ml-[4.5rem]" : "md:ml-64"
         }`}
       >
-        <main className="min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-6">{children}</main>
+        <main className="mx-auto min-h-[calc(100dvh-4rem)] max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+          {children}
+        </main>
       </div>
     </div>
   );

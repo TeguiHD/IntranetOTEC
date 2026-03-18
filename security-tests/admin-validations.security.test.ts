@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   alumnoInputSchema,
   buscarPersonaPorRutInputSchema,
+  comboboxSearchQuerySchema,
   crearClaseInputSchema,
   docenteInputSchema,
   solicitudDocumentoInputSchema,
@@ -128,5 +129,16 @@ test("buscarPersonaPorRutInputSchema rejects malformed or injected payloads", ()
     rut: "12.345.678-5",
   });
 
+  assert.equal(valid.success, true);
+});
+
+test("comboboxSearchQuerySchema rejects script payloads and oversized queries", () => {
+  const injected = comboboxSearchQuerySchema.safeParse("<script>alert(1)</script>");
+  assert.equal(injected.success, false);
+
+  const oversized = comboboxSearchQuerySchema.safeParse("a".repeat(200));
+  assert.equal(oversized.success, false);
+
+  const valid = comboboxSearchQuerySchema.safeParse("Perez 12.345.678-5");
   assert.equal(valid.success, true);
 });

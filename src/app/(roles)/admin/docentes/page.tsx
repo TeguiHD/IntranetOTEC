@@ -1,11 +1,15 @@
 import {
+  countUsuariosPorRol,
   crearDocenteFormAction,
   desactivarDocenteFormAction,
   activarDocenteFormAction,
   listarUsuariosPorRol,
 } from "@/actions/usuarios";
+import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearRut } from "@/lib/rut";
+
+const PAGE_SIZE = 20;
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   docente_created: {
@@ -34,31 +38,31 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   },
   invalid_input: {
     tone: "error",
-    text: "Datos inválidos. Verifica RUT, correo y política de contraseña.",
+    text: "Datos invalidos. Verifica RUT, correo y politica de contrasena.",
   },
   invalid_rut: {
     tone: "error",
-    text: "RUT inválido. Revisa formato y dígito verificador.",
+    text: "RUT invalido. Revisa formato y digito verificador.",
   },
   invalid_email: {
     tone: "error",
-    text: "Correo inválido. Verifica el formato ingresado.",
+    text: "Correo invalido. Verifica el formato ingresado.",
   },
   invalid_password_policy: {
     tone: "error",
-    text: "La contraseña no cumple política: mínimo 12 caracteres, mayúscula, minúscula, número y símbolo.",
+    text: "La contrasena no cumple politica: minimo 12 caracteres, mayuscula, minuscula, numero y simbolo.",
   },
   invalid_name: {
     tone: "error",
-    text: "Nombre o apellido inválido. Deben tener al menos 2 caracteres.",
+    text: "Nombre o apellido invalido. Deben tener al menos 2 caracteres.",
   },
   email_conflict: {
     tone: "error",
-    text: "El correo ya está registrado por otro usuario.",
+    text: "El correo ya esta registrado por otro usuario.",
   },
   rut_conflict: {
     tone: "error",
-    text: "El RUT ya está asociado a otro tipo de usuario.",
+    text: "El RUT ya esta asociado a otro tipo de usuario.",
   },
   docente_mutation_failed: {
     tone: "error",
@@ -66,117 +70,132 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   },
   forbidden: {
     tone: "error",
-    text: "Tu sesión no tiene permisos de administrador para esta acción.",
+    text: "Tu sesion no tiene permisos de administrador para esta accion.",
   },
   error: {
     tone: "error",
-    text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente.",
+    text: "No fue posible completar la accion. Revisa los datos e intenta nuevamente.",
   },
 };
 
 type AdminDocentesPageProps = {
   searchParams?: {
     state?: string;
+    page?: string;
   };
 };
 
 export default async function AdminDocentesPage({
   searchParams,
 }: AdminDocentesPageProps) {
-  const docentes = await listarUsuariosPorRol(
-    "docente",
-    { limit: 50, offset: 0 },
-    { incluirInactivos: true },
-  );
+  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
+  const [docentes, totalCount] = await Promise.all([
+    listarUsuariosPorRol(
+      "docente",
+      { limit: PAGE_SIZE, offset },
+      { incluirInactivos: true },
+    ),
+    countUsuariosPorRol("docente", { incluirInactivos: true }),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const buildHref = (page: number): string => `/admin/docentes?page=${page}`;
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
 
       <header>
-        <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-gray-100">
-          Gestión de Docentes
+        <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
+          Gestion de Docentes
         </h1>
-        <p className="text-sm text-text-secondary dark:text-gray-300">
+        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
           Crea cuentas docentes seguras y administra su estado operativo.
         </p>
       </header>
 
-      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+      {/* Form: Crear Docente */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
           Crear Docente
         </h2>
-        <form action={crearDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="docente-nombre" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Nombre <span className="text-danger">*</span>
-            </label>
-            <input
-              id="docente-nombre"
-              name="nombre"
-              type="text"
-              inputMode="text"
-              required
-              minLength={2}
-              maxLength={80}
-              placeholder="Ej: María"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
+        <form action={crearDocenteFormAction} className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="docente-nombre" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Nombre <span className="text-danger">*</span>
+              </label>
+              <input
+                id="docente-nombre"
+                name="nombre"
+                type="text"
+                inputMode="text"
+                required
+                minLength={2}
+                maxLength={80}
+                placeholder="Ej: Maria"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="docente-apellido" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Apellido <span className="text-danger">*</span>
+              </label>
+              <input
+                id="docente-apellido"
+                name="apellido"
+                type="text"
+                inputMode="text"
+                required
+                minLength={2}
+                maxLength={80}
+                placeholder="Ej: Gonzalez"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="docente-apellido" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Apellido <span className="text-danger">*</span>
-            </label>
-            <input
-              id="docente-apellido"
-              name="apellido"
-              type="text"
-              inputMode="text"
-              required
-              minLength={2}
-              maxLength={80}
-              placeholder="Ej: González"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="docente-email" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Correo electronico <span className="text-danger">*</span>
+              </label>
+              <input
+                id="docente-email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                required
+                maxLength={180}
+                placeholder="docente@ejemplo.cl"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="docente-rut" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                RUT <span className="text-danger">*</span>
+              </label>
+              <input
+                id="docente-rut"
+                name="rut"
+                type="text"
+                inputMode="numeric"
+                required
+                minLength={8}
+                maxLength={12}
+                placeholder="12.345.678-5"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="docente-email" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Correo electrónico <span className="text-danger">*</span>
-            </label>
-            <input
-              id="docente-email"
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              maxLength={180}
-              placeholder="docente@ejemplo.cl"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="docente-rut" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              RUT <span className="text-danger">*</span>
-            </label>
-            <input
-              id="docente-rut"
-              name="rut"
-              type="text"
-              inputMode="numeric"
-              required
-              minLength={8}
-              maxLength={12}
-              placeholder="12.345.678-5"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
-          </div>
-
-          <div className="space-y-1 md:col-span-2">
-            <label htmlFor="docente-password" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Contraseña inicial <span className="text-danger">*</span>
+          <div className="space-y-1.5">
+            <label htmlFor="docente-password" className="text-sm font-medium text-text-primary dark:text-gray-200">
+              Contrasena inicial <span className="text-danger">*</span>
             </label>
             <input
               id="docente-password"
@@ -187,97 +206,165 @@ export default async function AdminDocentesPage({
               required
               minLength={12}
               maxLength={128}
-              placeholder="Mínimo 12 caracteres"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+              placeholder="Minimo 12 caracteres"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
             />
-            <p className="text-xs text-text-secondary dark:text-gray-400">
-              Debe incluir mayúscula, minúscula, número, símbolo y mínimo 12 caracteres.
+            <p className="text-xs text-text-muted dark:text-gray-500">
+              Debe incluir mayuscula, minuscula, numero, simbolo y minimo 12 caracteres.
             </p>
           </div>
 
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="h-11 rounded-lg bg-primary px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-            >
-              Crear Docente
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] sm:w-auto"
+          >
+            Crear Docente
+          </button>
         </form>
       </article>
 
-      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
-          Docentes Registrados
-        </h2>
+      {/* Lista: Docentes Registrados */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+            Docentes Registrados
+          </h2>
+          {totalCount > 0 ? (
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+              {totalCount}
+            </span>
+          ) : null}
+        </div>
 
         {docentes.length === 0 ? (
           <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-            No hay docentes registrados aún.
+            No hay docentes registrados aun.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                  <th className="px-3 py-2">Nombre</th>
-                  <th className="px-3 py-2">RUT</th>
-                  <th className="px-3 py-2">Correo</th>
-                  <th className="px-3 py-2">Estado</th>
-                  <th className="px-3 py-2 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {docentes.map((docente) => (
-                  <tr key={docente.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
-                      {docente.nombre} {docente.apellido}
-                    </td>
-                    <td className="px-3 py-3 text-text-secondary dark:text-gray-300">
-                      {docente.rut ? formatearRut(docente.rut) : "-"}
-                    </td>
-                    <td className="px-3 py-3 text-text-secondary dark:text-gray-300">
-                      {docente.email ?? "-"}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          docente.activo
-                            ? "bg-success/15 text-green-700 dark:bg-green-950 dark:text-green-200"
-                            : "bg-warning/20 text-amber-700 dark:bg-amber-950 dark:text-amber-200"
-                        }`}
-                      >
-                        {docente.activo ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      {docente.activo ? (
-                        <form action={desactivarDocenteFormAction} className="inline">
-                          <input type="hidden" name="userId" value={docente.id} />
-                          <button
-                            type="submit"
-                            className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger/50 dark:text-red-300 dark:hover:bg-red-950"
-                          >
-                            Desactivar
-                          </button>
-                        </form>
-                      ) : (
-                        <form action={activarDocenteFormAction} className="inline">
-                          <input type="hidden" name="userId" value={docente.id} />
-                          <button
-                            type="submit"
-                            className="rounded-lg border border-success/40 px-3 py-1.5 text-xs font-medium text-green-700 transition-colors hover:bg-success/10 focus:outline-none focus:ring-2 focus:ring-success/50 dark:text-green-300 dark:hover:bg-green-950"
-                          >
-                            Activar
-                          </button>
-                        </form>
-                      )}
-                    </td>
+          <>
+            {/* Mobile: cards */}
+            <div className="mt-4 space-y-3 sm:hidden">
+              {docentes.map((docente) => (
+                <div key={docente.id} className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-text-primary dark:text-white">
+                        {docente.nombre} {docente.apellido}
+                      </p>
+                      <p className="mt-0.5 text-sm text-text-secondary dark:text-gray-400">
+                        {docente.rut ? formatearRut(docente.rut) : "-"}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-text-secondary dark:text-gray-400">
+                        {docente.email ?? "-"}
+                      </p>
+                    </div>
+                    <span
+                      className={`ml-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        docente.activo
+                          ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                      }`}
+                    >
+                      {docente.activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                  <div className="mt-3">
+                    {docente.activo ? (
+                      <form action={desactivarDocenteFormAction}>
+                        <input type="hidden" name="userId" value={docente.id} />
+                        <button
+                          type="submit"
+                          className="h-10 w-full rounded-xl border border-danger/30 text-sm font-medium text-danger transition-colors hover:bg-danger/10 active:bg-danger/20 dark:text-red-400"
+                        >
+                          Desactivar
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={activarDocenteFormAction}>
+                        <input type="hidden" name="userId" value={docente.id} />
+                        <button
+                          type="submit"
+                          className="h-10 w-full rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 active:bg-success/20 dark:text-green-400"
+                        >
+                          Activar
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="mt-4 hidden overflow-x-auto sm:block">
+              <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                    <th className="px-3 py-2.5">Nombre</th>
+                    <th className="px-3 py-2.5">RUT</th>
+                    <th className="px-3 py-2.5">Correo</th>
+                    <th className="px-3 py-2.5">Estado</th>
+                    <th className="px-3 py-2.5 text-right">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  {docentes.map((docente) => (
+                    <tr key={docente.id} className="transition-colors hover:bg-primary/3 dark:hover:bg-primary/5">
+                      <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
+                        {docente.nombre} {docente.apellido}
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
+                        {docente.rut ? formatearRut(docente.rut) : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
+                        {docente.email ?? "-"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            docente.activo
+                              ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                          }`}
+                        >
+                          {docente.activo ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {docente.activo ? (
+                          <form action={desactivarDocenteFormAction} className="inline">
+                            <input type="hidden" name="userId" value={docente.id} />
+                            <button
+                              type="submit"
+                              className="rounded-lg border border-danger/30 px-3.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 dark:text-red-400"
+                            >
+                              Desactivar
+                            </button>
+                          </form>
+                        ) : (
+                          <form action={activarDocenteFormAction} className="inline">
+                            <input type="hidden" name="userId" value={docente.id} />
+                            <button
+                              type="submit"
+                              className="rounded-lg border border-success/30 px-3.5 py-1.5 text-xs font-medium text-green-700 transition-colors hover:bg-success/10 dark:text-green-400"
+                            >
+                              Activar
+                            </button>
+                          </form>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              buildHref={buildHref}
+            />
+          </>
         )}
       </article>
     </section>

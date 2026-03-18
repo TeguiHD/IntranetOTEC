@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,6 +16,7 @@ import { sanitizeText } from "@/lib/sanitize";
 import {
   alumnoInputSchema,
   buscarPersonaPorRutInputSchema,
+  comboboxSearchQuerySchema,
   docenteInputSchema,
   desactivarUsuarioInputSchema,
 } from "@/lib/validations/admin";
@@ -133,6 +134,80 @@ export async function listarUsuariosPorRol(
       isNull(usuarios.eliminadoAt),
     ),
   );
+}
+
+export async function countUsuariosPorRol(
+  role: "docente" | "alumno",
+  options?: { incluirInactivos?: boolean },
+): Promise<number> {
+  const actorResult = await requireActionActor("admin_user_list", ["admin"]);
+
+  if (!actorResult.ok) {
+    return 0;
+  }
+
+  const db = getDb();
+
+  const baseQuery = db.select({ total: count() }).from(usuarios);
+
+  if (options?.incluirInactivos) {
+    const result = await baseQuery.where(eq(usuarios.rol, role));
+    return Number(result[0]?.total ?? 0);
+  }
+
+  const result = await baseQuery.where(
+    and(eq(usuarios.rol, role), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt)),
+  );
+  return Number(result[0]?.total ?? 0);
+}
+
+export type AlumnoBusqueda = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  rut: string | null;
+};
+
+export async function buscarAlumnosAction(query: string): Promise<AlumnoBusqueda[]> {
+  const actorResult = await requireActionActor("admin_alumno_search", ["admin"]);
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const parsed = comboboxSearchQuerySchema.safeParse(query);
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  const q = parsed.data;
+
+  const db = getDb();
+  const term = `%${q}%`;
+
+  return db
+    .select({
+      id: usuarios.id,
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      rut: usuarios.rut,
+    })
+    .from(usuarios)
+    .where(
+      and(
+        eq(usuarios.rol, "alumno"),
+        eq(usuarios.activo, true),
+        isNull(usuarios.eliminadoAt),
+        or(
+          ilike(usuarios.nombre, term),
+          ilike(usuarios.apellido, term),
+          ilike(usuarios.rut, term),
+        ),
+      ),
+    )
+    .orderBy(desc(usuarios.createdAt))
+    .limit(15);
 }
 
 export async function buscarPersonaPorRutAdmin(input: {

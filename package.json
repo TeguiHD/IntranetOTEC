@@ -11,7 +11,7 @@
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:check": "drizzle-kit check --config=drizzle.config.ts",
     "quality:gate": "node scripts/quality-gate.mjs",
-    "security:test": "rm -rf .security-build && tsc -p tsconfig.security-tests.json && node --test .security-build/security-tests/*.security.test.js",
+    "security:test": "rm -rf .security-build && tsc -p tsconfig.security-tests.json && mkdir -p .security-build/node_modules/@ && ln -sfn ../../src/lib .security-build/node_modules/@/lib && node --test .security-build/security-tests/*.security.test.js",
     "security:validate": "pnpm quality:gate && pnpm security:test"
   },
   "dependencies": {

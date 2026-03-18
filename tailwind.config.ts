@@ -17,7 +17,7 @@ const config: Config = {
         secondary: "#A855F7",
         "bg-light": "#F8F7FC",
         "bg-white": "#FFFFFF",
-        "bg-dark": "#0D0D0D",
+        "bg-dark": "#0F0A14",
         "bg-footer": "#1A1A1A",
         "text-primary": "#2D1F3D",
         "text-secondary": "#4B5563",
@@ -42,6 +42,10 @@ const config: Config = {
       backgroundImage: {
         "gradient-brand": "linear-gradient(135deg, #8B3A9E, #5A1F68)",
         "gradient-hero": "linear-gradient(135deg, #8B3A9E, #5A1F68, #9B4DB0)",
+      },
+      borderRadius: {
+        "2xl": "1rem",
+        "3xl": "1.25rem",
       },
     },
   },

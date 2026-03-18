@@ -68,45 +68,56 @@ export function Topbar({
 
   const isDark = mounted && resolvedTheme === "dark";
 
+  const handleThemeToggle = () => {
+    document.documentElement.classList.add("theme-transition");
+    setTheme(isDark ? "light" : "dark");
+    setTimeout(() => {
+      document.documentElement.classList.remove("theme-transition");
+    }, 350);
+  };
+
   return (
-    <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/90 bg-white/95 px-4 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-950/95">
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+    <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:px-4">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+        {/* Mobile menu */}
         <button
           type="button"
-          aria-label="Abrir menú"
+          aria-label="Abrir menu"
           onClick={onToggleMobileSidebar}
-          className="inline-flex h-10 w-10 items-center justify-center rounded border border-gray-200 text-text-primary hover:bg-gray-100 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
             <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
 
+        {/* Desktop sidebar toggle */}
         <button
           type="button"
           aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Colapsar barra lateral"}
           onClick={onToggleDesktopSidebar}
-          className="hidden h-10 w-10 items-center justify-center rounded border border-gray-200 text-text-primary hover:bg-gray-100 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800 md:inline-flex"
+          className="hidden h-10 w-10 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 dark:text-gray-100 dark:hover:bg-primary/20 md:inline-flex"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
             <path strokeLinecap="round" strokeLinejoin="round" d={isSidebarCollapsed ? "M8 6l6 6-6 6" : "M16 6l-6 6 6 6"} />
           </svg>
         </button>
 
+        {/* Breadcrumbs - desktop only */}
         <nav className="hidden min-w-0 items-center text-sm sm:flex" aria-label="Breadcrumb">
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1;
 
             return (
               <div key={crumb.href} className="flex min-w-0 items-center">
-                {index > 0 ? <span className="px-2 text-text-secondary dark:text-gray-400">/</span> : null}
+                {index > 0 ? <span className="px-1.5 text-gray-400 dark:text-gray-500">/</span> : null}
 
                 {isLast ? (
                   <span className="truncate font-semibold text-text-primary dark:text-white">{crumb.label}</span>
                 ) : (
                   <Link
                     href={crumb.href}
-                    className="truncate text-text-secondary hover:text-text-primary dark:text-gray-300 dark:hover:text-white"
+                    className="truncate text-text-secondary transition-colors hover:text-primary dark:text-gray-400 dark:hover:text-primary-light"
                   >
                     {crumb.label}
                   </Link>
@@ -115,38 +126,50 @@ export function Topbar({
             );
           })}
         </nav>
+
+        {/* Mobile: role badge */}
+        <span className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light sm:hidden">
+          {ROLE_NAMES[role]}
+        </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Theme toggle */}
         <button
           type="button"
-          aria-label="Cambiar tema"
-          title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          className="inline-flex h-10 w-10 items-center justify-center rounded border border-gray-200 text-text-primary hover:bg-gray-100 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
+          aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+          title={isDark ? "Modo claro" : "Modo oscuro"}
+          onClick={handleThemeToggle}
+          className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
         >
-          {isDark ? (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
-            </svg>
+          {mounted ? (
+            isDark ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <circle cx="12" cy="12" r="4" />
+                <path strokeLinecap="round" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" />
+              </svg>
+            )
           ) : (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-              <circle cx="12" cy="12" r="4" />
-              <path strokeLinecap="round" d="M12 2v2.5M12 19.5V22M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M4.93 19.07l1.77-1.77M17.3 6.7l1.77-1.77" />
-            </svg>
+            <span className="h-5 w-5" />
           )}
         </button>
 
-        <div className="hidden items-center gap-2 rounded border border-gray-200 px-2 py-1 dark:border-gray-700 sm:flex">
-          <div className="flex h-9 w-9 items-center justify-center rounded bg-primary text-xs font-bold text-white">
+        {/* User avatar + name (desktop) */}
+        <div className="hidden items-center gap-2.5 rounded-xl bg-gray-50 px-3 py-1.5 dark:bg-gray-900 sm:flex">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark text-xs font-bold text-white shadow-sm">
             {getInitials(userName)}
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-text-primary dark:text-white">{userName}</p>
-            <p className="text-xs text-text-secondary dark:text-gray-300">{ROLE_NAMES[role]}</p>
+            <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_NAMES[role]}</p>
           </div>
         </div>
 
+        {/* Sign out */}
         <button
           type="button"
           onClick={() => {
@@ -154,9 +177,10 @@ export function Topbar({
               await signOut({ callbackUrl: "/login" });
             });
           }}
-          className="h-10 rounded bg-danger px-3 text-sm font-semibold text-white hover:bg-red-600 focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
+          disabled={isSigningOut}
+          className="h-11 rounded-xl border border-danger/30 px-3 text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-white active:scale-95 disabled:opacity-50 dark:border-danger/40 dark:text-red-400 dark:hover:bg-danger dark:hover:text-white sm:px-4"
         >
-          {isSigningOut ? "Saliendo…" : "Cerrar sesión"}
+          {isSigningOut ? "..." : "Salir"}
         </button>
       </div>
     </header>

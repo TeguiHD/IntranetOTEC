@@ -68,7 +68,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
 
 const ROLE_NAV: Record<AppRole, NavItem[]> = {
   admin: [
-    { href: "/admin", label: "Dashboard", Icon: HomeIcon },
+    { href: "/admin", label: "PANEL", Icon: HomeIcon },
     { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookIcon },
     { href: "/admin/matriculas", label: "Matrículas", Icon: CoinIcon },
     { href: "/admin/clases", label: "Clases", Icon: CalendarIcon },
@@ -76,11 +76,11 @@ const ROLE_NAV: Record<AppRole, NavItem[]> = {
     { href: "/admin/alumnos", label: "Alumnos", Icon: UsersIcon },
   ],
   docente: [
-    { href: "/docente", label: "Dashboard", Icon: HomeIcon },
+    { href: "/docente", label: "PANEL", Icon: HomeIcon },
     { href: "/docente/asignaturas", label: "Mis asignaturas", Icon: BookIcon },
   ],
   alumno: [
-    { href: "/alumno", label: "Dashboard", Icon: HomeIcon },
+    { href: "/alumno", label: "PANEL", Icon: HomeIcon },
     { href: "/alumno/asignaturas", label: "Mis cursos", Icon: BookIcon },
     { href: "/alumno/solicitudes", label: "Solicitudes", Icon: CalendarIcon },
   ],

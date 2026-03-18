@@ -61,7 +61,7 @@ export default async function AdminDashboardPage({
   return (
     <section className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">Dashboard Admin</h1>
+        <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">PANEL Admin</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
           Centro operativo para administración académica y control de usuarios.
         </p>

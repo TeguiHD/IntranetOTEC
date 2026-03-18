@@ -2,7 +2,7 @@ export default function DocenteDashboardPage() {
   return (
     <section className="space-y-4">
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-white">Dashboard Docente</h1>
+        <h1 className="text-2xl font-bold text-text-primary dark:text-white">PANEL Docente</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
           Vista inicial con acceso a tus asignaturas y clases.
         </p>

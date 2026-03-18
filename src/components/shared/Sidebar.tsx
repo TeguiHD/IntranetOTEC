@@ -54,6 +54,13 @@ const CalendarIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const DocumentIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+  </svg>
+);
+
 type NavItem = {
   href: string;
   label: string;
@@ -68,21 +75,22 @@ const ROLE_LABELS: Record<AppRole, string> = {
 
 const ROLE_NAV: Record<AppRole, NavItem[]> = {
   admin: [
-    { href: "/admin", label: "PANEL", Icon: HomeIcon },
+    { href: "/admin", label: "Panel", Icon: HomeIcon },
     { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookIcon },
     { href: "/admin/matriculas", label: "Matrículas", Icon: CoinIcon },
     { href: "/admin/clases", label: "Clases", Icon: CalendarIcon },
     { href: "/admin/docentes", label: "Docentes", Icon: UserIcon },
     { href: "/admin/alumnos", label: "Alumnos", Icon: UsersIcon },
+    { href: "/admin/solicitudes", label: "Solicitudes", Icon: DocumentIcon },
   ],
   docente: [
-    { href: "/docente", label: "PANEL", Icon: HomeIcon },
-    { href: "/docente/asignaturas", label: "Mis asignaturas", Icon: BookIcon },
+    { href: "/docente", label: "Panel", Icon: HomeIcon },
+    { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookIcon },
   ],
   alumno: [
-    { href: "/alumno", label: "PANEL", Icon: HomeIcon },
-    { href: "/alumno/asignaturas", label: "Mis cursos", Icon: BookIcon },
-    { href: "/alumno/solicitudes", label: "Solicitudes", Icon: CalendarIcon },
+    { href: "/alumno", label: "Panel", Icon: HomeIcon },
+    { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: BookIcon },
+    { href: "/alumno/solicitudes", label: "Solicitudes", Icon: DocumentIcon },
   ],
 };
 
@@ -125,7 +133,7 @@ function SidebarNav({
             href={item.href}
             title={collapsed ? item.label : undefined}
             onClick={onNavigate}
-            className={`flex h-10 items-center rounded px-3 text-sm font-medium transition-colors ${
+            className={`flex h-10 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
               active
                 ? "bg-primary text-white shadow-sm"
                 : "text-text-secondary hover:bg-gray-100 hover:text-text-primary dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"

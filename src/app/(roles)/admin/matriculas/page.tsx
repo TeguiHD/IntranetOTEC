@@ -6,6 +6,7 @@ import {
 } from "@/actions/matriculas";
 import { listarUsuariosPorRol } from "@/actions/usuarios";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { ExportCsvButton } from "./ExportCsvButton";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   matricula_created: {
@@ -73,7 +74,7 @@ export default async function AdminMatriculasPage({
       <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
 
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">Matrículas</h1>
+        <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-gray-100">Matrículas</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
           Matricula alumnos por asignatura y controla indicador de pagó/no pagó.
         </p>
@@ -191,11 +192,14 @@ export default async function AdminMatriculasPage({
         </form>
       </article>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
-            Matrículas registradas
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+              Matrículas Registradas
+            </h2>
+            <ExportCsvButton matriculas={matriculas} />
+          </div>
 
           <form method="GET" className="flex items-center gap-2">
             <label htmlFor="mat-filter" className="text-xs font-medium text-text-secondary dark:text-gray-300">
@@ -282,7 +286,7 @@ export default async function AdminMatriculasPage({
                         />
                         <button
                           type="submit"
-                          className="rounded bg-danger px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
+                          className="rounded border border-danger/40 px-3 py-1 text-xs font-medium text-text-primary hover:bg-danger/10 dark:text-gray-100"
                         >
                           Desmatricular
                         </button>

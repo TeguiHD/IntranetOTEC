@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#7B2D8E",
+        primary: "#8B3A9E",
         "primary-dark": "#5A1F68",
         "primary-light": "#9B4DB0",
         accent: "#8B3A9E",
@@ -20,7 +20,9 @@ const config: Config = {
         "bg-dark": "#0D0D0D",
         "bg-footer": "#1A1A1A",
         "text-primary": "#2D1F3D",
-        "text-secondary": "#645A72",
+        "text-secondary": "#9CA3AF",
+        "text-main": "#2D1F3D",
+        "text-light": "#9CA3AF",
         "text-muted": "#9CA3AF",
         "text-white": "#FFFFFF",
         cta: "#00C853",
@@ -38,11 +40,12 @@ const config: Config = {
         screen: "100dvh",
       },
       backgroundImage: {
-        "gradient-brand": "linear-gradient(135deg, #7B2D8E, #5A1F68)",
-        "gradient-hero": "linear-gradient(135deg, #7B2D8E, #5A1F68, #7B2D8E)",
+        "gradient-brand": "linear-gradient(135deg, #8B3A9E, #5A1F68)",
+        "gradient-hero": "linear-gradient(135deg, #8B3A9E, #5A1F68, #9B4DB0)",
       },
     },
   },
   plugins: [],
 };
+
 export default config;

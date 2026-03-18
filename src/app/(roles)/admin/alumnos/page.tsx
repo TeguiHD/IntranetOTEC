@@ -181,7 +181,7 @@ export default async function AdminAlumnosPage({
                         <input type="hidden" name="userId" value={alumno.id} />
                         <button
                           type="submit"
-                          className="rounded border border-danger/40 px-3 py-1 text-xs font-medium text-text-primary hover:bg-danger/10 dark:text-gray-100"
+                          className="rounded bg-danger px-3 py-1 text-xs font-semibold text-white hover:bg-red-600 focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
                         >
                           Desactivar
                         </button>

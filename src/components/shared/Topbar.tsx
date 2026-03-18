@@ -154,7 +154,7 @@ export function Topbar({
               await signOut({ callbackUrl: "/login" });
             });
           }}
-          className="h-10 rounded border border-danger/40 px-3 text-sm font-medium text-text-primary hover:bg-danger/10 focus:ring-2 focus:ring-danger/40 dark:text-gray-100 dark:hover:bg-danger/20"
+          className="h-10 rounded bg-danger px-3 text-sm font-semibold text-white hover:bg-red-600 focus:ring-2 focus:ring-danger/50 focus:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-500"
         >
           {isSigningOut ? "Saliendo…" : "Cerrar sesión"}
         </button>

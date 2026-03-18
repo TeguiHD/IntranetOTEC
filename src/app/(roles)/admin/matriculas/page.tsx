@@ -5,6 +5,7 @@ import {
   matricularAlumnoFormAction,
 } from "@/actions/matriculas";
 import { listarUsuariosPorRol } from "@/actions/usuarios";
+import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   matricula_created: {
@@ -67,30 +68,16 @@ export default async function AdminMatriculasPage({
   ).length;
   const totalNoPagadas = Math.max(totalActivas - totalPagadas, 0);
 
-  const state = typeof searchParams?.state === "string" ? searchParams.state : undefined;
-  const banner = state ? STATUS_MAP[state] ?? STATUS_MAP.error : null;
-
   return (
     <section className="space-y-6">
+      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+
       <header>
         <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">Matrículas</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
           Matricula alumnos por asignatura y controla indicador de pagó/no pagó.
         </p>
       </header>
-
-      {banner ? (
-        <div
-          className={`rounded-md border px-4 py-3 text-sm ${
-            banner.tone === "success"
-              ? "border-success/30 bg-success/10 text-text-primary dark:border-green-700 dark:bg-green-950 dark:text-green-100"
-              : "border-danger/30 bg-danger/10 text-text-primary dark:border-red-700 dark:bg-red-950 dark:text-red-100"
-          }`}
-          role="status"
-        >
-          {banner.text}
-        </div>
-      ) : null}
 
       <div className="grid gap-3 md:grid-cols-3">
         <article className="rounded-md border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">

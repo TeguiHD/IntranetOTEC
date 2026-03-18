@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { RutInput } from "@/components/shared/RutInput";
 import { normalizarRut } from "@/lib/rut";
@@ -45,8 +46,28 @@ export function LoginView({ authError }: LoginViewProps) {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const lastQueryErrorRef = useRef<string | null>(null);
+  const lastFormErrorRef = useRef<string | null>(null);
 
   const queryError = mapAuthError(authError ?? null);
+
+  useEffect(() => {
+    if (!queryError || lastQueryErrorRef.current === queryError) {
+      return;
+    }
+
+    lastQueryErrorRef.current = queryError;
+    toast.error(queryError);
+  }, [queryError]);
+
+  useEffect(() => {
+    if (!formError || lastFormErrorRef.current === formError) {
+      return;
+    }
+
+    lastFormErrorRef.current = formError;
+    toast.error(formError);
+  }, [formError]);
 
   const runSignIn = (
     provider: "alumno-rut" | "staff-credentials",
@@ -65,6 +86,7 @@ export function LoginView({ authError }: LoginViewProps) {
         return;
       }
 
+      toast.success("Inicio de sesión exitoso. Redirigiendo...");
       router.replace("/");
       router.refresh();
     });
@@ -203,11 +225,9 @@ export function LoginView({ authError }: LoginViewProps) {
             ¿Problemas de acceso? Contacta al administrador de la intranet.
           </p>
 
-          {queryError || formError ? (
-            <p className="mt-3 rounded border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-text-primary dark:border-red-700 dark:bg-red-950 dark:text-red-100" role="alert">
-              {formError ?? queryError}
-            </p>
-          ) : null}
+          <p className="sr-only" role="status" aria-live="polite">
+            {formError ?? queryError ?? ""}
+          </p>
         </div>
       </section>
     </main>

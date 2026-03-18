@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
+import { MessageToast } from "@/components/shared/MessageToast";
 import { formatearRut } from "@/lib/rut";
 
 const MODULE_CARDS = [
@@ -101,9 +102,7 @@ export default async function AdminDashboardPage({
         </form>
 
         {resultadoBusqueda && !resultadoBusqueda.ok ? (
-          <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-text-primary dark:border-red-700 dark:bg-red-950 dark:text-red-100" role="status">
-            {resultadoBusqueda.message}
-          </div>
+          <MessageToast message={resultadoBusqueda.message} tone="error" />
         ) : null}
 
         {resultadoBusqueda && resultadoBusqueda.ok ? (

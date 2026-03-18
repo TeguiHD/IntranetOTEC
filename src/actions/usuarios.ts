@@ -786,6 +786,103 @@ export async function desactivarUsuarioAction(input: {
   }
 }
 
+export async function activarUsuarioAction(input: {
+  userId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_user_activate", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = desactivarUsuarioInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Usuario inválido.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [target] = await db
+      .select({
+        id: usuarios.id,
+        rol: usuarios.rol,
+        activo: usuarios.activo,
+      })
+      .from(usuarios)
+      .where(eq(usuarios.id, parsed.data.userId))
+      .limit(1);
+
+    if (!target) {
+      return {
+        ok: false,
+        code: "user_not_found",
+        message: "No se encontró el usuario.",
+      };
+    }
+
+    if (target.activo) {
+      return {
+        ok: true,
+        code: "already_active",
+      };
+    }
+
+    await db
+      .update(usuarios)
+      .set({
+        activo: true,
+        eliminadoAt: null,
+        eliminadoPor: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(usuarios.id, target.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "usuarios",
+      entidadId: target.id,
+      payload: {
+        rolObjetivo: target.rol,
+        reactivado: true,
+      },
+      exitoso: true,
+    });
+
+    return {
+      ok: true,
+      code: "user_activated",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_user_activate_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: {
+        reason: message,
+      },
+    });
+
+    return {
+      ok: false,
+      code: "activate_failed",
+      message: "No fue posible activar el usuario.",
+    };
+  }
+}
+
 export async function crearDocenteFormAction(formData: FormData): Promise<void> {
   const result = await crearDocenteAction({
     nombre: getStringField(formData, "nombre"),
@@ -827,10 +924,32 @@ export async function desactivarDocenteFormAction(
   redirect(`/admin/docentes?state=${result.ok ? result.code : "error"}`);
 }
 
+export async function activarDocenteFormAction(
+  formData: FormData,
+): Promise<void> {
+  const result = await activarUsuarioAction({
+    userId: getStringField(formData, "userId"),
+  });
+
+  revalidatePath("/admin/docentes");
+  redirect(`/admin/docentes?state=${result.ok ? result.code : "error"}`);
+}
+
 export async function desactivarAlumnoFormAction(
   formData: FormData,
 ): Promise<void> {
   const result = await desactivarUsuarioAction({
+    userId: getStringField(formData, "userId"),
+  });
+
+  revalidatePath("/admin/alumnos");
+  redirect(`/admin/alumnos?state=${result.code}`);
+}
+
+export async function activarAlumnoFormAction(
+  formData: FormData,
+): Promise<void> {
+  const result = await activarUsuarioAction({
     userId: getStringField(formData, "userId"),
   });
 

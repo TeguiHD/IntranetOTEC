@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { obtenerResumenDatosDocentes } from "@/actions/admin-resumen";
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
+import { AccordionItem } from "@/components/shared/Accordion";
 import { MessageToast } from "@/components/shared/MessageToast";
 import { formatearRut } from "@/lib/rut";
 
@@ -30,6 +32,11 @@ const MODULE_CARDS = [
     title: "Clases",
     description: "Programar sesiones y definir publicación de contenido.",
   },
+  {
+    href: "/admin/solicitudes",
+    title: "Solicitudes",
+    description: "Gestionar solicitudes de credencial, certificados y tarjetas de beneficio.",
+  },
 ] as const;
 
 type AdminDashboardPageProps = {
@@ -54,14 +61,15 @@ export default async function AdminDashboardPage({
   searchParams,
 }: AdminDashboardPageProps) {
   const rutConsulta = typeof searchParams?.rut === "string" ? searchParams.rut.trim() : "";
-  const resultadoBusqueda = rutConsulta
-    ? await buscarPersonaPorRutAdmin({ rut: rutConsulta })
-    : null;
+  const [resultadoBusqueda, resumenDocentes] = await Promise.all([
+    rutConsulta ? buscarPersonaPorRutAdmin({ rut: rutConsulta }) : null,
+    obtenerResumenDatosDocentes(),
+  ]);
 
   return (
     <section className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">Dashboard Admin</h1>
+        <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-gray-100">Panel Admin</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
           Centro operativo para administración académica y control de usuarios.
         </p>
@@ -227,12 +235,67 @@ export default async function AdminDashboardPage({
         ) : null}
       </article>
 
+      {resumenDocentes.length > 0 ? (
+        <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+            Datos Subidos por Docentes
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary dark:text-gray-300">
+            Resumen de clases, asistencias, notas y observaciones por docente.
+          </p>
+          <div className="mt-4 space-y-3">
+            {resumenDocentes.map((docente) => {
+              const totalActividad = docente.asignaturas.reduce(
+                (sum, a) => sum + a.totalClases + a.totalAsistencias + a.totalNotas + a.totalObservaciones,
+                0,
+              );
+
+              return (
+                <AccordionItem
+                  key={docente.docenteId}
+                  title={`${docente.docenteNombre} ${docente.docenteApellido}`}
+                  badge={`${totalActividad} registros`}
+                >
+                  <div className="space-y-3">
+                    {docente.asignaturas.map((asig) => (
+                      <div key={asig.asignaturaId} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
+                        <p className="text-sm font-medium text-text-primary dark:text-gray-100">
+                          {asig.asignaturaNombre}
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-primary">{asig.totalClases}</p>
+                            <p className="text-xs text-text-secondary dark:text-gray-400">Clases</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-success">{asig.totalAsistencias}</p>
+                            <p className="text-xs text-text-secondary dark:text-gray-400">Asistencias</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-secondary">{asig.totalNotas}</p>
+                            <p className="text-xs text-text-secondary dark:text-gray-400">Notas</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-warning">{asig.totalObservaciones}</p>
+                            <p className="text-xs text-text-secondary dark:text-gray-400">Observaciones</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionItem>
+              );
+            })}
+          </div>
+        </article>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {MODULE_CARDS.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="rounded-md border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+            className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
           >
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">{card.title}</h2>
             <p className="mt-2 text-sm text-text-secondary dark:text-gray-300">

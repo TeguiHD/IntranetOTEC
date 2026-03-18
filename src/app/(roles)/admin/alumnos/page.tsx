@@ -1,10 +1,10 @@
 import {
-  crearAlumnoFormAction,
-  desactivarAlumnoFormAction,
   listarUsuariosPorRol,
 } from "@/actions/usuarios";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearRut } from "@/lib/rut";
+import { AlumnoForm } from "./AlumnoForm";
+import { AlumnoToggle } from "./AlumnoToggle";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   alumno_created: {
@@ -19,9 +19,33 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
     tone: "success",
     text: "Alumno desactivado correctamente.",
   },
+  user_activated: {
+    tone: "success",
+    text: "Alumno activado correctamente.",
+  },
   already_inactive: {
     tone: "success",
     text: "El alumno ya estaba inactivo.",
+  },
+  already_active: {
+    tone: "success",
+    text: "El alumno ya estaba activo.",
+  },
+  invalid_input: {
+    tone: "error",
+    text: "Datos inválidos. Verifica los campos e intenta nuevamente.",
+  },
+  email_conflict: {
+    tone: "error",
+    text: "El correo ya está registrado por otro usuario.",
+  },
+  alumno_mutation_failed: {
+    tone: "error",
+    text: "No fue posible crear/actualizar el alumno por un error interno.",
+  },
+  forbidden: {
+    tone: "error",
+    text: "Tu sesión no tiene permisos de administrador para esta acción.",
   },
   error: {
     tone: "error",
@@ -48,155 +72,81 @@ export default async function AdminAlumnosPage({
       <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
 
       <header>
-        <h1 className="text-2xl font-bold text-text-primary dark:text-gray-100">
-          Gestión de alumnos
+        <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-gray-100">
+          Gestión de Alumnos
         </h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
-          Registra alumnos con validación RUT y controla su estado de acceso.
+          Registra alumnos con RUT o credencial extranjera y controla su estado de acceso.
         </p>
       </header>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
-          Crear alumno
+          Crear Alumno
         </h2>
-        <form action={crearAlumnoFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="alumno-nombre" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Nombre
-            </label>
-            <input
-              id="alumno-nombre"
-              name="nombre"
-              type="text"
-              inputMode="text"
-              required
-              minLength={2}
-              maxLength={80}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="alumno-apellido" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Apellido
-            </label>
-            <input
-              id="alumno-apellido"
-              name="apellido"
-              type="text"
-              inputMode="text"
-              required
-              minLength={2}
-              maxLength={80}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="alumno-rut" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              RUT
-            </label>
-            <input
-              id="alumno-rut"
-              name="rut"
-              type="text"
-              inputMode="numeric"
-              required
-              minLength={8}
-              maxLength={12}
-              placeholder="12.345.678-5"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="alumno-email" className="text-sm font-medium text-text-primary dark:text-gray-100">
-              Correo (opcional)
-            </label>
-            <input
-              id="alumno-email"
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              maxLength={180}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            >
-              Crear alumno
-            </button>
-          </div>
-        </form>
+        <AlumnoForm />
       </article>
 
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
-          Alumnos registrados
+          Alumnos Registrados
         </h2>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                <th className="px-3 py-2">Nombre</th>
-                <th className="px-3 py-2">RUT</th>
-                <th className="px-3 py-2">Correo</th>
-                <th className="px-3 py-2">Estado</th>
-                <th className="px-3 py-2 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {alumnos.map((alumno) => (
-                <tr key={alumno.id}>
-                  <td className="px-3 py-2 text-text-primary dark:text-gray-100">
-                    {alumno.nombre} {alumno.apellido}
-                  </td>
-                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                    {alumno.rut ? formatearRut(alumno.rut) : "-"}
-                  </td>
-                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                    {alumno.email ?? "-"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${
-                        alumno.activo
-                          ? "bg-success/15 text-text-primary dark:bg-green-950 dark:text-green-100"
-                          : "bg-warning/20 text-text-primary dark:bg-amber-950 dark:text-amber-100"
-                      }`}
-                    >
-                      {alumno.activo ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {alumno.activo ? (
-                      <form action={desactivarAlumnoFormAction} className="inline">
-                        <input type="hidden" name="userId" value={alumno.id} />
-                        <button
-                          type="submit"
-                          className="rounded border border-danger/40 px-3 py-1 text-xs font-medium text-text-primary hover:bg-danger/10 dark:text-gray-100"
-                        >
-                          Desactivar
-                        </button>
-                      </form>
-                    ) : (
-                      <span className="text-xs text-text-secondary dark:text-gray-400">
-                        Sin acciones
-                      </span>
-                    )}
-                  </td>
+        {alumnos.length === 0 ? (
+          <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
+            No hay alumnos registrados aún.
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-300">
+                  <th className="px-3 py-2">Nombre</th>
+                  <th className="px-3 py-2">RUT / Credencial</th>
+                  <th className="px-3 py-2">Correo</th>
+                  <th className="px-3 py-2">Estado</th>
+                  <th className="px-3 py-2 text-right">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {alumnos.map((alumno) => {
+                  const isExtranjero = alumno.rut?.startsWith("EXT-");
+                  return (
+                    <tr key={alumno.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
+                        {alumno.nombre} {alumno.apellido}
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-300">
+                        {alumno.rut
+                          ? isExtranjero
+                            ? alumno.rut.replace("EXT-", "Ext: ")
+                            : formatearRut(alumno.rut)
+                          : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary dark:text-gray-300">
+                        {alumno.email ?? "-"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            alumno.activo
+                              ? "bg-success/15 text-green-700 dark:bg-green-950 dark:text-green-200"
+                              : "bg-warning/20 text-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                          }`}
+                        >
+                          {alumno.activo ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <AlumnoToggle userId={alumno.id} activo={alumno.activo ?? false} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </article>
     </section>
   );

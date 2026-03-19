@@ -28,6 +28,8 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+	output: 'standalone',
+	compress: true,
 	async headers() {
 		return [
 			{

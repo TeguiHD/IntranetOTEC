@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,7 +12,6 @@ import {
   LayoutDashboard,
   type LucideIcon,
   ScrollText,
-  Shield,
   UserCog,
   Users,
   Wallet,
@@ -24,7 +24,7 @@ type NavItem = {
   href: string;
   label: string;
   Icon: LucideIcon;
-  color: string;
+  gradient: string;
 };
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -34,24 +34,24 @@ const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 const ADMIN_ITEMS: NavItem[] = [
-  { href: "/admin",              label: "Panel",       Icon: LayoutDashboard, color: "from-primary to-primary-dark" },
-  { href: "/admin/asignaturas",  label: "Asignaturas", Icon: BookOpen,        color: "from-violet-500 to-violet-700" },
-  { href: "/admin/clases",       label: "Clases",      Icon: CalendarDays,    color: "from-blue-500 to-blue-700" },
-  { href: "/admin/docentes",     label: "Docentes",    Icon: UserCog,         color: "from-indigo-500 to-indigo-700" },
-  { href: "/admin/alumnos",      label: "Alumnos",     Icon: Users,           color: "from-cyan-500 to-cyan-700" },
-  { href: "/admin/matriculas",   label: "Matrículas",  Icon: Wallet,          color: "from-emerald-500 to-emerald-700" },
-  { href: "/admin/solicitudes",  label: "Solicitudes", Icon: FileText,        color: "from-amber-500 to-amber-700" },
+  { href: "/admin",              label: "Panel",       Icon: LayoutDashboard, gradient: "grad-purple" },
+  { href: "/admin/asignaturas",  label: "Asignaturas", Icon: BookOpen,        gradient: "grad-blue" },
+  { href: "/admin/clases",       label: "Clases",      Icon: CalendarDays,    gradient: "grad-cyan" },
+  { href: "/admin/docentes",     label: "Docentes",    Icon: UserCog,         gradient: "grad-amber" },
+  { href: "/admin/alumnos",      label: "Alumnos",     Icon: Users,           gradient: "grad-emerald" },
+  { href: "/admin/matriculas",   label: "Matrículas",  Icon: Wallet,          gradient: "grad-pink" },
+  { href: "/admin/solicitudes",  label: "Solicitudes", Icon: FileText,        gradient: "grad-violet" },
 ];
 
 const DOCENTE_ITEMS: NavItem[] = [
-  { href: "/docente",             label: "Panel",           Icon: LayoutDashboard, color: "from-primary to-primary-dark" },
-  { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen,        color: "from-violet-500 to-violet-700" },
+  { href: "/docente",             label: "Panel",           Icon: LayoutDashboard, gradient: "grad-purple" },
+  { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen,        gradient: "grad-blue" },
 ];
 
 const ALUMNO_ITEMS: NavItem[] = [
-  { href: "/alumno",             label: "Panel",       Icon: LayoutDashboard, color: "from-primary to-primary-dark" },
-  { href: "/alumno/asignaturas", label: "Mis Cursos",  Icon: GraduationCap,   color: "from-violet-500 to-violet-700" },
-  { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText,      color: "from-amber-500 to-amber-700" },
+  { href: "/alumno",             label: "Panel",       Icon: LayoutDashboard, gradient: "grad-purple" },
+  { href: "/alumno/asignaturas", label: "Mis Cursos",  Icon: GraduationCap,   gradient: "grad-blue" },
+  { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText,      gradient: "grad-violet" },
 ];
 
 const ROLE_ITEMS: Record<AppRole, NavItem[]> = {
@@ -84,9 +84,14 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
       {/* Header */}
       <div className="flex h-16 items-center justify-between border-b border-purple-100 bg-white px-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
-            <Shield className="h-4 w-4 text-white" strokeWidth={2.2} />
-          </div>
+          <Image
+            src="/logo-icon.svg"
+            alt="Mi OTEC"
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-xl object-contain"
+            priority
+          />
           <div>
             <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
             <p className="text-xs text-text-secondary dark:text-gray-400">
@@ -98,15 +103,15 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
           type="button"
           aria-label="Cerrar menú"
           onClick={onClose}
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-text-secondary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-text-secondary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Grid */}
+      {/* Grid - vivoDuoc style: large icons + labels on white cards */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           {items.map((item) => {
             const active = isActive(item.href);
 
@@ -115,21 +120,21 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={`group flex flex-col items-center gap-2.5 rounded-2xl p-4 text-center transition-all duration-200 active:scale-95 ${
+                className={`group flex flex-col items-center gap-3 rounded-2xl p-5 text-center transition-all duration-200 active:scale-95 ${
                   active
-                    ? "bg-white shadow-md shadow-primary/15 ring-2 ring-primary/30 dark:bg-gray-800 dark:ring-primary/50"
-                    : "bg-white/70 shadow-sm hover:bg-white hover:shadow-md dark:bg-gray-900/70 dark:hover:bg-gray-800"
+                    ? "bg-white shadow-lg ring-2 ring-cta/30 dark:bg-gray-800 dark:ring-cta/50"
+                    : "bg-white shadow-sm hover:shadow-md dark:bg-gray-900 dark:hover:bg-gray-800"
                 }`}
               >
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} shadow-md transition-transform duration-200 group-active:scale-95 ${active ? "shadow-lg" : ""}`}
-                >
-                  <item.Icon className="h-7 w-7 text-white" strokeWidth={1.8} />
-                </div>
+                <item.Icon
+                  className="h-12 w-12 transition-transform duration-200 group-hover:scale-110"
+                  stroke={`url(#${item.gradient})`}
+                  strokeWidth={1.5}
+                />
                 <span
-                  className={`text-xs font-semibold leading-tight ${
+                  className={`text-sm font-bold leading-tight ${
                     active
-                      ? "text-primary dark:text-primary-light"
+                      ? "text-cta dark:text-cta"
                       : "text-text-primary dark:text-gray-200"
                   }`}
                 >
@@ -143,7 +148,7 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
 
       {/* Footer */}
       <div className="border-t border-purple-100 bg-white/80 px-4 py-3 text-center backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/80">
-        <p className="text-[11px] text-text-muted dark:text-gray-500">
+        <p className="text-xs text-text-muted dark:text-gray-500">
           Entorno seguro · Mi OTEC Intranet
         </p>
       </div>

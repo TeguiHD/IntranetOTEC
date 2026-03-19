@@ -6,6 +6,8 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import Image from "next/image";
+
 import {
   ArrowRight,
   Eye,
@@ -51,13 +53,14 @@ function EyeIcon({ open }: { open: boolean }) {
 
 function OtecLogo() {
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark shadow-lg shadow-primary/30">
-      <svg viewBox="0 0 32 32" fill="none" className="h-8 w-8">
-        <path d="M6 26V12L16 4l10 8v14H6Z" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-        <rect x="11" y="17" width="4" height="9" rx="1" fill="white" />
-        <rect x="17" y="13" width="4" height="4" rx="1" fill="white" fillOpacity="0.85" />
-      </svg>
-    </div>
+    <Image
+      src="/logo.svg"
+      alt="Mi OTEC Intranet"
+      width={320}
+      height={130}
+      className="h-24 w-auto object-contain sm:h-28"
+      priority
+    />
   );
 }
 
@@ -155,16 +158,11 @@ export function LoginView({ authError }: LoginViewProps) {
 
       <section className="relative w-full max-w-md">
         {/* Logo + brand */}
-        <div className="mb-8 flex flex-col items-center gap-3">
+        <div className="mb-8 flex flex-col items-center gap-2">
           <OtecLogo />
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
-              Mi OTEC
-            </h1>
-            <p className="mt-0.5 text-sm text-text-secondary dark:text-gray-400">
-              Intranet educativa — acceso seguro
-            </p>
-          </div>
+          <p className="text-sm text-text-secondary dark:text-gray-400">
+            Acceso seguro a tu intranet educativa
+          </p>
         </div>
 
         {/* Card */}
@@ -221,7 +219,7 @@ export function LoginView({ authError }: LoginViewProps) {
                 <button
                   type="submit"
                   disabled={isPending || !isRutValid}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/30 focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-primary/10"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-all duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
                 >
                   {isPending ? (
                     <>
@@ -287,7 +285,7 @@ export function LoginView({ authError }: LoginViewProps) {
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/30 focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-primary/10"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-all duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
                 >
                   {isPending ? (
                     <>

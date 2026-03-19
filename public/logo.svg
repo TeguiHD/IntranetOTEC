@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 200" fill="none">
+  <!-- Lightbulb -->
+  <g transform="translate(15, 8)">
+    <!-- Gold outer crescent (right side) -->
+    <path d="M 95,8 Q 140,-8 155,52 Q 165,105 135,142 L 122,142 Q 150,105 145,52 Q 135,5 95,8 Z" fill="#F5A623"/>
+
+    <!-- Bulb body clipped -->
+    <clipPath id="bulb">
+      <path d="M 82,8 Q 30,14 18,65 Q 8,115 48,145 L 122,145 Q 150,115 150,65 Q 145,14 95,8 Z"/>
+    </clipPath>
+    <g clip-path="url(#bulb)">
+      <!-- Base fill -->
+      <rect x="5" y="0" width="160" height="150" fill="#8B1A5E"/>
+
+      <!-- Center diamond — lavender -->
+      <path d="M 85,12 L 135,78 L 85,145 L 35,78 Z" fill="#D4B8E0"/>
+
+      <!-- Top-left — medium purple -->
+      <path d="M 82,8 Q 30,14 18,65 L 35,78 L 85,12 Z" fill="#B080C8"/>
+
+      <!-- Bottom-left — deep magenta -->
+      <path d="M 18,65 Q 8,115 48,145 L 85,145 L 35,78 Z" fill="#6D1248"/>
+
+      <!-- Bottom-right — light gold -->
+      <path d="M 135,78 L 150,65 Q 150,115 122,145 L 85,145 Z" fill="#F0D580"/>
+
+      <!-- Sparkle highlight -->
+      <ellipse cx="125" cy="28" rx="10" ry="8" transform="rotate(-15 125 28)" fill="#F5A623" opacity="0.45"/>
+    </g>
+
+    <!-- Base stripes -->
+    <rect x="48"  y="148" width="74" height="7" rx="2" fill="#3D1452"/>
+    <rect x="53"  y="158" width="64" height="7" rx="2" fill="#3D1452"/>
+    <rect x="58"  y="168" width="54" height="7" rx="2" fill="#3D1452"/>
+    <rect x="66"  y="178" width="38" height="9" rx="4" fill="#3D1452"/>
+  </g>
+
+  <!-- "Mi" in gold -->
+  <text x="198" y="115" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-weight="800" font-size="82" fill="#F5A623">Mi</text>
+
+  <!-- "Otec" in dark purple -->
+  <text x="290" y="115" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-weight="800" font-size="82" fill="#5A1F68">Otec</text>
+
+  <!-- "INTRANET" in dark purple -->
+  <text x="270" y="160" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-weight="700" font-size="42" letter-spacing="5" fill="#5A1F68">INTRANET</text>
+</svg>

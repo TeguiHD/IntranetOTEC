@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "sonner";
 
+import { GradientDefs } from "@/components/shared/GradientDefs";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
 import "./globals.css";
@@ -37,6 +38,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
         >
+          <GradientDefs />
           {children}
           <Toaster
             theme="system"

@@ -9,7 +9,26 @@ const COLORS = {
 };
 
 export default async function AlumnoAsignaturasPage() {
-  const resumenAsistencia = await obtenerResumenAsistenciaAlumno();
+  let resumenAsistencia;
+
+  try {
+    resumenAsistencia = await obtenerResumenAsistenciaAlumno();
+  } catch {
+    return (
+      <section className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold uppercase text-text-primary dark:text-white">
+            Mis Cursos
+          </h1>
+        </header>
+        <article className="rounded-xl border border-danger/30 bg-danger/5 p-6 dark:border-danger/40 dark:bg-danger/10">
+          <p className="text-sm font-medium text-danger">
+            No fue posible cargar tus cursos. Intenta recargar la página.
+          </p>
+        </article>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">

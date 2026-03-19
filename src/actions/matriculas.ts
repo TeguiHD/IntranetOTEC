@@ -11,6 +11,7 @@ import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import {
   desmatricularInputSchema,
+  editarMatriculaInputSchema,
   matricularAlumnoInputSchema,
 } from "@/lib/validations/admin";
 
@@ -397,6 +398,106 @@ export async function desmatricularAlumnoAction(input: {
       message: "No fue posible desmatricular al alumno.",
     };
   }
+}
+
+export async function editarMatriculaAction(input: {
+  matriculaId: string;
+  estadoPago: "pendiente" | "pagado" | "mora" | "becado";
+  montoArancel?: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_matricula_edit", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = editarMatriculaInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Datos inválidos para edición de matrícula.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [row] = await db
+      .select({ id: matriculas.id, activa: matriculas.activa })
+      .from(matriculas)
+      .where(eq(matriculas.id, parsed.data.matriculaId))
+      .limit(1);
+
+    if (!row) {
+      return {
+        ok: false,
+        code: "matricula_not_found",
+        message: "Matrícula no encontrada.",
+      };
+    }
+
+    await db
+      .update(matriculas)
+      .set({
+        estadoPago: parsed.data.estadoPago,
+        montoArancel: formatMoneyForDb(parsed.data.montoArancel),
+      })
+      .where(eq(matriculas.id, row.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "matriculas",
+      entidadId: row.id,
+      payload: {
+        estadoPago: parsed.data.estadoPago,
+        montoArancel: parsed.data.montoArancel,
+      },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "matricula_edited" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_matricula_edit_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return {
+      ok: false,
+      code: "edit_failed",
+      message: "No fue posible editar la matrícula.",
+    };
+  }
+}
+
+export async function editarMatriculaFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
+  const result = await editarMatriculaAction({
+    matriculaId: getStringField(formData, "matriculaId"),
+    estadoPago: (getStringField(formData, "estadoPago") ||
+      "pendiente") as "pendiente" | "pagado" | "mora" | "becado",
+    montoArancel: parseMoneyField(getStringField(formData, "montoArancel")),
+  });
+
+  revalidatePath("/admin/matriculas");
+  const filterQuery = asignaturaId
+    ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
+    : "";
+  const pageQuery = page ? `&page=${page}` : "";
+
+  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }
 
 export async function matricularAlumnoFormAction(formData: FormData): Promise<void> {

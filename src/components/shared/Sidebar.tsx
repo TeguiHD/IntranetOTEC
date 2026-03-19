@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,7 +13,6 @@ import {
   LayoutDashboard,
   type LucideIcon,
   ScrollText,
-  Shield,
   UserCog,
   Users,
   Wallet,
@@ -25,6 +25,7 @@ type NavItem = {
   href: string;
   label: string;
   Icon: LucideIcon;
+  gradient: string;
 };
 
 type NavSection = {
@@ -42,28 +43,28 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Principal",
     items: [
-      { href: "/admin", label: "Panel", Icon: LayoutDashboard },
+      { href: "/admin", label: "Panel", Icon: LayoutDashboard, gradient: "grad-purple" },
     ],
   },
   {
     title: "Académico",
     items: [
-      { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookOpen },
-      { href: "/admin/clases", label: "Clases", Icon: CalendarDays },
+      { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
+      { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
     ],
   },
   {
     title: "Personas",
     items: [
-      { href: "/admin/docentes", label: "Docentes", Icon: UserCog },
-      { href: "/admin/alumnos", label: "Alumnos", Icon: Users },
-      { href: "/admin/matriculas", label: "Matrículas", Icon: Wallet },
+      { href: "/admin/docentes", label: "Docentes", Icon: UserCog, gradient: "grad-amber" },
+      { href: "/admin/alumnos", label: "Alumnos", Icon: Users, gradient: "grad-emerald" },
+      { href: "/admin/matriculas", label: "Matrículas", Icon: Wallet, gradient: "grad-pink" },
     ],
   },
   {
     title: "Gestión",
     items: [
-      { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText },
+      { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
     ],
   },
 ];
@@ -72,13 +73,13 @@ const DOCENTE_SECTIONS: NavSection[] = [
   {
     title: "Principal",
     items: [
-      { href: "/docente", label: "Panel", Icon: Home },
+      { href: "/docente", label: "Panel", Icon: Home, gradient: "grad-purple" },
     ],
   },
   {
     title: "Académico",
     items: [
-      { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen },
+      { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
     ],
   },
 ];
@@ -87,19 +88,19 @@ const ALUMNO_SECTIONS: NavSection[] = [
   {
     title: "Principal",
     items: [
-      { href: "/alumno", label: "Panel", Icon: Home },
+      { href: "/alumno", label: "Panel", Icon: Home, gradient: "grad-purple" },
     ],
   },
   {
     title: "Académico",
     items: [
-      { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap },
+      { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
     ],
   },
   {
     title: "Gestión",
     items: [
-      { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText },
+      { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText, gradient: "grad-violet" },
     ],
   },
 ];
@@ -163,8 +164,8 @@ function SidebarNav({
                     collapsed ? "h-11 w-11 justify-center mx-auto" : "h-11 gap-3 px-3"
                   } ${
                     active
-                      ? "bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/25"
-                      : "text-text-secondary hover:bg-primary/8 hover:text-primary dark:text-gray-300 dark:hover:bg-primary/15 dark:hover:text-primary-light"
+                      ? "bg-gradient-to-r from-cta to-cta-dark text-white shadow-md shadow-cta/25"
+                      : "text-text-secondary hover:bg-cta/8 hover:text-cta dark:text-gray-300 dark:hover:bg-cta/15 dark:hover:text-cta-dark"
                   }`}
                 >
                   <item.Icon
@@ -172,6 +173,7 @@ function SidebarNav({
                       !active ? "group-hover:scale-110" : ""
                     }`}
                     strokeWidth={active ? 2.2 : 1.8}
+                    stroke={active ? "currentColor" : `url(#${item.gradient})`}
                   />
                   {!collapsed && <span className="truncate">{item.label}</span>}
                 </Link>
@@ -181,6 +183,19 @@ function SidebarNav({
         </div>
       ))}
     </nav>
+  );
+}
+
+function SidebarLogo({ collapsed }: { collapsed: boolean }) {
+  return (
+    <Image
+      src="/logo-icon.svg"
+      alt="Mi OTEC"
+      width={collapsed ? 36 : 36}
+      height={collapsed ? 36 : 36}
+      className="h-9 w-9 rounded-xl object-contain"
+      priority
+    />
   );
 }
 
@@ -207,9 +222,7 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarP
       >
         <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4 dark:border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
-              <Shield className="h-4.5 w-4.5 text-white" strokeWidth={2.2} />
-            </div>
+            <SidebarLogo collapsed={false} />
             <div>
               <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
               <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_LABELS[role]}</p>
@@ -238,14 +251,10 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarP
       >
         <div className={`flex h-14 items-center border-b border-gray-100 dark:border-gray-800 ${collapsed ? "justify-center px-2" : "px-4"}`}>
           {collapsed ? (
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
-              <Shield className="h-4 w-4 text-white" strokeWidth={2.2} />
-            </div>
+            <SidebarLogo collapsed />
           ) : (
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-sm">
-                <Shield className="h-4 w-4 text-white" strokeWidth={2.2} />
-              </div>
+              <SidebarLogo collapsed={false} />
               <div>
                 <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
                 <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_LABELS[role]}</p>

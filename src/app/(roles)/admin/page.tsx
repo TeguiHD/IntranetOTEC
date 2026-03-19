@@ -7,7 +7,16 @@ import { AccordionItem } from "@/components/shared/Accordion";
 import { MessageToast } from "@/components/shared/MessageToast";
 import { formatearRut } from "@/lib/rut";
 
-const MODULE_ICONS: Record<string, string> = {
+const MODULE_CARDS = [
+  { href: "/admin/docentes",     title: "Docentes",     description: "Crear y desactivar cuentas docentes.", gradient: "grad-amber" },
+  { href: "/admin/alumnos",      title: "Alumnos",      description: "Registrar alumnos y controlar su acceso.", gradient: "grad-emerald" },
+  { href: "/admin/asignaturas",  title: "Asignaturas",  description: "Crear asignaturas y asignar docentes.", gradient: "grad-blue" },
+  { href: "/admin/matriculas",   title: "Matriculas",   description: "Vincular alumnos a asignaturas.", gradient: "grad-pink" },
+  { href: "/admin/clases",       title: "Clases",       description: "Programar sesiones y publicar contenido.", gradient: "grad-cyan" },
+  { href: "/admin/solicitudes",  title: "Solicitudes",  description: "Gestionar solicitudes de documentos.", gradient: "grad-violet" },
+] as const;
+
+const MODULE_ICON_PATHS: Record<string, string> = {
   Docentes: "M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM4 21a8 8 0 0 1 16 0",
   Alumnos: "M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a6 6 0 0 1 12 0M14 21a5 5 0 0 1 8 0",
   Asignaturas: "M5 4.5h10.5A3.5 3.5 0 0 1 19 8v12.5H8A3 3 0 0 1 5 17.5V4.5Z",
@@ -15,15 +24,6 @@ const MODULE_ICONS: Record<string, string> = {
   Clases: "M3 4h18v17H3zM8 2v4M16 2v4M3 10h18",
   Solicitudes: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6ZM14 2v6h6",
 };
-
-const MODULE_CARDS = [
-  { href: "/admin/docentes", title: "Docentes", description: "Crear y desactivar cuentas docentes." },
-  { href: "/admin/alumnos", title: "Alumnos", description: "Registrar alumnos y controlar su acceso." },
-  { href: "/admin/asignaturas", title: "Asignaturas", description: "Crear asignaturas y asignar docentes." },
-  { href: "/admin/matriculas", title: "Matriculas", description: "Vincular alumnos a asignaturas." },
-  { href: "/admin/clases", title: "Clases", description: "Programar sesiones y publicar contenido." },
-  { href: "/admin/solicitudes", title: "Solicitudes", description: "Gestionar solicitudes de documentos." },
-] as const;
 
 type AdminDashboardPageProps = {
   searchParams?: { rut?: string };
@@ -81,21 +81,21 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </div>
       )}
 
-      {/* Module cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {/* Module cards - vivoDuoc style grid */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {MODULE_CARDS.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="group rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition-colors hover:border-primary/30 hover:shadow-md hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-5"
+            className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
           >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/15 dark:bg-primary/20">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5 text-primary dark:text-primary-light">
-                <path strokeLinecap="round" strokeLinejoin="round" d={MODULE_ICONS[card.title] ?? ""} />
-              </svg>
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14">
+              <path strokeLinecap="round" strokeLinejoin="round" stroke={`url(#${card.gradient})`} d={MODULE_ICON_PATHS[card.title] ?? ""} />
+            </svg>
+            <div>
+              <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">{card.title}</h2>
+              <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">{card.description}</p>
             </div>
-            <h2 className="text-sm font-semibold text-text-primary dark:text-white sm:text-base">{card.title}</h2>
-            <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">{card.description}</p>
           </Link>
         ))}
       </div>

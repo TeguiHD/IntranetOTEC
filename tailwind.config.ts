@@ -14,6 +14,8 @@ const config: Config = {
         "primary-dark": "#5A1F68",
         "primary-light": "#9B4DB0",
         accent: "#8B3A9E",
+        gold: "#F5A623",
+        "gold-dark": "#C68A1A",
         secondary: "#A855F7",
         "bg-light": "#F8F7FC",
         "bg-white": "#FFFFFF",

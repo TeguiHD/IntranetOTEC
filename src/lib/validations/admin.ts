@@ -224,6 +224,18 @@ export const desmatricularInputSchema = z.object({
   matriculaId: z.string().uuid("Matrícula inválida."),
 });
 
+export const editarMatriculaInputSchema = z.object({
+  matriculaId: z.string().uuid("Matrícula inválida."),
+  estadoPago: z.enum(["pendiente", "pagado", "mora", "becado"]),
+  montoArancel: z
+    .union([z.number(), z.undefined()])
+    .optional()
+    .refine(
+      (value) => value === undefined || (Number.isFinite(value) && value >= 0),
+      "Monto inválido.",
+    ),
+});
+
 const optionalTipoUrl = z
   .union([
     z.enum(["youtube", "vimeo", "drive", "directo"]),

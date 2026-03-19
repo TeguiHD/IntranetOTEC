@@ -17,6 +17,12 @@
   --color-text-main: #2d1f3d;
   --color-text-secondary: #4b5563;
 
+  --color-cta: #00C853;
+  --color-cta-dark: #00A843;
+  --color-danger: #EF4444;
+  --color-gold: #F5A623;
+  --color-gold-dark: #C68A1A;
+
   --background: var(--color-bg-light);
   --foreground: var(--color-text-main);
   color-scheme: light;
@@ -31,6 +37,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-cta: #00C853;
+  --color-cta-dark: #00A843;
+  --color-danger: #EF4444;
+  --color-gold: #F5A623;
+  --color-gold-dark: #C68A1A;
 }
 
 html {

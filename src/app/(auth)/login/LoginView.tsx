@@ -24,7 +24,7 @@ type LoginTab = "alumno" | "staff";
 
 const TAB_LABELS: Record<LoginTab, string> = {
   alumno: "Alumno",
-  staff: "Docente / Admin",
+  staff: "Docente",
 };
 
 const AUTH_ERROR_MESSAGE = "Credenciales inválidas. Verifica tus datos e inténtalo nuevamente.";

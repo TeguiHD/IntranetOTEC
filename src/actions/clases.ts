@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -70,7 +70,7 @@ export async function listarClasesPorAsignatura(
 
 export async function listarClasesAdmin(
   pagination: PaginationInput = {},
-  options?: { asignaturaId?: string; incluirArchivadas?: boolean },
+  options?: { asignaturaId?: string; incluirArchivadas?: boolean; q?: string },
 ) {
   const actorResult = await requireActionActor("admin_clase_list", ["admin"]);
 
@@ -106,28 +106,45 @@ export async function listarClasesAdmin(
     .limit(limit)
     .offset(offset);
 
+  // Build text search filter: match by title, date, or session number
+  const qFilter = (() => {
+    const q = options?.q?.trim();
+    if (!q) return undefined;
+    const term = `%${q}%`;
+    // If q is a pure integer, also match by session number
+    const sessionNum = Number.parseInt(q, 10);
+    const bySession =
+      Number.isFinite(sessionNum) && String(sessionNum) === q
+        ? sql`${clases.numeroSesion} = ${sessionNum}`
+        : undefined;
+    return bySession
+      ? or(ilike(clases.titulo, term), ilike(clases.fecha, term), bySession)
+      : or(ilike(clases.titulo, term), ilike(clases.fecha, term));
+  })();
+
   if (options?.asignaturaId && options?.incluirArchivadas) {
-    return baseQuery.where(eq(clases.asignaturaId, options.asignaturaId));
+    const base = eq(clases.asignaturaId, options.asignaturaId);
+    return baseQuery.where(qFilter ? and(base, qFilter) : base);
   }
 
   if (options?.asignaturaId) {
-    return baseQuery.where(
-      and(
-        eq(clases.asignaturaId, options.asignaturaId),
-        ne(asignaturas.estado, "archivado"),
-      ),
+    const base = and(
+      eq(clases.asignaturaId, options.asignaturaId),
+      ne(asignaturas.estado, "archivado"),
     );
+    return baseQuery.where(qFilter ? and(base, qFilter) : base);
   }
 
   if (options?.incluirArchivadas) {
-    return baseQuery;
+    return baseQuery.where(qFilter ?? undefined);
   }
 
-  return baseQuery.where(ne(asignaturas.estado, "archivado"));
+  const base = ne(asignaturas.estado, "archivado");
+  return baseQuery.where(qFilter ? and(base, qFilter) : base);
 }
 
 export async function countClasesAdmin(
-  options?: { asignaturaId?: string; incluirArchivadas?: boolean },
+  options?: { asignaturaId?: string; incluirArchivadas?: boolean; q?: string },
 ): Promise<number> {
   const actorResult = await requireActionActor("admin_clase_list", ["admin"]);
 
@@ -142,18 +159,33 @@ export async function countClasesAdmin(
     .from(clases)
     .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id));
 
+  const qFilter = (() => {
+    const q = options?.q?.trim();
+    if (!q) return undefined;
+    const term = `%${q}%`;
+    const sessionNum = Number.parseInt(q, 10);
+    const bySession =
+      Number.isFinite(sessionNum) && String(sessionNum) === q
+        ? sql`${clases.numeroSesion} = ${sessionNum}`
+        : undefined;
+    return bySession
+      ? or(ilike(clases.titulo, term), ilike(clases.fecha, term), bySession)
+      : or(ilike(clases.titulo, term), ilike(clases.fecha, term));
+  })();
+
   let result;
 
   if (options?.asignaturaId && options?.incluirArchivadas) {
-    result = await baseQuery.where(eq(clases.asignaturaId, options.asignaturaId));
+    const base = eq(clases.asignaturaId, options.asignaturaId);
+    result = await baseQuery.where(qFilter ? and(base, qFilter) : base);
   } else if (options?.asignaturaId) {
-    result = await baseQuery.where(
-      and(eq(clases.asignaturaId, options.asignaturaId), ne(asignaturas.estado, "archivado")),
-    );
+    const base = and(eq(clases.asignaturaId, options.asignaturaId), ne(asignaturas.estado, "archivado"));
+    result = await baseQuery.where(qFilter ? and(base, qFilter) : base);
   } else if (options?.incluirArchivadas) {
-    result = await baseQuery;
+    result = await baseQuery.where(qFilter ?? undefined);
   } else {
-    result = await baseQuery.where(ne(asignaturas.estado, "archivado"));
+    const base = ne(asignaturas.estado, "archivado");
+    result = await baseQuery.where(qFilter ? and(base, qFilter) : base);
   }
 
   return Number(result[0]?.total ?? 0);

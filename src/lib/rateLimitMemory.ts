@@ -27,11 +27,11 @@ function cleanup(now: number) {
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
   lastCleanup = now;
 
-  for (const [key, entry] of store) {
-    if (now - entry.windowStart > entry.blockedUntil + 120_000) {
+  store.forEach((entry, key) => {
+    if (now - entry.windowStart > 120_000 && entry.blockedUntil < now) {
       store.delete(key);
     }
-  }
+  });
 }
 
 function resolveRule(endpoint: string): Rule {

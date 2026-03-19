@@ -1,0 +1,26 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - feat/alumnos-credencial-extranjera-solicitudes
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cd /home/${{ secrets.VPS_USER }}/IntranetOTEC/otec || exit 1
+            git fetch origin
+            git checkout feat/alumnos-credencial-extranjera-solicitudes
+            git pull origin feat/alumnos-credencial-extranjera-solicitudes
+            npm install --production=false
+            npm run build
+            pm2 restart otec || pm2 start npm --name "otec" -- start

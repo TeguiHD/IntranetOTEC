@@ -41,37 +41,33 @@ export async function obtenerMetricasGlobales(): Promise<MetricasGlobales | null
 
   const db = getDb();
 
-  const [docentesCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(usuarios)
-    .where(and(eq(usuarios.rol, "docente"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt)));
-
-  const [alumnosCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(usuarios)
-    .where(and(eq(usuarios.rol, "alumno"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt)));
-
-  const asigRows = await db
-    .select({
-      estado: asignaturas.estado,
-      count: sql<number>`count(*)`,
-    })
-    .from(asignaturas)
-    .groupBy(asignaturas.estado);
+  const [
+    [docentesCount],
+    [alumnosCount],
+    asigRows,
+    [clasesCount],
+    [solicitudesCount],
+  ] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` })
+      .from(usuarios)
+      .where(and(eq(usuarios.rol, "docente"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt))),
+    db.select({ count: sql<number>`count(*)` })
+      .from(usuarios)
+      .where(and(eq(usuarios.rol, "alumno"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt))),
+    db.select({ estado: asignaturas.estado, count: sql<number>`count(*)` })
+      .from(asignaturas)
+      .groupBy(asignaturas.estado),
+    db.select({ count: sql<number>`count(*)` })
+      .from(clases)
+      .where(isNull(clases.eliminadoAt)),
+    db.select({ count: sql<number>`count(*)` })
+      .from(solicitudesDocumentos)
+      .where(eq(solicitudesDocumentos.estado, "pendiente")),
+  ]);
 
   const totalAsig = asigRows.reduce((s, r) => s + Number(r.count), 0);
   const activasCount = Number(asigRows.find((r) => r.estado === "activo")?.count ?? 0);
   const finalizadoCount = Number(asigRows.find((r) => r.estado === "finalizado")?.count ?? 0);
-
-  const [clasesCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(clases)
-    .where(isNull(clases.eliminadoAt));
-
-  const [solicitudesCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(solicitudesDocumentos)
-    .where(eq(solicitudesDocumentos.estado, "pendiente"));
 
   return {
     totalDocentes: Number(docentesCount?.count ?? 0),
@@ -91,36 +87,33 @@ export async function obtenerMetricasPorAsignatura(): Promise<AsignaturaMetrica[
 
   const db = getDb();
 
-  const rows = await db
-    .select({
+  const [rows, alumnosCounts, clasesCounts, asistStats] = await Promise.all([
+    db.select({
       id: asignaturas.id,
       nombre: asignaturas.nombre,
       estado: asignaturas.estado,
       docenteNombre: usuarios.nombre,
     })
     .from(asignaturas)
-    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id));
+    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id)),
 
-  const alumnosCounts = await db
-    .select({
+    db.select({
       asignaturaId: matriculas.asignaturaId,
       count: sql<number>`count(distinct ${matriculas.alumnoId})`,
     })
     .from(matriculas)
     .where(and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)))
-    .groupBy(matriculas.asignaturaId);
+    .groupBy(matriculas.asignaturaId),
 
-  const clasesCounts = await db
-    .select({
+    db.select({
       asignaturaId: clases.asignaturaId,
       count: sql<number>`count(*)`,
     })
     .from(clases)
     .where(isNull(clases.eliminadoAt))
-    .groupBy(clases.asignaturaId);
+    .groupBy(clases.asignaturaId),
 
-  const asistStats = await db
-    .select({
+    db.select({
       asignaturaId: clases.asignaturaId,
       total: sql<number>`count(*)`,
       presentes: sql<number>`count(*) filter (where ${asistencia.estado} = 'presente' or ${asistencia.estado} = 'tardanza')`,
@@ -128,7 +121,8 @@ export async function obtenerMetricasPorAsignatura(): Promise<AsignaturaMetrica[
     .from(asistencia)
     .innerJoin(clases, eq(asistencia.claseId, clases.id))
     .where(isNull(clases.eliminadoAt))
-    .groupBy(clases.asignaturaId);
+    .groupBy(clases.asignaturaId),
+  ]);
 
   const alumnosMap = new Map(alumnosCounts.map((r) => [r.asignaturaId, Number(r.count)]));
   const clasesMap = new Map(clasesCounts.map((r) => [r.asignaturaId, Number(r.count)]));

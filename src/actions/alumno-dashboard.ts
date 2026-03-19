@@ -118,175 +118,131 @@ export async function obtenerDashboardAlumno(): Promise<AlumnoDashboardData | nu
   const matriculaIds = cursos.map((c) => c.matriculaId);
   const asignaturaIds = cursos.map((c) => c.asignaturaId);
 
-  // 2. Upcoming classes (next 10, from today onwards)
-  const proximasClases =
-    asignaturaIds.length > 0
-      ? await db
-          .select({
-            claseId: clases.id,
-            titulo: clases.titulo,
-            fecha: clases.fecha,
-            horaInicio: clases.horaInicio,
-            numeroSesion: clases.numeroSesion,
-            asignaturaNombre: asignaturas.nombre,
-            asignaturaId: asignaturas.id,
-          })
-          .from(clases)
-          .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
-          .where(
-            and(
-              sql`${clases.asignaturaId} IN (${sql.join(asignaturaIds.map((id) => sql`${id}`), sql`, `)})`,
-              gte(clases.fecha, hoy),
-              eq(clases.publicada, true),
-              activo(clases),
-            ),
-          )
-          .orderBy(asc(clases.fecha), asc(clases.horaInicio))
-          .limit(10)
-      : [];
+  // 2-8. Run all remaining queries in parallel
+  const asigIn = sql`${clases.asignaturaId} IN (${sql.join(asignaturaIds.map((id) => sql`${id}`), sql`, `)})`;
+  const matIn = sql`${notas.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`;
+  const matInAsist = sql`${asistencia.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`;
+  const matInDocente = sql`${notasDocente.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`;
 
-  // 3. Pending evaluations (published, with deadline >= today, no grade yet)
-  const evaluacionesPendientes =
-    asignaturaIds.length > 0
-      ? await db
-          .select({
-            evaluacionId: evaluaciones.id,
-            titulo: evaluaciones.titulo,
-            tipo: evaluaciones.tipo,
-            fechaLimite: evaluaciones.fechaLimite,
-            fechaInicio: evaluaciones.fechaInicio,
-            asignaturaNombre: asignaturas.nombre,
-            asignaturaId: asignaturas.id,
-          })
-          .from(evaluaciones)
-          .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
-          .where(
-            and(
-              sql`${evaluaciones.asignaturaId} IN (${sql.join(asignaturaIds.map((id) => sql`${id}`), sql`, `)})`,
-              eq(evaluaciones.publicada, true),
-              activo(evaluaciones),
-            ),
-          )
-          .orderBy(asc(evaluaciones.fechaLimite))
-          .limit(20)
-      : [];
+  const hasIds = asignaturaIds.length > 0;
+  const hasMat = matriculaIds.length > 0;
 
-  // Check which evaluations already have a grade
-  const notasExistentes =
-    matriculaIds.length > 0
-      ? await db
-          .select({
-            evaluacionId: notas.evaluacionId,
-          })
-          .from(notas)
-          .where(
-            and(
-              sql`${notas.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`,
-              activo(notas),
-            ),
-          )
-      : [];
+  const [
+    proximasClases,
+    evaluacionesPendientes,
+    notasExistentes,
+    notasRecientes,
+    notasDocenteRecientes,
+    asistStatsResult,
+    solPendientesResult,
+  ] = await Promise.all([
+    // 2. Upcoming classes
+    hasIds
+      ? db.select({
+          claseId: clases.id, titulo: clases.titulo, fecha: clases.fecha,
+          horaInicio: clases.horaInicio, numeroSesion: clases.numeroSesion,
+          asignaturaNombre: asignaturas.nombre, asignaturaId: asignaturas.id,
+        })
+        .from(clases)
+        .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+        .where(and(asigIn, gte(clases.fecha, hoy), eq(clases.publicada, true), activo(clases)))
+        .orderBy(asc(clases.fecha), asc(clases.horaInicio))
+        .limit(10)
+      : Promise.resolve([]),
+
+    // 3. Pending evaluations
+    hasIds
+      ? db.select({
+          evaluacionId: evaluaciones.id, titulo: evaluaciones.titulo, tipo: evaluaciones.tipo,
+          fechaLimite: evaluaciones.fechaLimite, fechaInicio: evaluaciones.fechaInicio,
+          asignaturaNombre: asignaturas.nombre, asignaturaId: asignaturas.id,
+        })
+        .from(evaluaciones)
+        .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+        .where(and(
+          sql`${evaluaciones.asignaturaId} IN (${sql.join(asignaturaIds.map((id) => sql`${id}`), sql`, `)})`,
+          eq(evaluaciones.publicada, true), activo(evaluaciones),
+        ))
+        .orderBy(asc(evaluaciones.fechaLimite))
+        .limit(20)
+      : Promise.resolve([]),
+
+    // Existing grades (to mark evaluations)
+    hasMat
+      ? db.select({ evaluacionId: notas.evaluacionId })
+        .from(notas)
+        .where(and(matIn, activo(notas)))
+      : Promise.resolve([]),
+
+    // 4. Recent system grades
+    hasMat
+      ? db.select({
+          notaId: notas.id, nota: notas.nota, evaluacionTitulo: evaluaciones.titulo,
+          evaluacionTipo: evaluaciones.tipo, asignaturaNombre: asignaturas.nombre,
+          fechaNota: notas.fechaNota,
+        })
+        .from(notas)
+        .innerJoin(evaluaciones, eq(notas.evaluacionId, evaluaciones.id))
+        .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+        .where(and(matIn, activo(notas)))
+        .orderBy(desc(notas.fechaNota))
+        .limit(10)
+      : Promise.resolve([]),
+
+    // 5. Recent teacher grades
+    hasMat
+      ? db.select({
+          id: notasDocente.id, nota: notasDocente.nota,
+          asignaturaNombre: asignaturas.nombre, fechaRegistro: notasDocente.fechaRegistro,
+        })
+        .from(notasDocente)
+        .innerJoin(asignaturas, eq(notasDocente.asignaturaId, asignaturas.id))
+        .where(matInDocente)
+        .orderBy(desc(notasDocente.fechaRegistro))
+        .limit(10)
+      : Promise.resolve([]),
+
+    // 6. Attendance stats
+    hasMat
+      ? db.select({
+          total: sql<number>`count(*)`,
+          presente: sql<number>`count(*) filter (where ${asistencia.estado} = 'presente')`,
+        })
+        .from(asistencia)
+        .where(matInAsist)
+      : Promise.resolve([]),
+
+    // 8. Pending document requests
+    db.select({ count: sql<number>`count(*)` })
+      .from(solicitudesDocumentos)
+      .where(and(eq(solicitudesDocumentos.alumnoId, alumnoId), eq(solicitudesDocumentos.estado, "pendiente"))),
+  ]);
 
   const notasSet = new Set(notasExistentes.map((n) => n.evaluacionId));
-
   const evalConEstado: EvaluacionPendiente[] = evaluacionesPendientes.map((e) => ({
     ...e,
     tieneNota: notasSet.has(e.evaluacionId),
   }));
 
-  // 4. Recent grades (system evaluaciones)
-  const notasRecientes =
-    matriculaIds.length > 0
-      ? await db
-          .select({
-            notaId: notas.id,
-            nota: notas.nota,
-            evaluacionTitulo: evaluaciones.titulo,
-            evaluacionTipo: evaluaciones.tipo,
-            asignaturaNombre: asignaturas.nombre,
-            fechaNota: notas.fechaNota,
-          })
-          .from(notas)
-          .innerJoin(evaluaciones, eq(notas.evaluacionId, evaluaciones.id))
-          .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
-          .where(
-            and(
-              sql`${notas.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`,
-              activo(notas),
-            ),
-          )
-          .orderBy(desc(notas.fechaNota))
-          .limit(10)
-      : [];
-
-  // 5. Recent teacher-recorded grades
-  const notasDocenteRecientes =
-    matriculaIds.length > 0
-      ? await db
-          .select({
-            id: notasDocente.id,
-            nota: notasDocente.nota,
-            asignaturaNombre: asignaturas.nombre,
-            fechaRegistro: notasDocente.fechaRegistro,
-          })
-          .from(notasDocente)
-          .innerJoin(asignaturas, eq(notasDocente.asignaturaId, asignaturas.id))
-          .where(
-            sql`${notasDocente.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`,
-          )
-          .orderBy(desc(notasDocente.fechaRegistro))
-          .limit(10)
-      : [];
-
   // 6. Attendance average
   let asistenciaPromedio: number | null = null;
-
-  if (matriculaIds.length > 0) {
-    const [asistStats] = await db
-      .select({
-        total: sql<number>`count(*)`,
-        presente: sql<number>`count(*) filter (where ${asistencia.estado} = 'presente')`,
-      })
-      .from(asistencia)
-      .where(
-        sql`${asistencia.matriculaId} IN (${sql.join(matriculaIds.map((id) => sql`${id}`), sql`, `)})`,
-      );
-
-    if (asistStats && Number(asistStats.total) > 0) {
-      asistenciaPromedio = Math.round(
-        (Number(asistStats.presente) / Number(asistStats.total)) * 100,
-      );
-    }
+  const asistStats = asistStatsResult[0];
+  if (asistStats && Number(asistStats.total) > 0) {
+    asistenciaPromedio = Math.round(
+      (Number(asistStats.presente) / Number(asistStats.total)) * 100,
+    );
   }
 
   // 7. Grade average
   let notaPromedio: number | null = null;
-
-  // Combine system grades + docente grades
   const allGrades: number[] = [];
-
-  for (const n of notasRecientes) {
-    if (n.nota) allGrades.push(Number(n.nota));
-  }
-  for (const n of notasDocenteRecientes) {
-    if (n.nota) allGrades.push(Number(n.nota));
-  }
-
+  for (const n of notasRecientes) { if (n.nota) allGrades.push(Number(n.nota)); }
+  for (const n of notasDocenteRecientes) { if (n.nota) allGrades.push(Number(n.nota)); }
   if (allGrades.length > 0) {
-    notaPromedio =
-      Math.round((allGrades.reduce((a, b) => a + b, 0) / allGrades.length) * 10) / 10;
+    notaPromedio = Math.round((allGrades.reduce((a, b) => a + b, 0) / allGrades.length) * 10) / 10;
   }
 
-  // 8. Pending document requests
-  const [solPendientes] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(solicitudesDocumentos)
-    .where(
-      and(
-        eq(solicitudesDocumentos.alumnoId, alumnoId),
-        eq(solicitudesDocumentos.estado, "pendiente"),
-      ),
-    );
+  const [solPendientes] = solPendientesResult;
 
   return {
     resumen: {

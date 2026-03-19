@@ -37,8 +37,8 @@ export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[
 
   const db = getDb();
 
-  const clasesAgg = await db
-    .select({
+  const [clasesAgg, notasAgg, obsAgg] = await Promise.all([
+    db.select({
       docenteId: asignaturas.docenteId,
       docenteNombre: usuarios.nombre,
       docenteApellido: usuarios.apellido,
@@ -52,23 +52,22 @@ export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[
     .leftJoin(clases, sql`${clases.asignaturaId} = ${asignaturas.id} AND ${clases.eliminadoAt} IS NULL`)
     .leftJoin(asistencia, sql`${asistencia.claseId} = ${clases.id}`)
     .groupBy(asignaturas.docenteId, usuarios.nombre, usuarios.apellido, asignaturas.id, asignaturas.nombre)
-    .orderBy(desc(asignaturas.createdAt));
+    .orderBy(desc(asignaturas.createdAt)),
 
-  const notasAgg = await db
-    .select({
+    db.select({
       asignaturaId: notasDocente.asignaturaId,
       total: sql<number>`count(*)`,
     })
     .from(notasDocente)
-    .groupBy(notasDocente.asignaturaId);
+    .groupBy(notasDocente.asignaturaId),
 
-  const obsAgg = await db
-    .select({
+    db.select({
       asignaturaId: observacionesDocente.asignaturaId,
       total: sql<number>`count(*)`,
     })
     .from(observacionesDocente)
-    .groupBy(observacionesDocente.asignaturaId);
+    .groupBy(observacionesDocente.asignaturaId),
+  ]);
 
   const notasMap = new Map(notasAgg.map((r) => [r.asignaturaId, Number(r.total) || 0]));
   const obsMap = new Map(obsAgg.map((r) => [r.asignaturaId, Number(r.total) || 0]));

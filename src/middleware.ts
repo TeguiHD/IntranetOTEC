@@ -8,6 +8,7 @@ import {
 } from "@/lib/observability/correlation";
 import { logEvent } from "@/lib/observability/logger";
 import { recordHttpMetric } from "@/lib/observability/metrics";
+import { checkRateLimitMemory } from "@/lib/rateLimitMemory";
 import { getRequestAuthContext } from "@/lib/requestAuth";
 
 const PUBLIC_ROUTES = ["/login", "/verificar"];
@@ -78,96 +79,20 @@ const resolvePublicOrigin = (request: NextRequest): string => {
 const buildRedirectUrl = (request: NextRequest, path: string): URL =>
   new URL(path, resolvePublicOrigin(request));
 
-const resolveRateLimitUrl = (request: NextRequest): URL => {
-  const configuredBaseUrl = process.env.INTERNAL_API_BASE_URL?.trim();
-
-  if (configuredBaseUrl) {
-    return new URL("/api/internal/rate-limit", configuredBaseUrl);
-  }
-
-  const internalUrl = new URL("/api/internal/rate-limit", request.url);
-
-  if (
-    internalUrl.protocol === "https:" &&
-    (internalUrl.hostname === "127.0.0.1" || internalUrl.hostname === "localhost")
-  ) {
-    internalUrl.protocol = "http:";
-  }
-
-  return internalUrl;
-};
-
-const checkRateLimit = async (
+const checkRateLimit = (
   request: NextRequest,
-  correlationId: string,
-): Promise<{ allowed: true } | { allowed: false; response: NextResponse }> => {
-  const secret = process.env.AUTH_SECRET;
+): { allowed: true } | { allowed: false; response: NextResponse } => {
+  const result = checkRateLimitMemory(getClientIp(request), request.nextUrl.pathname);
 
-  if (!secret) {
+  if (result.allowed) {
     return { allowed: true };
   }
-
-  const rateLimitUrl = resolveRateLimitUrl(request);
-  let response: Response;
-
-  try {
-    response = await fetch(rateLimitUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-rate-limit-internal": secret,
-        "x-correlation-id": correlationId,
-      },
-      body: JSON.stringify({
-        ip: getClientIp(request),
-        endpoint: request.nextUrl.pathname,
-      }),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown_error";
-
-    logEvent({
-      correlationId,
-      action: "middleware_rate_limit_unavailable",
-      result: "error",
-      endpoint: request.nextUrl.pathname,
-      statusCode: 503,
-      details: {
-        reason: message,
-        rateLimitUrl: rateLimitUrl.toString(),
-      },
-    });
-
-    return { allowed: true };
-  }
-
-  if (!response.ok && response.status !== 429) {
-    logEvent({
-      correlationId,
-      action: "middleware_rate_limit_degraded",
-      result: "error",
-      endpoint: request.nextUrl.pathname,
-      statusCode: response.status,
-      details: {
-        reason: "unexpected_status",
-        rateLimitUrl: rateLimitUrl.toString(),
-      },
-    });
-
-    return { allowed: true };
-  }
-
-  if (response.status !== 429) {
-    return { allowed: true };
-  }
-
-  const retryAfter = response.headers.get("Retry-After") ?? "60";
 
   return {
     allowed: false,
     response: new NextResponse("Too Many Requests", {
       status: 429,
-      headers: { "Retry-After": retryAfter },
+      headers: { "Retry-After": String(result.retryAfterSeconds) },
     }),
   };
 };
@@ -227,7 +152,7 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  const rateLimit = await checkRateLimit(request, correlationId);
+  const rateLimit = checkRateLimit(request);
 
   if (!rateLimit.allowed) {
     return finalize(

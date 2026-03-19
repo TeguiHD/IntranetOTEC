@@ -17,10 +17,14 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            cd /home/${{ secrets.VPS_USER }}/IntranetOTEC/otec || exit 1
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            cd ~/intranet-otec || exit 1
             git fetch origin
             git checkout feat/alumnos-credencial-extranjera-solicitudes
             git pull origin feat/alumnos-credencial-extranjera-solicitudes
-            npm install --production=false
+            npm cache clean --force
+            rm -rf node_modules
+            npm install
             npm run build
             pm2 restart otec || pm2 start npm --name "otec" -- start

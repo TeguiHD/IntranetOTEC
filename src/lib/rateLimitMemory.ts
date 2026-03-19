@@ -12,10 +12,10 @@ type Rule = {
 
 const RULES: Record<string, Rule> = {
   "/api/auth/callback": { max: 5, windowMs: 60_000, blockMs: 900_000 },
-  "/login": { max: 60, windowMs: 60_000, blockMs: 60_000 },
-  "/api/files": { max: 30, windowMs: 60_000, blockMs: 300_000 },
+  "/login": { max: 120, windowMs: 60_000, blockMs: 60_000 },
+  "/api/files": { max: 300, windowMs: 60_000, blockMs: 60_000 },
   "/api/sse": { max: 10, windowMs: 60_000, blockMs: 60_000 },
-  default: { max: 60, windowMs: 60_000, blockMs: 60_000 },
+  default: { max: 120, windowMs: 60_000, blockMs: 30_000 },
 };
 
 const store = new Map<string, Entry>();
@@ -50,7 +50,10 @@ export function checkRateLimitMemory(
   cleanup(now);
 
   const rule = resolveRule(endpoint);
-  const key = `${ip}:${endpoint}`;
+  const ruleKey = endpoint.startsWith("/api/files") ? "/api/files"
+    : endpoint.startsWith("/api/auth/callback") ? "/api/auth/callback"
+    : endpoint;
+  const key = `${ip}:${ruleKey}`;
   const entry = store.get(key);
 
   if (!entry) {

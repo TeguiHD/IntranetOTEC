@@ -304,7 +304,7 @@ export function LoginView({ authError }: LoginViewProps) {
 
             <p className="mt-5 text-center text-xs text-text-secondary dark:text-gray-500">
               ¿Problemas de acceso?{" "}
-              <span className="text-primary dark:text-primary-light">Contacta al administrador.</span>
+              <a href="mailto:nikoholas.lopetegui@gmail.com" className="text-primary dark:text-primary-light underline hover:opacity-80">Contacta al administrador.</a>
             </p>
           </div>
         </div>

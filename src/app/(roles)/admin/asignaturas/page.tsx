@@ -56,7 +56,7 @@ export default async function AdminAsignaturasPage({
 
   const [asignaturas, docentes, totalCount] = await Promise.all([
     listarAsignaturasAdmin({ limit: PAGE_SIZE, offset }, filterOpts),
-    listarUsuariosPorRol("docente", { limit: 200, offset: 0 }),
+    listarUsuariosPorRol("docente", { limit: 200, offset: 0 }, { incluirInactivos: true }),
     countAsignaturasAdmin(filterOpts),
   ]);
 

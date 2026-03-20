@@ -38,7 +38,7 @@ type AsignaturaManagerProps = {
   totalCount: number;
   currentPage: number;
   totalPages: number;
-  buildHref: (page: number) => string;
+  buildHref: string;
 };
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
@@ -395,7 +395,7 @@ export function AsignaturaManager({
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        buildHref={buildHref}
+        buildHref={(page) => `${buildHref}?page=${page}`}
       />
 
       {/* ── Modal: Nueva asignatura ── */}

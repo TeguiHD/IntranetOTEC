@@ -45,8 +45,6 @@ export default async function AdminAsignaturasPage({
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const buildHref = (page: number): string => `/admin/asignaturas?page=${page}`;
-
   const docentesSimple = docentes.map((d) => ({
     id: d.id,
     nombre: d.nombre ?? "",
@@ -86,7 +84,7 @@ export default async function AdminAsignaturasPage({
           totalCount={totalCount}
           currentPage={currentPage}
           totalPages={totalPages}
-          buildHref={buildHref}
+          buildHref="/admin/asignaturas"
         />
       </article>
     </section>

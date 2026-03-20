@@ -8,6 +8,11 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { solicitudesDocumentos, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import {
+  sendEmail,
+  templateSolicitudCreada,
+  templateSolicitudResuelta,
+} from "@/lib/email";
 import { solicitudDocumentoInputSchema } from "@/lib/validations/admin";
 
 import { requireActionActor, type MutationResult } from "./_security";
@@ -15,6 +20,19 @@ import { requireActionActor, type MutationResult } from "./_security";
 const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
   return typeof rawValue === "string" ? rawValue : "";
+};
+
+const formatTipoSolicitud = (
+  tipo: "credencial" | "alumno_regular" | "tarjeta_beneficio",
+): string => {
+  switch (tipo) {
+    case "alumno_regular":
+      return "Alumno regular";
+    case "tarjeta_beneficio":
+      return "Tarjeta beneficio";
+    default:
+      return "Credencial";
+  }
 };
 
 export async function listarSolicitudesDocumentosAlumno() {
@@ -110,6 +128,25 @@ export async function solicitarDocumentoAlumnoAction(input: {
     exitoso: true,
   });
 
+  const [alumno] = await db
+    .select({
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      email: usuarios.email,
+    })
+    .from(usuarios)
+    .where(eq(usuarios.id, actorResult.actor.userId))
+    .limit(1);
+
+  if (alumno?.email) {
+    const { subject, html } = templateSolicitudCreada({
+      alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
+      tipoSolicitud: formatTipoSolicitud(parsed.data.tipo),
+    });
+
+    sendEmail(alumno.email, subject, html).catch(() => {});
+  }
+
   return {
     ok: true,
     code: "request_created",
@@ -191,8 +228,16 @@ export async function resolverSolicitudAdminAction(input: {
   const now = new Date();
 
   const [solicitud] = await db
-    .select({ id: solicitudesDocumentos.id, estado: solicitudesDocumentos.estado })
+    .select({
+      id: solicitudesDocumentos.id,
+      estado: solicitudesDocumentos.estado,
+      tipo: solicitudesDocumentos.tipo,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoEmail: usuarios.email,
+    })
     .from(solicitudesDocumentos)
+    .innerJoin(usuarios, eq(solicitudesDocumentos.alumnoId, usuarios.id))
     .where(eq(solicitudesDocumentos.id, parsed.data.solicitudId))
     .limit(1);
 
@@ -235,6 +280,17 @@ export async function resolverSolicitudAdminAction(input: {
     },
     exitoso: true,
   });
+
+  if (solicitud.alumnoEmail) {
+    const { subject, html } = templateSolicitudResuelta({
+      alumnoNombre: `${solicitud.alumnoNombre} ${solicitud.alumnoApellido}`.trim(),
+      tipoSolicitud: formatTipoSolicitud(solicitud.tipo),
+      estado: parsed.data.estado,
+      respuesta: parsed.data.observacion ?? null,
+    });
+
+    sendEmail(solicitud.alumnoEmail, subject, html).catch(() => {});
+  }
 
   return {
     ok: true,

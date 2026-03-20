@@ -8,6 +8,11 @@ import { getDb } from "@/db";
 import { asignaturas, matriculas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
+import {
+  sendEmail,
+  templateMatriculaCreada,
+  templateMatriculaDesactivada,
+} from "@/lib/email";
 import { logEvent } from "@/lib/observability/logger";
 import {
   desmatricularInputSchema,
@@ -185,6 +190,7 @@ export async function matricularAlumnoAction(input: {
     const [subject] = await db
       .select({
         id: asignaturas.id,
+        nombre: asignaturas.nombre,
         estado: asignaturas.estado,
       })
       .from(asignaturas)
@@ -210,6 +216,9 @@ export async function matricularAlumnoAction(input: {
     const [student] = await db
       .select({
         id: usuarios.id,
+        nombre: usuarios.nombre,
+        apellido: usuarios.apellido,
+        email: usuarios.email,
       })
       .from(usuarios)
       .where(
@@ -269,6 +278,16 @@ export async function matricularAlumnoAction(input: {
         exitoso: true,
       });
 
+      if (student.email) {
+        const { subject: emailSubject, html } = templateMatriculaCreada({
+          alumnoNombre: `${student.nombre} ${student.apellido}`.trim(),
+          asignaturaNombre: subject.nombre,
+          estadoPago: parsed.data.estadoPago,
+        });
+
+        sendEmail(student.email, emailSubject, html).catch(() => {});
+      }
+
       return { ok: true, code: "matricula_updated" };
     }
 
@@ -296,6 +315,16 @@ export async function matricularAlumnoAction(input: {
       },
       exitoso: true,
     });
+
+    if (student.email) {
+      const { subject: emailSubject, html } = templateMatriculaCreada({
+        alumnoNombre: `${student.nombre} ${student.apellido}`.trim(),
+        asignaturaNombre: subject.nombre,
+        estadoPago: parsed.data.estadoPago,
+      });
+
+      sendEmail(student.email, emailSubject, html).catch(() => {});
+    }
 
     return { ok: true, code: "matricula_created" };
   } catch (error) {
@@ -343,8 +372,17 @@ export async function desmatricularAlumnoAction(input: {
 
   try {
     const [row] = await db
-      .select({ id: matriculas.id, activa: matriculas.activa })
+      .select({
+        id: matriculas.id,
+        activa: matriculas.activa,
+        alumnoNombre: usuarios.nombre,
+        alumnoApellido: usuarios.apellido,
+        alumnoEmail: usuarios.email,
+        asignaturaNombre: asignaturas.nombre,
+      })
       .from(matriculas)
+      .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
       .where(eq(matriculas.id, parsed.data.matriculaId))
       .limit(1);
 
@@ -378,6 +416,15 @@ export async function desmatricularAlumnoAction(input: {
       entidadId: row.id,
       exitoso: true,
     });
+
+    if (row.alumnoEmail) {
+      const { subject: emailSubject, html } = templateMatriculaDesactivada({
+        alumnoNombre: `${row.alumnoNombre} ${row.alumnoApellido}`.trim(),
+        asignaturaNombre: row.asignaturaNombre,
+      });
+
+      sendEmail(row.alumnoEmail, emailSubject, html).catch(() => {});
+    }
 
     return { ok: true, code: "matricula_deactivated" };
   } catch (error) {

@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { asignaturas, material, matriculas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { sendEmail, templateBienvenida } from "@/lib/email";
 import { logEvent } from "@/lib/observability/logger";
 import { formatearRut } from "@/lib/rut";
 import { sanitizeText } from "@/lib/sanitize";
@@ -511,6 +512,12 @@ export async function crearDocenteAction(input: {
         exitoso: true,
       });
 
+      const { subject, html } = templateBienvenida({
+        nombre: `${nombre} ${apellido}`.trim(),
+        rol: "docente",
+      });
+      sendEmail(email, subject, html).catch(() => {});
+
       return {
         ok: true,
         code: isRestore ? "docente_updated" : "docente_created",
@@ -544,6 +551,12 @@ export async function crearDocenteAction(input: {
       },
       exitoso: true,
     });
+
+    const { subject, html } = templateBienvenida({
+      nombre: `${nombre} ${apellido}`.trim(),
+      rol: "docente",
+    });
+    sendEmail(email, subject, html).catch(() => {});
 
     return { ok: true, code: "docente_created" };
   } catch (error) {
@@ -703,6 +716,14 @@ export async function crearAlumnoAction(input: {
         exitoso: true,
       });
 
+      if (email) {
+        const { subject, html } = templateBienvenida({
+          nombre: `${nombre} ${apellido}`.trim(),
+          rol: "alumno",
+        });
+        sendEmail(email, subject, html).catch(() => {});
+      }
+
       return { ok: true, code: "alumno_updated" };
     }
 
@@ -735,6 +756,14 @@ export async function crearAlumnoAction(input: {
       },
       exitoso: true,
     });
+
+    if (email) {
+      const { subject, html } = templateBienvenida({
+        nombre: `${nombre} ${apellido}`.trim(),
+        rol: "alumno",
+      });
+      sendEmail(email, subject, html).catch(() => {});
+    }
 
     return { ok: true, code: "alumno_created" };
   } catch (error) {

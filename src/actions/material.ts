@@ -7,7 +7,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas, clases, material, matriculas } from "@/db/schema";
+import { asignaturas, clases, material, matriculas, usuarios } from "@/db/schema";
+import { sendEmail, templateMaterialSubido } from "@/lib/email";
 import { deleteFile, uploadFile } from "@/lib/storage";
 
 import { type MutationResult, requireActionActor } from "./_security";
@@ -110,7 +111,11 @@ export async function subirMaterialAction(
 
   // Verify the class belongs to an asignatura the docente teaches
   const [clase] = await db
-    .select({ id: clases.id, asigDocenteId: asignaturas.docenteId })
+    .select({
+      id: clases.id,
+      asigDocenteId: asignaturas.docenteId,
+      asigNombre: asignaturas.nombre,
+    })
     .from(clases)
     .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
     .where(
@@ -169,6 +174,38 @@ export async function subirMaterialAction(
 
   revalidatePath("/docente/asignaturas");
   revalidatePath("/alumno/asignaturas");
+
+  const enrolled = await db
+    .select({
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      email: usuarios.email,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(
+      and(
+        eq(matriculas.asignaturaId, asignaturaId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+        eq(usuarios.activo, true),
+        isNull(usuarios.eliminadoAt),
+      ),
+    );
+
+  for (const alumno of enrolled) {
+    if (!alumno.email) {
+      continue;
+    }
+
+    const { subject, html } = templateMaterialSubido({
+      alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
+      asignaturaNombre: clase.asigNombre,
+      materialNombre: file.name,
+    });
+
+    sendEmail(alumno.email, subject, html).catch(() => {});
+  }
 
   return { ok: true, code: "material_uploaded" };
 }

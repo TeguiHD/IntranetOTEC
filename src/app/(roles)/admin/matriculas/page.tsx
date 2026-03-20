@@ -96,10 +96,6 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const totalActivas = matriculas.filter((m) => m.activa).length;
-  const totalPagadas = matriculas.filter((m) => m.activa && estaPagado(m.estadoPago)).length;
-  const totalNoPagadas = Math.max(totalActivas - totalPagadas, 0);
-
   function buildHref(page: number) {
     const params = new URLSearchParams();
     if (selectedAsignaturaId) params.set("asignaturaId", selectedAsignaturaId);
@@ -116,74 +112,26 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
           Matrículas
         </h1>
         <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-          Matricula alumnos por asignatura y controla indicador de pagó/no pagó.
+          Matricula alumnos por asignatura y controla el estado de pago.
         </p>
       </header>
 
-      {/* Métricas */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">
-            Matrículas activas
-          </p>
-          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">{totalActivas}</p>
-        </article>
-        <article className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm dark:border-green-900 dark:bg-green-950">
-          <p className="text-xs font-medium uppercase tracking-wide text-green-800 dark:text-green-300">
-            Pagó / cubierto
-          </p>
-          <p className="mt-1 text-2xl font-bold text-green-800 dark:text-green-200">{totalPagadas}</p>
-        </article>
-        <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-300">
-            No pagado
-          </p>
-          <p className="mt-1 text-2xl font-bold text-amber-800 dark:text-amber-200">{totalNoPagadas}</p>
-        </article>
-      </div>
-
-      {/* Filtro asignatura */}
-      <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <AsignaturaCombobox
-            name="asignaturaId"
-            label="Asignatura (filtro de tabla)"
-            required={asignaturas.length > 0}
-            defaultAsignatura={selectedAsignaturaCombobox}
-          />
-          <button
-            type="submit"
-            className="h-12 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:shadow-md active:scale-[0.98]"
-          >
-            Filtrar
-          </button>
-        </div>
-      </form>
-
-      {/* Formulario nueva matrícula */}
+      {/* Combined filter + create form */}
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-          Registrar matrícula
-        </h2>
-
-        <form action={matricularAlumnoFormAction} className="mt-4 space-y-4">
+        <form action={matricularAlumnoFormAction} className="space-y-4">
           <input type="hidden" name="page" value={String(currentPage)} />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <AsignaturaCombobox
-                name="asignaturaId"
-                label="Asignatura"
-                required
-                defaultAsignatura={selectedAsignaturaCombobox}
-              />
-            </div>
+            <AsignaturaCombobox
+              name="asignaturaId"
+              label="Asignatura"
+              required={asignaturas.length > 0}
+              defaultAsignatura={selectedAsignaturaCombobox}
+            />
+            <AlumnoCombobox />
+          </div>
 
-            {/* Combobox alumno */}
-            <div className="sm:col-span-2">
-              <AlumnoCombobox />
-            </div>
-
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <label htmlFor="mat-estado" className="text-sm font-medium text-text-primary dark:text-gray-200">
                 Estado de pago <span className="text-danger">*</span>
@@ -204,7 +152,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
 
             <div className="space-y-1.5">
               <label htmlFor="mat-monto" className="text-sm font-medium text-text-primary dark:text-gray-200">
-                Monto arancel (opcional)
+                Monto (opcional)
               </label>
               <input
                 id="mat-monto"
@@ -217,14 +165,16 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
               />
             </div>
-          </div>
 
-          <button
-            type="submit"
-            className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] sm:w-auto"
-          >
-            Guardar matrícula
-          </button>
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              >
+                Guardar matrícula
+              </button>
+            </div>
+          </div>
         </form>
       </article>
 

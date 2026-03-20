@@ -79,9 +79,11 @@ function DocenteCombobox({
   const [open, setOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim();
+    if (!q) return docentes;
     return docentes.filter(
       (d) =>
+        `${d.nombre} ${d.apellido}`.toLowerCase().includes(q) ||
         d.nombre.toLowerCase().includes(q) ||
         d.apellido.toLowerCase().includes(q),
     );

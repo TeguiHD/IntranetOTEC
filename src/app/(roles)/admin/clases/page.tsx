@@ -48,7 +48,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
       ? selectedAsignaturaIdRaw
       : asignaturas[0]?.id;
 
-  const selectedAsignatura = asignaturas.find((a) => a.id === selectedAsignaturaId) ?? null;
+
 
   const [clases, totalCount] = await Promise.all([
     listarClasesAdmin(
@@ -110,7 +110,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
       {/* Filters */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-          {/* Asignatura: text-based select with datalist for scalability */}
+          {/* Asignatura selector */}
           <div className="space-y-1.5">
             <label htmlFor="clases-asig" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
               Asignatura
@@ -120,11 +120,11 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
                 id="clases-asig"
                 name="asignaturaId"
                 defaultValue={selectedAsignaturaId}
-                className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm font-medium text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               >
                 {asignaturas.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.codigo ? `[${a.codigo}] ` : ""}{a.nombre}
+                    {a.nombre}
                   </option>
                 ))}
               </select>
@@ -134,11 +134,6 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
                 </svg>
               </div>
             </div>
-            {selectedAsignatura?.codigo && (
-              <p className="text-[11px] text-text-muted dark:text-gray-500">
-                Código: <span className="font-mono font-semibold">{selectedAsignatura.codigo}</span>
-              </p>
-            )}
           </div>
 
           {/* Text search */}

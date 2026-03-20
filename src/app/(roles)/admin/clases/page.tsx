@@ -27,6 +27,10 @@ type AdminClasesPageProps = {
   };
 };
 
+export const metadata = {
+  title: "Clases",
+};
+
 export default async function AdminClasesPage({ searchParams }: AdminClasesPageProps) {
   const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;

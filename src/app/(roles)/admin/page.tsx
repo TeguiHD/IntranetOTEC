@@ -8,6 +8,7 @@ import { MessageToast } from "@/components/shared/MessageToast";
 import { formatearRut } from "@/lib/rut";
 
 const MODULE_CARDS = [
+  { href: "/admin/administradores", title: "Administradores", description: "Gestionar cuentas con acceso total al panel.", gradient: "grad-purple" },
   { href: "/admin/docentes",     title: "Docentes",     description: "Crear y desactivar cuentas docentes.", gradient: "grad-amber" },
   { href: "/admin/alumnos",      title: "Alumnos",      description: "Registrar alumnos y controlar su acceso.", gradient: "grad-emerald" },
   { href: "/admin/asignaturas",  title: "Asignaturas",  description: "Crear asignaturas y asignar docentes.", gradient: "grad-blue" },
@@ -17,7 +18,9 @@ const MODULE_CARDS = [
 ] as const;
 
 const MODULE_ICON_PATHS: Record<string, string> = {
+  Administradores: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
   Docentes: "M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM4 21a8 8 0 0 1 16 0",
+
   Alumnos: "M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a6 6 0 0 1 12 0M14 21a5 5 0 0 1 8 0",
   Asignaturas: "M5 4.5h10.5A3.5 3.5 0 0 1 19 8v12.5H8A3 3 0 0 1 5 17.5V4.5Z",
   Matriculas: "M12 7a6.5 3.5 0 1 0 0-.01M5.5 7v10c0 1.93 2.91 3.5 6.5 3.5s6.5-1.57 6.5-3.5V7",
@@ -39,6 +42,10 @@ const ESTADO_COLORS: Record<string, string> = {
   finalizado: "text-amber-600 dark:text-amber-400",
   borrador: "text-text-secondary dark:text-gray-400",
   archivado: "text-text-muted dark:text-gray-500",
+};
+
+export const metadata = {
+  title: "Dashboard",
 };
 
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {

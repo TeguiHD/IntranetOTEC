@@ -51,6 +51,10 @@ type AlumnoSolicitudesPageProps = {
   };
 };
 
+export const metadata = {
+  title: "Solicitudes",
+};
+
 export default async function AlumnoSolicitudesPage({
   searchParams,
 }: AlumnoSolicitudesPageProps) {

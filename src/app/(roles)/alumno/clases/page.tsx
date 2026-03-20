@@ -10,6 +10,10 @@ function formatFecha(value: string | null): string {
   }).format(d);
 }
 
+export const metadata = {
+  title: "Clases",
+};
+
 export default async function AlumnoClasesPage() {
   let asignaturas;
 

@@ -19,6 +19,10 @@ type AdminSolicitudesPageProps = {
   };
 };
 
+export const metadata = {
+  title: "Solicitudes",
+};
+
 export default async function AdminSolicitudesPage({ searchParams }: AdminSolicitudesPageProps) {
   const solicitudes = await listarSolicitudesDocumentosAdmin();
 

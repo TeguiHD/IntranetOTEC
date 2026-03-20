@@ -97,7 +97,7 @@ export type BuscarPersonaPorRutAdminResult =
     };
 
 export async function listarUsuariosPorRol(
-  role: "docente" | "alumno",
+  role: "admin" | "docente" | "alumno",
   pagination: PaginationInput = {},
   options?: { incluirInactivos?: boolean },
 ) {
@@ -140,7 +140,7 @@ export async function listarUsuariosPorRol(
 }
 
 export async function countUsuariosPorRol(
-  role: "docente" | "alumno",
+  role: "admin" | "docente" | "alumno",
   options?: { incluirInactivos?: boolean },
 ): Promise<number> {
   const actorResult = await requireActionActor("admin_user_list", ["admin"]);
@@ -1264,3 +1264,235 @@ export async function editarAlumnoFormAction(formData: FormData): Promise<void> 
   revalidatePath("/admin/alumnos");
   redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
 }
+
+export async function crearAdminAction(input: {
+  nombre: string;
+  apellido: string;
+  rut: string;
+  email: string;
+  password: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_admin_mutation", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = docenteInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Datos inválidos para crear administrador.",
+    };
+  }
+
+  const db = getDb();
+  const now = new Date();
+  const nombre = sanitizeName(parsed.data.nombre);
+  const apellido = sanitizeName(parsed.data.apellido);
+  const rutNormalizado = parsed.data.rut;
+  const rutFormateado = formatearRut(parsed.data.rut);
+  const email = parsed.data.email;
+
+  try {
+    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+    const [existingByEmail] = await db
+      .select({ id: usuarios.id, rol: usuarios.rol, activo: usuarios.activo })
+      .from(usuarios)
+      .where(eq(usuarios.email, email))
+      .limit(1);
+
+    const [existingAdminByRut] = await db
+      .select({ id: usuarios.id, activo: usuarios.activo })
+      .from(usuarios)
+      .where(
+        and(
+          eq(usuarios.rol, "admin"),
+          or(eq(usuarios.rut, rutNormalizado), eq(usuarios.rut, rutFormateado)),
+        ),
+      )
+      .limit(1);
+
+    if (existingByEmail && existingByEmail.rol !== "admin") {
+      return {
+        ok: false,
+        code: "email_conflict",
+        message: "El correo ya está registrado por otro usuario.",
+      };
+    }
+
+    if (
+      existingByEmail &&
+      existingAdminByRut &&
+      existingByEmail.id !== existingAdminByRut.id
+    ) {
+      return {
+        ok: false,
+        code: "email_conflict",
+        message: "Correo o RUT ya están asociados a otra cuenta.",
+      };
+    }
+
+    const existing = existingByEmail?.rol === "admin" ? existingByEmail : existingAdminByRut;
+
+    if (existing) {
+      await db
+        .update(usuarios)
+        .set({
+          nombre,
+          apellido,
+          rut: rutFormateado,
+          email,
+          password: passwordHash,
+          rol: "admin",
+          activo: true,
+          eliminadoAt: null,
+          eliminadoPor: null,
+          updatedAt: now,
+        })
+        .where(eq(usuarios.id, existing.id));
+
+      return { ok: true, code: !existing.activo ? "admin_updated" : "admin_created" };
+    }
+
+    const userId = randomUUID();
+
+    await db.insert(usuarios).values({
+      id: userId,
+      nombre,
+      apellido,
+      rut: rutFormateado,
+      email,
+      password: passwordHash,
+      rol: "admin",
+      activo: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { ok: true, code: "admin_created" };
+  } catch {
+    return {
+      ok: false,
+      code: "admin_mutation_failed",
+      message: "No fue posible crear el administrador.",
+    };
+  }
+}
+
+export async function editarAdministradorAction(input: {
+  userId: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_user_edit", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = editarDocenteInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Datos inválidos para editar admin." };
+  }
+
+  const db = getDb();
+
+  try {
+    const [target] = await db
+      .select({ id: usuarios.id, rol: usuarios.rol })
+      .from(usuarios)
+      .where(and(eq(usuarios.id, parsed.data.userId), eq(usuarios.rol, "admin")))
+      .limit(1);
+
+    if (!target) {
+      return { ok: false, code: "not_found", message: "Administrador no encontrado." };
+    }
+
+    if (parsed.data.email) {
+      const [emailConflict] = await db
+        .select({ id: usuarios.id })
+        .from(usuarios)
+        .where(eq(usuarios.email, parsed.data.email))
+        .limit(1);
+
+      if (emailConflict && emailConflict.id !== target.id) {
+        return { ok: false, code: "email_conflict", message: "El correo ya está en uso por otro usuario." };
+      }
+    }
+
+    await db
+      .update(usuarios)
+      .set({
+        nombre: sanitizeName(parsed.data.nombre),
+        apellido: sanitizeName(parsed.data.apellido),
+        email: parsed.data.email,
+        updatedAt: new Date(),
+      })
+      .where(eq(usuarios.id, target.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "usuarios",
+      entidadId: target.id,
+      payload: { nombre: parsed.data.nombre, apellido: parsed.data.apellido },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "admin_updated" };
+  } catch {
+    return { ok: false, code: "edit_failed", message: "No fue posible actualizar el administrador." };
+  }
+}
+
+export async function crearAdministradorFormAction(formData: FormData): Promise<void> {
+  const result = await crearAdminAction({
+    nombre: getStringField(formData, "nombre"),
+    apellido: getStringField(formData, "apellido"),
+    rut: getStringField(formData, "rut"),
+    email: getStringField(formData, "email"),
+    password: getStringField(formData, "password"),
+  });
+
+  revalidatePath("/admin/administradores");
+  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function editarAdministradorFormAction(formData: FormData): Promise<void> {
+  const result = await editarAdministradorAction({
+    userId: getStringField(formData, "userId"),
+    nombre: getStringField(formData, "nombre"),
+    apellido: getStringField(formData, "apellido"),
+    email: getStringField(formData, "email"),
+  });
+
+  revalidatePath("/admin/administradores");
+  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function desactivarAdministradorFormAction(formData: FormData): Promise<void> {
+  const result = await desactivarUsuarioAction({
+    userId: getStringField(formData, "userId"),
+  });
+
+  revalidatePath("/admin/administradores");
+  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function activarAdministradorFormAction(formData: FormData): Promise<void> {
+  const result = await activarUsuarioAction({
+    userId: getStringField(formData, "userId"),
+  });
+
+  revalidatePath("/admin/administradores");
+  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+}
+

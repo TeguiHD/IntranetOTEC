@@ -30,6 +30,10 @@ type AdminAlumnosPageProps = {
   };
 };
 
+export const metadata = {
+  title: "Alumnos",
+};
+
 export default async function AdminAlumnosPage({
   searchParams,
 }: AdminAlumnosPageProps) {

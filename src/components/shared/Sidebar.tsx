@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   ScrollText,
+  Shield,
   UserCog,
   Users,
   Wallet,
@@ -26,6 +27,21 @@ type NavItem = {
   label: string;
   Icon: LucideIcon;
   gradient: string;
+};
+
+/**
+ * Solid fallback color for each gradient (used as CSS `color` on inactive icons).
+ * This ensures icons that use fill internally (like CalendarDays) render correctly.
+ */
+const GRADIENT_COLORS: Record<string, string> = {
+  "grad-purple": "#8B3A9E",
+  "grad-blue": "#3B82F6",
+  "grad-cyan": "#06B6D4",
+  "grad-amber": "#F5A623",
+  "grad-emerald": "#10B981",
+  "grad-pink": "#EC4899",
+  "grad-violet": "#8B5CF6",
+  "grad-gold": "#F5A623",
 };
 
 type NavSection = {
@@ -56,6 +72,7 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Personas",
     items: [
+      { href: "/admin/administradores", label: "Administradores", Icon: Shield, gradient: "grad-purple" },
       { href: "/admin/docentes", label: "Docentes", Icon: UserCog, gradient: "grad-amber" },
       { href: "/admin/alumnos", label: "Alumnos", Icon: Users, gradient: "grad-emerald" },
       { href: "/admin/matriculas", label: "Matrículas", Icon: Wallet, gradient: "grad-pink" },
@@ -174,7 +191,7 @@ function SidebarNav({
                       !active ? "group-hover:scale-110" : ""
                     }`}
                     strokeWidth={2}
-                    stroke={active ? "currentColor" : `url(#${item.gradient})`}
+                    style={active ? undefined : { color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
                   />
                   {!collapsed && <span className="truncate">{item.label}</span>}
                 </Link>

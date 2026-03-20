@@ -19,8 +19,15 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Mi OTEC Intranet",
+  title: {
+    default: "Mi OTEC Intranet",
+    template: "%s | Mi OTEC",
+  },
   description: "Intranet educativa OTEC",
+  icons: {
+    icon: "/logo-intranet.webp",
+    apple: "/logo-intranet.webp",
+  },
 };
 
 export default function RootLayout({

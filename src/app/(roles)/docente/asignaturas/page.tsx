@@ -56,6 +56,10 @@ const toCsvDataUri = (headers: string[], rows: string[][]): string => {
   return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
 };
 
+export const metadata = {
+  title: "Tus Asignaturas",
+};
+
 export default async function DocenteAsignaturasPage({ searchParams }: DocenteAsignaturasPageProps) {
   const asignaturas = await listarAsignaturasDocente();
   const selectedAsignaturaId =

@@ -9,6 +9,10 @@ const COLORS = {
   justificado: "#8B3A9E",
 };
 
+export const metadata = {
+  title: "Mis Cursos",
+};
+
 export default async function AlumnoAsignaturasPage() {
   let resumenAsistencia;
   const materialesPorAsig = new Map<string, { id: string; nombre: string; tamanioBytes: number | null; claseTitulo: string }[]>();

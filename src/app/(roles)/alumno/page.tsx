@@ -46,6 +46,10 @@ function tiempoRestante(fecha: Date | null): string | null {
   return `${horas}h`;
 }
 
+export const metadata = {
+  title: "Dashboard",
+};
+
 export default async function AlumnoDashboardPage() {
   let data;
 

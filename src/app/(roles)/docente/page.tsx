@@ -10,6 +10,10 @@ const NAV_ITEMS = [
   },
 ] as const;
 
+export const metadata = {
+  title: "Dashboard",
+};
+
 export default function DocenteDashboardPage() {
   return (
     <section className="space-y-5">

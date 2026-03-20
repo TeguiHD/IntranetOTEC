@@ -38,6 +38,10 @@ type AdminAsignaturasPageProps = {
   };
 };
 
+export const metadata = {
+  title: "Asignaturas",
+};
+
 export default async function AdminAsignaturasPage({
   searchParams,
 }: AdminAsignaturasPageProps) {

@@ -1,0 +1,1841 @@
+# PLANNING.md — Intranet Educativa "Mi Otec"
+# Stack: Next.js 14 · PostgreSQL · Drizzle ORM · Auth.js v5
+# Estado inicial: proyecto desde cero
+
+### AVISO DOCUMENTAL (2026-03-15)
+Este archivo contiene bloques históricos (versión inicial + versión v3) y puede presentar contradicciones internas.
+
+Para estado vigente y decisiones activas usar:
+1) `project-state.md` (fuente de verdad técnica)
+2) `ORDEN_DOCUMENTAL.md` (jerarquía documental)
+3) `PROGRESO_ITERACIONES.md` (bitácora)
+
+---
+
+## INSTRUCCIONES PARA EL AGENTE
+
+Este archivo es la fuente de verdad del proyecto. Léelo completo antes de
+escribir cualquier línea de código. Implementa **solo la fase indicada al final**
+de este documento. Antes de avanzar de fase, pregunta si hay dudas de diseño
+o decisiones pendientes.
+
+Reglas de trabajo:
+- Nunca inventar dependencias no listadas en este documento
+- Nunca omitir tipado TypeScript — strict mode activado siempre
+- Toda lógica de base de datos va en `src/actions/` (Server Actions) o en
+  `src/db/queries/`, nunca directamente en componentes
+- Confirmar antes de instalar cualquier paquete que no esté en la sección
+  de dependencias de la fase activa
+
+---
+
+## PRINCIPIO DE INMUTABILIDAD — REGLA ABSOLUTA
+
+**En este sistema NUNCA se borra nada de la base de datos.**
+
+Todo registro que el usuario "elimine" o "desactive" simplemente cambia de
+estado o recibe una marca de tiempo. Sigue existiendo en la DB. Los datos
+son permanentes; solo cambia su visibilidad en la interfaz.
+
+### Implementación por entidad
+
+| Entidad | Mecanismo | Campo |
+|---------|-----------|-------|
+| `usuarios` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `asignaturas` | cambio de estado | `estado: 'archivado'` (estado final) |
+| `matriculas` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `clases` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `material` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `evaluaciones` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `notas` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `finanzas` | soft-delete | `eliminadoAt timestamptz`, `eliminadoPor uuid` |
+| `certificados` | cambio de estado | `valido: false` (nunca borrar) |
+
+### Convención de queries — OBLIGATORIA
+
+Toda query a una tabla con soft-delete DEBE filtrar registros activos:
+
+```typescript
+// ✅ CORRECTO — siempre filtrar
+db.select().from(material).where(isNull(material.eliminadoAt))
+
+// ❌ INCORRECTO — nunca omitir el filtro
+db.select().from(material)
+```
+
+Crear un helper reutilizable en `src/db/filters.ts`:
+```typescript
+import { isNull } from 'drizzle-orm';
+
+// Usar en cualquier tabla que tenga eliminadoAt
+export const activo = <T extends { eliminadoAt: unknown }>(tabla: T) =>
+  isNull(tabla.eliminadoAt);
+```
+
+### Sin CASCADE en claves foráneas
+
+Ninguna relación usará `onDelete: 'cascade'`. Si una clase se "elimina",
+su material queda en DB con `eliminadoAt` propio. Cada entidad gestiona
+su propio ciclo de vida independientemente.
+
+### En la interfaz
+
+- Los registros con `eliminadoAt IS NOT NULL` no aparecen en listados normales
+- El admin puede ver registros "eliminados" con un toggle "Mostrar inactivos"
+- La acción en UI siempre dice "Desactivar" o "Archivar", nunca "Eliminar"
+- Antes de desactivar: modal de confirmación con texto requerido
+
+### Tablas históricas — eliminadas
+
+Las tablas `asistencia_historico` y `notas_historico` del diseño original
+**no son necesarias**. El "Cerrar Ciclo" simplemente cambia el estado de la
+asignatura a `finalizado` y congela la escritura vía permisos. Los datos
+originales permanecen intactos en sus tablas.
+
+---
+
+## CONTEXTO DEL SISTEMA
+
+Intranet educativa para un OTEC (Organismo Técnico de Capacitación) chileno.
+NO es un LMS público. Es una intranet administrativa con aula virtual integrada.
+
+**Tres roles con permisos granulares:**
+- `admin` — Director. Crea asignaturas, matricula alumnos, gestiona docentes y finanzas
+- `docente` — Profesor. Gestiona sus clases, asistencia, material y evaluaciones
+- `alumno` — Estudiante. Ve sus clases, notas, material y descarga certificados
+
+**Jerarquía de entidades clave:**
+```
+Asignatura (materia)
+├── Docente asignado (1)
+├── Alumnos matriculados (N) → tabla matriculas
+├── Clases / Sesiones (N)
+│   ├── Grabación de video (YouTube / Vimeo / Drive / directo)
+│   ├── Material PDF por clase
+│   └── Registro de asistencia por clase
+└── Evaluaciones
+    ├── Formulario online (preguntas + respuestas)
+    ├── Tarea (el alumno sube un archivo)
+    └── Examen (el docente ingresa nota directamente)
+```
+
+**Particularidades chilenas:**
+- Los alumnos se identifican con RUT (no email). El login de alumno es
+  solo con RUT — sin contraseña visible. El sistema deriva la contraseña
+  internamente: `bcrypt(RUT_SALT + rutLimpio)`.
+- El RUT se valida con el algoritmo Módulo 11.
+- El admin crea a los alumnos — el alumno nunca se registra solo.
+
+---
+
+## STACK TECNOLÓGICO OBLIGATORIO
+
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Framework | Next.js App Router | 14+ |
+| Base de datos | PostgreSQL | 16 |
+| ORM | Drizzle ORM | latest |
+| Migraciones | Drizzle Kit | latest |
+| Autenticación | Auth.js (NextAuth) | v5 beta |
+| Estilos | Tailwind CSS | v3 |
+| Componentes UI | shadcn/ui | latest |
+| Formularios | React Hook Form + Zod | latest |
+| Data fetching | SWR | latest |
+| Gráficos | Recharts | latest |
+| PDF generación | @react-pdf/renderer | latest — SOLO en cliente |
+| PDF visor | react-pdf (pdfjs-dist) | latest — inline, sin nueva pestaña |
+| Excel export | xlsx (SheetJS) | latest |
+| QR codes | qrcode.react | latest |
+| Storage archivos | MinIO (S3-compatible) en prod / filesystem local en dev |
+| Realtime | SSE (Server-Sent Events) con pg LISTEN/NOTIFY |
+| Hashing | bcryptjs | latest |
+| Rate limiting | Middleware personalizado con tabla pg |
+
+**No usar:** Supabase, Prisma, TypeORM, Redis, MongoDB, SQLite.
+
+---
+
+## PALETA DE COLORES (aplicar en tailwind.config.ts)
+
+```css
+:root {
+  --primary:        #7B2D8E;
+  --primary-dark:   #5A1F68;
+  --primary-light:  #9B4DB0;
+  --accent:         #8B3A9E;
+  --secondary:      #A855F7;
+  --bg-light:       #F8F7FC;
+  --bg-white:       #FFFFFF;
+  --bg-dark:        #0D0D0D;
+  --bg-footer:      #1A1A1A;
+  --text-primary:   #2D1F3D;
+  --text-secondary: #645A72;
+  --text-muted:     #9CA3AF;
+  --text-white:     #FFFFFF;
+  --cta:            #00C853;
+  --cta-dark:       #00A843;
+  --danger:         #EF4444;
+  --warning:        #F59E0B;
+  --success:        #10B981;
+  --gradient-brand: linear-gradient(135deg, #7B2D8E, #5A1F68);
+}
+```
+
+Soporte modo oscuro con `darkMode: 'class'` y `next-themes`.
+
+---
+
+## ESQUEMA DE BASE DE DATOS (Drizzle ORM)
+
+Archivo: `src/db/schema.ts`
+
+```typescript
+import {
+  pgTable, pgEnum, uuid, text, integer, numeric,
+  boolean, date, timestamp, time, jsonb, unique
+} from 'drizzle-orm/pg-core';
+
+// ── ENUMS ─────────────────────────────────────────────────────────────
+export const rolEnum        = pgEnum('rol',         ['admin','docente','alumno']);
+export const estadoAsigEnum = pgEnum('estado_asig', ['borrador','activo','finalizado','archivado']);
+export const estadoPagoEnum = pgEnum('estado_pago', ['pendiente','pagado','mora','becado']);
+export const estadoAsistEnum= pgEnum('estado_asist',['presente','ausente','tardanza','justificado']);
+export const tipoEvalEnum   = pgEnum('tipo_eval',   ['formulario','tarea','examen','proyecto']);
+export const tipoPregEnum   = pgEnum('tipo_preg',   ['opcion_multiple','verdadero_falso',
+                                                     'respuesta_corta','desarrollo']);
+export const tipoCertEnum   = pgEnum('tipo_cert',   ['alumno_regular','termino_curso']);
+export const tipoFinEnum    = pgEnum('tipo_fin',    ['ingreso','gasto']);
+export const tipoVideoEnum  = pgEnum('tipo_video',  ['youtube','vimeo','drive','directo']);
+
+// ── USUARIOS ──────────────────────────────────────────────────────────
+export const usuarios = pgTable('usuarios', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  rut:          text('rut').unique(),          // solo alumnos
+  nombre:       text('nombre').notNull(),
+  apellido:     text('apellido').notNull(),
+  email:        text('email').unique(),
+  password:     text('password'),              // bcrypt hash
+  rol:          rolEnum('rol').notNull(),
+  avatarUrl:    text('avatar_url'),
+  activo:       boolean('activo').default(true),
+  // SOFT-DELETE — nunca DELETE físico
+  eliminadoAt:  timestamp('eliminado_at'),     // null = activo
+  eliminadoPor: uuid('eliminado_por'),         // id del admin que desactivó
+  createdAt:    timestamp('created_at').defaultNow(),
+  updatedAt:    timestamp('updated_at').defaultNow(),
+});
+
+// ── ASIGNATURAS ───────────────────────────────────────────────────────
+export const asignaturas = pgTable('asignaturas', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  nombre:         text('nombre').notNull(),
+  descripcion:    text('descripcion'),
+  codigo:         text('codigo').unique(),
+  docenteId:      uuid('docente_id').references(() => usuarios.id),
+  fechaInicio:    date('fecha_inicio').notNull(),
+  duracionMeses:  integer('duracion_meses').notNull(),  // 2 | 4 | 6
+  estado:         estadoAsigEnum('estado').default('borrador'),
+  maxAlumnos:     integer('max_alumnos').default(30),
+  createdBy:      uuid('created_by').references(() => usuarios.id),
+  createdAt:      timestamp('created_at').defaultNow(),
+});
+
+// ── MATRÍCULAS (pivot alumno ↔ asignatura) ────────────────────────────
+export const matriculas = pgTable('matriculas', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  alumnoId:       uuid('alumno_id').notNull().references(() => usuarios.id),
+  asignaturaId:   uuid('asignatura_id').notNull().references(() => asignaturas.id),
+  montoArancel:   numeric('monto_arancel', { precision: 10, scale: 2 }),
+  estadoPago:     estadoPagoEnum('estado_pago').default('pendiente'),
+  fechaPago:      date('fecha_pago'),
+  activa:         boolean('activa').default(true),
+  // SOFT-DELETE
+  eliminadoAt:    timestamp('eliminado_at'),
+  eliminadoPor:   uuid('eliminado_por'),
+  createdAt:      timestamp('created_at').defaultNow(),
+}, (t) => ({ uniq: unique().on(t.alumnoId, t.asignaturaId) }));
+
+// ── CLASES ────────────────────────────────────────────────────────────
+export const clases = pgTable('clases', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  asignaturaId:  uuid('asignatura_id').notNull().references(() => asignaturas.id),
+  titulo:        text('titulo').notNull(),
+  descripcion:   text('descripcion'),
+  numeroSesion:  integer('numero_sesion').notNull(),
+  fecha:         date('fecha').notNull(),
+  horaInicio:    time('hora_inicio'),
+  urlGrabacion:  text('url_grabacion'),
+  tipoUrl:       tipoVideoEnum('tipo_url'),
+  publicada:     boolean('publicada').default(false),
+  // SOFT-DELETE
+  eliminadoAt:   timestamp('eliminado_at'),
+  eliminadoPor:  uuid('eliminado_por'),
+  createdAt:     timestamp('created_at').defaultNow(),
+}, (t) => ({ uniq: unique().on(t.asignaturaId, t.numeroSesion) }));
+
+// ── MATERIAL POR CLASE ────────────────────────────────────────────────
+export const material = pgTable('material', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  claseId:      uuid('clase_id').notNull().references(() => clases.id),  // sin cascade
+  nombre:       text('nombre').notNull(),
+  storagePath:  text('storage_path').notNull(),
+  hashMd5:      text('hash_md5').notNull(),
+  tamanioBytes: integer('tamanio_bytes'),
+  subidoPor:    uuid('subido_por').references(() => usuarios.id),
+  // SOFT-DELETE — el archivo físico NO se borra del storage
+  eliminadoAt:  timestamp('eliminado_at'),
+  eliminadoPor: uuid('eliminado_por'),
+  createdAt:    timestamp('created_at').defaultNow(),
+});
+
+// ── ASISTENCIA ────────────────────────────────────────────────────────
+export const asistencia = pgTable('asistencia', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  claseId:       uuid('clase_id').notNull().references(() => clases.id),
+  matriculaId:   uuid('matricula_id').notNull().references(() => matriculas.id),
+  estado:        estadoAsistEnum('estado').default('ausente'),
+  observacion:   text('observacion'),
+  registradoPor: uuid('registrado_por').references(() => usuarios.id),
+  fechaRegistro: timestamp('fecha_registro').defaultNow(),
+}, (t) => ({ uniq: unique().on(t.claseId, t.matriculaId) }));
+
+// ── EVALUACIONES ──────────────────────────────────────────────────────
+export const evaluaciones = pgTable('evaluaciones', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  asignaturaId:  uuid('asignatura_id').notNull().references(() => asignaturas.id),
+  titulo:        text('titulo').notNull(),
+  tipo:          tipoEvalEnum('tipo').notNull(),
+  ponderacion:   numeric('ponderacion', { precision: 5, scale: 2 }),
+  fechaInicio:   timestamp('fecha_inicio'),
+  fechaLimite:   timestamp('fecha_limite'),
+  intentosMax:   integer('intentos_max').default(1),
+  instrucciones: text('instrucciones'),
+  publicada:     boolean('publicada').default(false),
+  // SOFT-DELETE
+  eliminadoAt:   timestamp('eliminado_at'),
+  eliminadoPor:  uuid('eliminado_por'),
+  createdAt:     timestamp('created_at').defaultNow(),
+});
+
+// ── PREGUNTAS (formularios) ───────────────────────────────────────────
+export const preguntas = pgTable('preguntas', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  evaluacionId: uuid('evaluacion_id').notNull().references(() => evaluaciones.id),  // sin cascade
+  enunciado:    text('enunciado').notNull(),
+  tipo:         tipoPregEnum('tipo').notNull(),
+  opciones:     jsonb('opciones'),  // [{ texto: string, esCorrecta: boolean }]
+  puntaje:      numeric('puntaje', { precision: 5, scale: 2 }).default('1'),
+  orden:        integer('orden'),
+  // SOFT-DELETE
+  eliminadoAt:  timestamp('eliminado_at'),
+  eliminadoPor: uuid('eliminado_por'),
+});
+
+// ── RESPUESTAS FORMULARIO ─────────────────────────────────────────────
+export const respuestasFormulario = pgTable('respuestas_formulario', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  evaluacionId: uuid('evaluacion_id').notNull().references(() => evaluaciones.id),
+  matriculaId:  uuid('matricula_id').notNull().references(() => matriculas.id),
+  preguntaId:   uuid('pregunta_id').notNull().references(() => preguntas.id),
+  respuesta:    text('respuesta'),
+  esCorrecta:   boolean('es_correcta'),
+  intento:      integer('intento').default(1),
+  createdAt:    timestamp('created_at').defaultNow(),
+});
+
+// ── NOTAS ─────────────────────────────────────────────────────────────
+export const notas = pgTable('notas', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  evaluacionId:  uuid('evaluacion_id').notNull().references(() => evaluaciones.id),
+  matriculaId:   uuid('matricula_id').notNull().references(() => matriculas.id),
+  nota:          numeric('nota', { precision: 3, scale: 1 }),
+  observacion:   text('observacion'),
+  entregaUrl:    text('entrega_url'),
+  calificadoPor: uuid('calificado_por').references(() => usuarios.id),
+  fechaNota:     timestamp('fecha_nota').defaultNow(),
+  // SOFT-DELETE — una nota "eliminada" queda en DB para auditoría
+  eliminadoAt:   timestamp('eliminado_at'),
+  eliminadoPor:  uuid('eliminado_por'),
+}, (t) => ({ uniq: unique().on(t.evaluacionId, t.matriculaId) }));
+
+// ── CERTIFICADOS ──────────────────────────────────────────────────────
+export const certificados = pgTable('certificados', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  codigoUnico:   text('codigo_unico').unique().notNull(),
+  matriculaId:   uuid('matricula_id').notNull().references(() => matriculas.id),
+  tipo:          tipoCertEnum('tipo').notNull(),
+  datosSnapshot: jsonb('datos_snapshot').notNull(), // INMUTABLE al emitir
+  urlPublica:    text('url_publica'),
+  qrPayload:     text('qr_payload'),
+  generadoPor:   uuid('generado_por').references(() => usuarios.id),
+  fechaEmision:  timestamp('fecha_emision').defaultNow(),
+  valido:        boolean('valido').default(true),
+});
+
+// ── FINANZAS ──────────────────────────────────────────────────────────
+Los pagos son de forma presencial
+
+// ── NOTA: Sin tablas históricas ───────────────────────────────────────
+// Las tablas asistencia_historico / notas_historico del diseño original
+// han sido eliminadas. No son necesarias porque los datos NUNCA se borran.
+// El "Cerrar Ciclo" solo cambia asignatura.estado a 'finalizado'.
+// Los datos originales quedan intactos en sus tablas con su estado actual.
+// El admin puede filtrar por asignatura.estado para ver ciclos cerrados.
+```
+
+---
+
+## AUTENTICACIÓN (Auth.js v5)
+
+Archivo: `src/auth.ts`
+
+Dos providers de Credentials:
+
+**1. `alumno-rut`** — El alumno escribe solo su RUT (formato `12.345.678-9`).
+El backend busca al usuario por RUT, luego verifica:
+`bcrypt.compare(process.env.RUT_SALT + rutLimpio, usuario.password)`
+
+**2. `staff-credentials`** — Docente y Admin usan email + contraseña normal.
+
+En ambos casos el callback `jwt` agrega `token.rol` y el callback `session`
+expone `session.user.id` + `session.user.rol`.
+
+Configuración de sesión: `strategy: 'jwt'`, `maxAge: 3600` (1 hora),
+`updateAge: 900` (renovar cada 15 min).
+
+Páginas custom: `signIn: '/login'`, `error: '/login'`.
+
+---
+
+## MIDDLEWARE DE RUTAS
+
+Archivo: `src/middleware.ts`
+
+| Prefijo de ruta | Rol requerido |
+|----------------|--------------|
+| `/admin/*`     | `admin`      |
+| `/docente/*`   | `docente`    |
+| `/alumno/*`    | `alumno`     |
+| `/verificar/*` | pública — sin auth |
+| `/login`       | pública |
+
+Lógica:
+1. Si no hay sesión → redirigir a `/login`
+2. Si el rol no coincide con el prefijo → redirigir a `/{rol}` (su propio dashboard)
+3. Si tiene sesión y el rol coincide → `NextResponse.next()`
+
+---
+
+## VALIDACIÓN DE RUT CHILENO
+
+Archivo: `src/lib/rut.ts`
+
+```typescript
+export function validarRut(rut: string): boolean {
+  const cleaned = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (cleaned.length < 2) return false;
+  const dv = cleaned.slice(-1);
+  const body = cleaned.slice(0, -1);
+  let sum = 0, mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * mul;
+    mul = mul < 7 ? mul + 1 : 2;
+  }
+  const exp = 11 - (sum % 11);
+  const dvExp = exp === 11 ? '0' : exp === 10 ? 'K' : String(exp);
+  return dv === dvExp;
+}
+
+export function formatRut(rut: string): string {
+  const cleaned = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  const dv = cleaned.slice(-1);
+  const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${body}-${dv}`;
+}
+```
+
+El componente `<RutInput />` usa esta función para validar en tiempo real,
+aplicar el formato automático y mostrar feedback visual (borde verde/rojo).
+
+---
+
+## STORAGE DE ARCHIVOS
+
+Archivo: `src/lib/storage.ts`
+
+- **Desarrollo:** filesystem local en `/uploads/` — usar `fs.writeFile`
+- **Producción:** MinIO (S3-compatible, self-hosted)
+
+La interfaz expone solo dos funciones:
+- `uploadFile(bucket, path, buffer, contentType): Promise<string>`
+- `getPresignedUrl(bucket, path): Promise<string>` (URL firmada, 1 hora)
+
+Buckets: `material` (PDFs de clases), `entregas` (trabajos de alumnos).
+
+El MD5 del archivo se calcula **en el cliente** antes de subir para detectar
+duplicados. El hash se envía junto con el upload y se verifica contra
+`material.hash_md5` antes de insertar.
+
+---
+
+## REALTIME (SSE + PostgreSQL LISTEN/NOTIFY)
+
+Archivo: `src/app/api/sse/material/route.ts`
+
+PostgreSQL trigger en la tabla `material`:
+```sql
+CREATE OR REPLACE FUNCTION notify_material_nuevo()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM pg_notify('material_nuevo', row_to_json(NEW)::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_material_insert
+  AFTER INSERT ON material
+  FOR EACH ROW EXECUTE FUNCTION notify_material_nuevo();
+```
+
+El Route Handler hace `LISTEN material_nuevo` con un cliente `pg` dedicado
+y escribe al stream SSE en cada notificación.
+
+Hook del cliente: `src/hooks/useSSE.ts` — consume el endpoint y expone
+el último evento. Dispara un toast con `sonner` cuando llega material nuevo.
+
+---
+
+## SEGURIDAD
+
+**Security headers** en `next.config.ts`:
+```
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=63072000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' 'unsafe-eval';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:;
+  media-src 'self' blob:;
+  frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://drive.google.com;
+  connect-src 'self';
+  worker-src blob:
+```
+
+**Rate limiting en login:** tabla `login_attempts(ip, intentos, ultimo_intento)`.
+Bloquear IP tras 5 intentos fallidos en 1 minuto. Implementado en el Server
+Action del login, sin dependencias externas.
+
+**Validación:** Zod en cliente Y en el Server Action (nunca confiar solo en
+el frontend).
+
+---
+
+## ESTRUCTURA DE CARPETAS
+
+```
+src/
+├── app/
+│   ├── (auth)/login/page.tsx
+│   ├── (roles)/
+│   │   ├── layout.tsx              # Verifica sesión activa
+│   │   ├── admin/
+│   │   │   ├── page.tsx            # Dashboard KPIs
+│   │   │   ├── asignaturas/
+│   │   │   ├── docentes/
+│   │   │   ├── alumnos/
+│   │   │   ├── finanzas/
+│   │   │   └── material/
+│   │   ├── docente/
+│   │   │   ├── page.tsx
+│   │   │   └── asignaturas/[id]/
+│   │   │       ├── clases/
+│   │   │       ├── asistencia/
+│   │   │       ├── evaluaciones/
+│   │   │       └── alumnos/
+│   │   └── alumno/
+│   │       ├── page.tsx
+│   │       ├── asignaturas/[id]/
+│   │       ├── repasador/
+│   │       └── certificados/
+│   ├── verificar/[codigo]/page.tsx # Pública — validar certificado por QR
+│   └── api/
+│       ├── sse/material/route.ts   # Server-Sent Events
+│       └── files/[...path]/route.ts# Servir archivos con verificación de sesión
+├── db/
+│   ├── schema.ts                   # (ver sección Esquema)
+│   ├── index.ts                    # Pool de conexión pg
+│   └── migrations/                 # Generado por Drizzle Kit
+├── lib/
+│   ├── rut.ts
+│   ├── storage.ts
+│   ├── pdf/
+│   │   ├── CertificadoRegular.tsx  # Template @react-pdf/renderer
+│   │   └── DiplomaTermino.tsx
+│   └── validations/                # Zod schemas por entidad
+├── actions/                        # Server Actions — toda la lógica de negocio
+│   ├── auth.ts
+│   ├── asignaturas.ts
+│   ├── clases.ts
+│   ├── asistencia.ts
+│   ├── evaluaciones.ts
+│   ├── notas.ts
+│   ├── certificados.ts
+│   └── finanzas.ts
+├── components/
+│   ├── ui/                         # shadcn/ui base
+│   ├── shared/
+│   │   ├── Sidebar.tsx             # Colapsable: 256px / 64px / drawer mobile
+│   │   ├── Topbar.tsx              # Breadcrumb + notificaciones + avatar
+│   │   └── ThemeProvider.tsx
+│   ├── clases/
+│   │   ├── VideoPlayer.tsx         # YouTube/Vimeo/Drive/nativo unificado
+│   │   └── PdfViewer.tsx           # react-pdf inline
+│   ├── asistencia/AttendanceGrid.tsx
+│   ├── evaluaciones/FormBuilder.tsx
+│   ├── certificados/CertificatePDF.tsx
+│   └── finanzas/FinanceChart.tsx
+├── hooks/
+│   ├── useSSE.ts
+│   └── use[Entidad].ts             # SWR hooks por entidad
+├── auth.ts
+└── middleware.ts
+```
+
+---
+
+## COMPONENTES CLAVE A CONSTRUIR
+
+| Componente | Descripción |
+|-----------|-------------|
+| `<RutInput />` | Input con formato automático `12.345.678-9` y validación Módulo 11 en tiempo real. Borde verde = válido, rojo = inválido. |
+| `<VideoPlayer />` | Detecta tipo de URL y renderiza iframe/video. YouTube usa `youtube-nocookie.com`. |
+| `<PdfViewer />` | Visor inline con `react-pdf`. Controles de página y zoom. Sin abrir nueva pestaña. |
+| `<AttendanceGrid />` | Tabla clases × alumnos. Estados con colores semafóricos. % de asistencia por alumno. |
+| `<GradeTable />` | Tabla de notas editable. Colores: rojo < 4.0, amarillo < 5.5, verde ≥ 5.5. |
+| `<MaterialDropzone />` | react-dropzone. Solo PDF, máx 5MB. Calcula MD5 en cliente antes de subir. |
+| `<CycleCloseModal />` | Modal con input de texto. Requiere escribir `CERRAR` exacto para confirmar. |
+| `<CertificatePDF />` | Template A4 con logo, texto legal, firma y QR embebido. Solo cliente. |
+| `<VerificationPage />` | Página pública `/verificar/[codigo]`. Sin auth. Muestra datos del snapshot. |
+| `<FinanceChart />` | Barras Recharts ingresos vs gastos. Donut de gastos por categoría. |
+
+---
+
+## MÓDULOS POR ROL (resumen funcional)
+
+### ALUMNO
+- Dashboard: asignaturas activas, promedio, % asistencia global
+- Detalle asignatura: video embebido + material PDF inline + asistencia propia + evaluaciones
+- Responder formularios online, subir entregas de tareas
+- Ver notas con colores semafóricos y promedio ponderado
+- Repasador: todo el material de todas mis asignaturas consolidado
+- Certificados: generar PDF con QR en cliente (alumno regular / diploma de término)
+
+### DOCENTE
+- Dashboard: mis asignaturas, próximas clases, evaluaciones sin calificar,
+  alumnos con asistencia crítica (< 75%)
+- Gestión de clases: crear sesión con URL de grabación, toggle publicar,
+  subir material PDF con detección de duplicados MD5
+- Asistencia: selector de clase → lista de alumnos → estados → guardado batch
+- Evaluaciones: crear formulario / tarea / examen con ponderaciones
+- Calificar entregas: ingresar nota + retroalimentación
+- Ver rendimiento de alumnos por asignatura
+
+### ADMIN
+- Dashboard: KPIs globales + gráfico ingresos/gastos + alertas (mora, vencimientos)
+- CRUD asignaturas: crear, editar, asignar docente, matricular alumnos (individual o CSV)
+- **Cerrar Ciclo:** confirmar con texto `CERRAR` → cambiar estado a `finalizado` (solo lectura)
+  → exportar Excel completo → habilitar diplomas para aprobados automáticamente.
+  Los datos permanecen intactos en sus tablas originales.
+- CRUD docentes: crear cuenta con bcrypt, resetear contraseña, asignar asignaturas.
+  "Eliminar" docente → `eliminadoAt = now()`, no puede iniciar sesión, historial intacto.
+- CRUD alumnos: crear con RUT validado, gestionar estado de pago.
+  "Eliminar" alumno → `eliminadoAt = now()`, matrícula permanece en DB como registro.
+- Módulo financiero: registrar movimientos, ver totales, exportar Excel por período.
+  "Eliminar" movimiento → `eliminadoAt = now()`, queda en auditoría.
+- Control global de material: vista de todos los archivos, "desactivar" archivos
+  (soft-delete), detectar duplicados por hash. El archivo físico en storage NO se borra.
+- Toggle "Mostrar inactivos" en todas las tablas del admin para ver registros
+  con `eliminadoAt IS NOT NULL`.
+
+### PÁGINA PÚBLICA `/verificar/[codigo]`
+- Sin autenticación requerida
+- Busca el certificado por `codigo_unico`
+- Muestra datos del `datos_snapshot` (congelados al momento de emisión)
+- Si `valido = false` → página de certificado inválido
+
+---
+
+## VARIABLES DE ENTORNO
+
+Archivo: `.env.local`
+
+```env
+# Base de datos
+DATABASE_URL=postgresql://user:password@localhost:5432/otec_db
+
+# Auth.js
+AUTH_SECRET=          # openssl rand -base64 32
+AUTH_URL=http://localhost:3000
+
+# Login de alumnos (NUNCA cambiar en producción una vez con datos)
+RUT_SALT=             # string largo y aleatorio
+
+# Storage
+STORAGE_DRIVER=local              # 'local' | 'minio'
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_USE_SSL=false
+MINIO_ACCESS_KEY=
+MINIO_SECRET_KEY=
+MINIO_BUCKET_MATERIAL=material
+MINIO_BUCKET_ENTREGAS=entregas
+
+# App
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+---
+
+## RESTRICCIONES ABSOLUTAS (nunca romper)
+
+1. **Base de datos:** solo PostgreSQL — no SQLite, no MongoDB, no archivos JSON
+2. **ORM:** solo Drizzle — no Prisma, no TypeORM, no raw SQL sin tipos
+3. **Autenticación:** solo Auth.js v5 — no implementar JWT manual
+4. **PDFs:** siempre generados en cliente con `@react-pdf/renderer` — nunca en servidor
+5. **PDFs:** siempre visualizados inline con `react-pdf` — nunca abrir nueva pestaña
+6. **Storage:** MinIO o filesystem — nunca base64 en la base de datos
+7. **Acciones destructivas:** siempre requieren confirmación escrita explícita
+8. **`datosSnapshot` del certificado:** inmutable una vez emitido — nunca actualizar
+9. **`RUT_SALT`:** nunca exponer al cliente bajo ninguna circunstancia
+10. **Queries en listados:** siempre paginadas, máximo 50 registros por página
+11. **TypeScript:** modo strict activado — no usar `any` sin justificación explícita
+12. **NUNCA usar DELETE en PostgreSQL** — toda "eliminación" es un UPDATE que
+    asigna `eliminadoAt = now()` y `eliminadoPor = userId`. Sin excepciones.
+13. **Sin `onDelete: 'cascade'`** en ninguna relación del schema Drizzle.
+    Cada tabla gestiona su propio ciclo de vida.
+14. **Toda query debe filtrar** `WHERE eliminado_at IS NULL` en tablas con
+    soft-delete, excepto en vistas de auditoría del admin.
+15. **El archivo físico en storage nunca se borra** aunque el registro de
+    `material` sea soft-deleted. El storage es append-only.
+
+---
+
+## FASE ACTIVA: FASE 1 — INFRAESTRUCTURA
+
+Implementar exclusivamente los siguientes puntos. No avanzar a Fase 2
+sin confirmación explícita.
+
+### Checklist Fase 1
+
+- [ ] Inicializar proyecto:
+  ```bash
+  pnpm create next-app@latest otec --typescript --app --tailwind --eslint
+  ```
+- [ ] Instalar dependencias de Fase 1:
+  ```bash
+  pnpm add drizzle-orm pg next-auth@beta bcryptjs sonner next-themes
+  pnpm add @radix-ui/react-slot class-variance-authority clsx tailwind-merge
+  pnpm add react-hook-form @hookform/resolvers zod swr
+  pnpm add -D drizzle-kit @types/pg @types/bcryptjs
+  ```
+- [ ] Inicializar shadcn/ui: `pnpx shadcn@latest init`
+- [ ] Instalar componentes shadcn base: `button card input label badge
+  dropdown-menu avatar separator skeleton toast`
+- [ ] Crear `src/db/schema.ts` con el esquema completo de este documento
+- [ ] Crear `src/db/index.ts` con pool de conexión pg
+- [ ] Ejecutar `pnpm drizzle-kit generate && pnpm drizzle-kit migrate`
+- [ ] Configurar `tailwind.config.ts` con paleta de colores del documento
+- [ ] Crear `src/auth.ts` con los dos providers de Credentials
+- [ ] Crear `src/middleware.ts` con protección de rutas por rol
+- [ ] Crear `src/lib/rut.ts` con `validarRut` y `formatRut`
+- [ ] Crear página `/login` unificada:
+  - Tab "Alumno" → `<RutInput />` con validación en tiempo real
+  - Tab "Docente / Admin" → email + contraseña
+  - Manejo de errores con mensaje claro
+- [ ] Crear layout base `(roles)/layout.tsx` que verifica sesión
+- [ ] Crear `Sidebar.tsx`:
+  - Desktop: 256px expandido / 64px solo íconos (toggle)
+  - Mobile: drawer overlay con backdrop
+  - Estado persistido en localStorage
+  - Íconos con `lucide-react`
+  - Navegación diferenciada por rol
+- [ ] Crear `Topbar.tsx`: breadcrumb + avatar + nombre + botón logout
+- [ ] Crear dashboard placeholder para cada rol (`/admin`, `/docente`, `/alumno`)
+  con al menos un card de bienvenida y el nombre del usuario
+- [ ] Verificar que el routing de roles funciona correctamente:
+  - Alumno no puede acceder a `/admin` ni `/docente`
+  - Admin no puede acceder a `/alumno` sin acción manual
+  - Usuario no autenticado redirige a `/login`
+- [ ] Modo oscuro funcional con `next-themes`
+- [ ] `docker-compose.yml` con PostgreSQL 16 para desarrollo local
+
+### Entregables de Fase 1
+Al terminar la Fase 1 debe ser posible:
+1. Levantar la app con `pnpm dev` y PostgreSQL en Docker
+2. Crear un usuario admin manualmente en la DB y hacer login
+3. Ver el sidebar y topbar correctamente en desktop y mobile
+4. Verificar que las rutas protegidas redirigen correctamente
+
+**Reportar el resultado de cada checklist item. Preguntar antes de avanzar a Fase 2.**
+
+
+
+Anexo Técnico: Estructura de Datos y Lógica de Control
+Arquitectura de la Base de Datos (Tablas Críticas):
+
+Usuarios: Guardar ID, RUT (clave de acceso), Nombre, Rol (estudiante, docente, admin) y Email.
+
+Cursos: Guardar nombre, fecha de inicio, duración (2, 4, 6 meses) y estado (Activo/Finalizado).
+
+Inscripciones: Una tabla que vincule qué Alumno está en qué Curso. Esto permite que un alumno esté en varios cursos a la vez.
+
+Asistencia: Registros diarios por alumno vinculados a la inscripción.
+
+Finanzas: Tabla de movimientos con tipo (Ingreso/Gasto), monto, fecha y descripción.
+
+Reglas de "Cierre de Ciclo" (La Inteligencia del Sistema):
+
+Cuando el curso cumple su tiempo (2, 4 o 6 meses), el Administrador presiona "Cerrar".
+
+El sistema debe cambiar el estado del curso a Finalizado.
+
+Importante: Los datos no se borran, se "congelan". El alumno sigue viendo su información, pero el profesor ya no puede editar nada.
+
+Seguridad y Privacidad (RLS):
+
+Privacidad Total: Un alumno solo puede leer sus propias notas y asistencia. No tiene permiso de escritura en ninguna tabla.
+
+Permisos de Docente: Solo puede escribir en las tablas de asistencia y notas de los alumnos que pertenecen a su curso asignado.
+
+Doble Validación: Cualquier acción de "Eliminar" en el panel de Dueño requiere una confirmación escrita ("Escribe ELIMINAR para continuar").
+
+
+# PLANNING.md — Intranet Educativa "Mi Otec" v3
+# Stack: Next.js 14 · PostgreSQL 16 · Drizzle ORM · Auth.js v5
+# Capacidad: ~500 usuarios/semana · Seguridad: OWASP / NIST / MITRE 2025-2026
+
+---
+
+## INSTRUCCIONES PARA EL AGENTE
+
+Este archivo es la fuente de verdad del proyecto. Léelo completo antes de
+escribir cualquier línea de código. Implementa **solo la fase indicada al final**
+de este documento. Antes de avanzar de fase, pregunta si hay dudas de diseño
+o decisiones pendientes.
+
+Reglas de trabajo:
+- Nunca inventar dependencias no listadas en este documento
+- Nunca omitir tipado TypeScript — strict mode activado siempre
+- Toda lógica de base de datos va en `src/actions/` (Server Actions) o en
+  `src/db/queries/`, nunca directamente en componentes
+- Confirmar antes de instalar cualquier paquete no listado en la fase activa
+- Puedes (y debes) usar subagentes para tareas paralelas: schema, seguridad,
+  UI base. Coordina los resultados antes de continuar.
+
+---
+
+## PRINCIPIO DE INMUTABILIDAD — REGLA ABSOLUTA
+
+**En este sistema NUNCA se ejecuta DELETE en la base de datos.**
+
+Todo registro que el usuario "elimine" o "desactive" simplemente cambia de
+estado o recibe una marca de tiempo. Sigue existiendo en la DB. Los datos
+son permanentes; solo cambia su visibilidad en la interfaz.
+
+### Implementación por entidad
+
+| Entidad | Mecanismo | Campos |
+|---------|-----------|--------|
+| `usuarios` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `asignaturas` | cambio de estado | `estado: 'archivado'` (estado final) |
+| `matriculas` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `clases` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `material` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `evaluaciones` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `notas` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `finanzas` | soft-delete | `eliminado_at timestamptz`, `eliminado_por uuid` |
+| `certificados` | cambio de estado | `valido: false` (nunca borrar) |
+| `asistencia` | corrección | UPDATE del campo `estado` — no soft-delete |
+| `audit_logs` | inmutable | NUNCA se modifica — solo INSERT |
+
+### Convención de queries — OBLIGATORIA
+
+```typescript
+// src/db/filters.ts
+import { isNull } from 'drizzle-orm';
+
+export const activo = <T extends { eliminadoAt: unknown }>(t: T) =>
+  isNull(t.eliminadoAt);
+
+// ✅ CORRECTO
+db.select().from(material).where(activo(material))
+
+// ❌ INCORRECTO — nunca omitir el filtro
+db.select().from(material)
+```
+
+### Sin CASCADE en claves foráneas
+
+Ninguna FK usará `onDelete: 'cascade'`. Cada entidad gestiona su propio
+ciclo de vida con soft-delete independiente.
+
+### En la interfaz
+
+- Registros con `eliminado_at IS NOT NULL` no aparecen en listados normales
+- El admin tiene toggle "Mostrar inactivos" en todas las tablas
+- La acción en UI dice "Desactivar" o "Archivar", nunca "Eliminar"
+- Antes de desactivar: modal con texto de confirmación requerido + audit log
+- Sin tablas históricas: "Cerrar Ciclo" solo cambia `estado` a `finalizado`.
+  Los datos permanecen intactos en sus tablas originales.
+
+---
+
+## CONTEXTO DEL SISTEMA
+
+Intranet educativa para un OTEC (Organismo Técnico de Capacitación) chileno.
+NO es un LMS público. Es una intranet administrativa con aula virtual integrada.
+Carga esperada: ~500 usuarios activos por semana.
+
+**Tres roles con permisos granulares:**
+- `admin` — Director. Crea asignaturas, matricula alumnos, gestiona docentes y finanzas
+- `docente` — Profesor. Gestiona sus clases, asistencia, material y evaluaciones
+- `alumno` — Estudiante. Ve sus clases, notas, material y descarga certificados
+
+**Jerarquía de entidades clave:**
+```
+Asignatura (materia)
+├── Docente asignado (1)
+├── Alumnos matriculados (N) → tabla matriculas
+├── Clases / Sesiones (N)
+│   ├── Grabación de video (YouTube / Vimeo / Drive / directo)
+│   ├── Material PDF por clase
+│   └── Registro de asistencia por clase
+└── Evaluaciones
+    ├── Formulario online (preguntas + respuestas)
+    ├── Tarea (el alumno sube un archivo)
+    └── Examen (el docente ingresa nota directamente)
+```
+
+**Particularidades chilenas:**
+- Los alumnos se identifican con RUT (no email). El login es solo con RUT.
+- La contraseña se deriva: `bcrypt(RUT_SALT + rutLimpio + usuario.id, 12)`
+  Incluir `usuario.id` hace cada hash único por persona.
+- El RUT se valida con el algoritmo Módulo 11.
+- El admin crea a los alumnos — el alumno nunca se registra solo.
+
+---
+
+## STACK TECNOLÓGICO OBLIGATORIO
+
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Framework | Next.js App Router | 14+ |
+| Base de datos | PostgreSQL | 16 |
+| ORM | Drizzle ORM | latest |
+| Migraciones | Drizzle Kit | latest |
+| Autenticación | Auth.js (NextAuth) | v5 beta |
+| Estilos | Tailwind CSS | v3 |
+| Componentes UI | shadcn/ui | latest |
+| Formularios | React Hook Form + Zod | latest |
+| Data fetching | SWR | latest |
+| Gráficos | Recharts | latest |
+| PDF generación | @react-pdf/renderer | latest — SOLO cliente |
+| PDF visor | react-pdf (pdfjs-dist) | latest — inline, sin nueva pestaña |
+| Excel export | xlsx (SheetJS) | latest |
+| QR codes | qrcode.react | latest |
+| Storage | MinIO (prod) / filesystem local (dev) |
+| Realtime | SSE con pg LISTEN/NOTIFY |
+| Hashing | bcryptjs (cost factor 12) | latest |
+| Rate limiting | Tabla pg `rate_limit_log` — sin dependencias externas |
+| Auditoría | Tabla `audit_logs` — registro de acciones críticas |
+| Sanitización | isomorphic-dompurify + validator.js | latest |
+
+**No usar:** Supabase, Prisma, TypeORM, Redis, MongoDB, SQLite, eval().
+
+---
+
+## PALETA DE COLORES (tailwind.config.ts)
+
+```css
+:root {
+  --primary:        #7B2D8E;
+  --primary-dark:   #5A1F68;
+  --primary-light:  #9B4DB0;
+  --accent:         #8B3A9E;
+  --secondary:      #A855F7;
+  --bg-light:       #F8F7FC;
+  --bg-white:       #FFFFFF;
+  --bg-dark:        #0D0D0D;
+  --bg-footer:      #1A1A1A;
+  --text-primary:   #2D1F3D;
+  --text-secondary: #645A72;
+  --text-muted:     #9CA3AF;
+  --text-white:     #FFFFFF;
+  --cta:            #00C853;
+  --cta-dark:       #00A843;
+  --danger:         #EF4444;
+  --warning:        #F59E0B;
+  --success:        #10B981;
+  --gradient-brand: linear-gradient(135deg, #7B2D8E, #5A1F68);
+}
+```
+
+Soporte modo oscuro con `darkMode: 'class'` y `next-themes`.
+
+---
+
+## CONVENCIONES DE UI/UX GLOBALES
+
+### `inputMode` — obligatorio en todos los inputs
+
+```tsx
+// RUT / campos numéricos
+<input inputMode="numeric" pattern="[0-9]*" />
+
+// Email
+<input inputMode="email" type="email" />
+
+// Notas (decimales)
+<input inputMode="decimal" />
+
+// Búsqueda
+<input inputMode="search" />
+
+// Texto por defecto — declarar explícitamente
+<input inputMode="text" />
+```
+
+### `dvh` — viewport dinámico
+
+Usar `100dvh` en lugar de `100vh` en todo layout para compatibilidad con
+Safari iOS y navegadores con barra de URL dinámica.
+
+```typescript
+// tailwind.config.ts
+theme: {
+  extend: {
+    height:    { screen: '100dvh' },
+    minHeight: { screen: '100dvh' },
+  }
+}
+// Desde aquí h-screen y min-h-screen apuntan a 100dvh automáticamente.
+```
+
+### Rutas limpias — convención
+
+| Patrón | Correcto | Incorrecto |
+|--------|----------|-----------|
+| Recursos | `/admin/asignaturas` | `/admin/misAsignaturas` |
+| Detalle | `/docente/asignaturas/[id]` | `/docente/asignatura?id=...` |
+| Acciones | `/docente/asignaturas/[id]/asistencia` | `/docente/asistencia_clase` |
+| Pública | `/verificar/[codigo]` | `/cert/check/[codigo]` |
+| API | `/api/sse/material` | `/api/getMaterial` |
+
+---
+
+## ESQUEMA DE BASE DE DATOS (Drizzle ORM)
+
+Archivo: `src/db/schema.ts`
+
+**Regla global de timestamps:** Todos los campos de fecha/hora usan
+`{ withTimezone: true }` (timestamptz). Chile opera en `America/Santiago`.
+El shorthand `tstz()` se define una vez y se reutiliza.
+
+```typescript
+import {
+  pgTable, pgEnum, uuid, text, integer, numeric,
+  boolean, date, timestamp, time, jsonb, unique, index
+} from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+
+// Shorthand timestamptz reutilizable
+const tstz = (name: string) => timestamp(name, { withTimezone: true });
+
+// ── ENUMS ─────────────────────────────────────────────────────────────
+export const rolEnum         = pgEnum('rol',         ['admin','docente','alumno']);
+export const estadoAsigEnum  = pgEnum('estado_asig', ['borrador','activo','finalizado','archivado']);
+export const estadoPagoEnum  = pgEnum('estado_pago', ['pendiente','pagado','mora','becado']);
+export const estadoAsistEnum = pgEnum('estado_asist',['presente','ausente','tardanza','justificado']);
+export const tipoEvalEnum    = pgEnum('tipo_eval',   ['formulario','tarea','examen','proyecto']);
+export const tipoPregEnum    = pgEnum('tipo_preg',   ['opcion_multiple','verdadero_falso',
+                                                      'respuesta_corta','desarrollo']);
+export const tipoCertEnum    = pgEnum('tipo_cert',   ['alumno_regular','termino_curso']);
+export const tipoFinEnum     = pgEnum('tipo_fin',    ['ingreso','gasto']);
+export const tipoVideoEnum   = pgEnum('tipo_video',  ['youtube','vimeo','drive','directo']);
+export const auditAccionEnum = pgEnum('audit_accion', [
+  'login_ok','login_fail','logout',
+  'crear','editar','desactivar','archivar',
+  'cerrar_ciclo','emitir_certificado','invalidar_certificado',
+  'subir_material','exportar_excel',
+  'cambiar_nota','registrar_asistencia',
+]);
+
+// ── USUARIOS ──────────────────────────────────────────────────────────
+export const usuarios = pgTable('usuarios', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  rut:          text('rut').unique(),
+  nombre:       text('nombre').notNull(),
+  apellido:     text('apellido').notNull(),
+  email:        text('email').unique(),
+  password:     text('password'),              // bcrypt(SALT + rut + id), cost 12
+  rol:          rolEnum('rol').notNull(),
+  avatarUrl:    text('avatar_url'),
+  activo:       boolean('activo').default(true),
+  eliminadoAt:  tstz('eliminado_at'),          // null = activo
+  eliminadoPor: uuid('eliminado_por'),
+  createdAt:    tstz('created_at').defaultNow(),
+  updatedAt:    tstz('updated_at').defaultNow(),
+});
+
+// ── ASIGNATURAS ───────────────────────────────────────────────────────
+export const asignaturas = pgTable('asignaturas', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  nombre:        text('nombre').notNull(),
+  descripcion:   text('descripcion'),
+  codigo:        text('codigo').unique(),
+  docenteId:     uuid('docente_id').references(() => usuarios.id),
+  fechaInicio:   date('fecha_inicio').notNull(),
+  duracionMeses: integer('duracion_meses').notNull(),  // 2 | 4 | 6
+  estado:        estadoAsigEnum('estado').default('borrador'),
+  maxAlumnos:    integer('max_alumnos').default(30),
+  createdBy:     uuid('created_by').references(() => usuarios.id),
+  createdAt:     tstz('created_at').defaultNow(),
+  updatedAt:     tstz('updated_at').defaultNow(),
+  // Sin soft-delete: usa estado 'archivado' como estado final
+});
+
+// ── MATRÍCULAS ────────────────────────────────────────────────────────
+export const matriculas = pgTable('matriculas', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  alumnoId:      uuid('alumno_id').notNull().references(() => usuarios.id),
+  asignaturaId:  uuid('asignatura_id').notNull().references(() => asignaturas.id),
+  montoArancel:  numeric('monto_arancel', { precision: 10, scale: 2 }),
+  estadoPago:    estadoPagoEnum('estado_pago').default('pendiente'),
+  fechaPago:     date('fecha_pago'),
+  activa:        boolean('activa').default(true),
+  eliminadoAt:   tstz('eliminado_at'),
+  eliminadoPor:  uuid('eliminado_por'),
+  createdAt:     tstz('created_at').defaultNow(),
+}, (t) => ({
+  uniq:      unique().on(t.alumnoId, t.asignaturaId),
+  activoIdx: index('matriculas_activas_idx')
+    .on(t.asignaturaId)
+    .where(sql`${t.eliminadoAt} IS NULL`),
+}));
+
+// ── CLASES ────────────────────────────────────────────────────────────
+export const clases = pgTable('clases', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  asignaturaId:  uuid('asignatura_id').notNull().references(() => asignaturas.id),
+  titulo:        text('titulo').notNull(),
+  descripcion:   text('descripcion'),
+  numeroSesion:  integer('numero_sesion').notNull(),
+  fecha:         date('fecha').notNull(),
+  horaInicio:    time('hora_inicio'),
+  urlGrabacion:  text('url_grabacion'),          // pasa por sanitizeVideoUrl()
+  tipoUrl:       tipoVideoEnum('tipo_url'),
+  publicada:     boolean('publicada').default(false),
+  eliminadoAt:   tstz('eliminado_at'),
+  eliminadoPor:  uuid('eliminado_por'),
+  createdAt:     tstz('created_at').defaultNow(),
+}, (t) => ({
+  uniq:       unique().on(t.asignaturaId, t.numeroSesion),
+  activoIdx:  index('clases_activas_idx')
+    .on(t.asignaturaId)
+    .where(sql`${t.eliminadoAt} IS NULL AND ${t.publicada} = true`),
+}));
+
+// ── MATERIAL POR CLASE ────────────────────────────────────────────────
+export const material = pgTable('material', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  claseId:      uuid('clase_id').notNull().references(() => clases.id),
+  nombre:       text('nombre').notNull(),
+  storagePath:  text('storage_path').notNull(),
+  hashMd5:      text('hash_md5').notNull(),
+  tamanioBytes: integer('tamanio_bytes'),
+  subidoPor:    uuid('subido_por').references(() => usuarios.id),
+  eliminadoAt:  tstz('eliminado_at'),
+  eliminadoPor: uuid('eliminado_por'),
+  createdAt:    tstz('created_at').defaultNow(),
+}, (t) => ({
+  activoIdx: index('material_activo_idx')
+    .on(t.claseId)
+    .where(sql`${t.eliminadoAt} IS NULL`),
+  hashIdx:   index('material_hash_idx').on(t.hashMd5),
+}));
+
+// ── ASISTENCIA ────────────────────────────────────────────────────────
+// Sin soft-delete: si fue error, el docente corrige con UPDATE estado.
+// Los registros son hechos históricos del sistema.
+export const asistencia = pgTable('asistencia', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  claseId:       uuid('clase_id').notNull().references(() => clases.id),
+  matriculaId:   uuid('matricula_id').notNull().references(() => matriculas.id),
+  estado:        estadoAsistEnum('estado').default('ausente'),
+  observacion:   text('observacion'),
+  registradoPor: uuid('registrado_por').references(() => usuarios.id),
+  fechaRegistro: tstz('fecha_registro').defaultNow(),
+}, (t) => ({
+  uniq: unique().on(t.claseId, t.matriculaId),
+}));
+
+// ── EVALUACIONES ──────────────────────────────────────────────────────
+export const evaluaciones = pgTable('evaluaciones', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  asignaturaId:  uuid('asignatura_id').notNull().references(() => asignaturas.id),
+  titulo:        text('titulo').notNull(),
+  tipo:          tipoEvalEnum('tipo').notNull(),
+  ponderacion:   numeric('ponderacion', { precision: 5, scale: 2 }),
+  fechaInicio:   tstz('fecha_inicio'),
+  fechaLimite:   tstz('fecha_limite'),
+  intentosMax:   integer('intentos_max').default(1),
+  instrucciones: text('instrucciones'),
+  publicada:     boolean('publicada').default(false),
+  eliminadoAt:   tstz('eliminado_at'),
+  eliminadoPor:  uuid('eliminado_por'),
+  createdAt:     tstz('created_at').defaultNow(),
+}, (t) => ({
+  activoIdx: index('evaluaciones_activas_idx')
+    .on(t.asignaturaId)
+    .where(sql`${t.eliminadoAt} IS NULL AND ${t.publicada} = true`),
+}));
+
+// ── PREGUNTAS ─────────────────────────────────────────────────────────
+export const preguntas = pgTable('preguntas', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  evaluacionId: uuid('evaluacion_id').notNull().references(() => evaluaciones.id),
+  enunciado:    text('enunciado').notNull(),
+  tipo:         tipoPregEnum('tipo').notNull(),
+  opciones:     jsonb('opciones'),   // [{ texto: string, esCorrecta: boolean }]
+  puntaje:      numeric('puntaje', { precision: 5, scale: 2 }).default('1'),
+  orden:        integer('orden'),
+  eliminadoAt:  tstz('eliminado_at'),
+  eliminadoPor: uuid('eliminado_por'),
+});
+
+// ── RESPUESTAS FORMULARIO — INMUTABLES ────────────────────────────────
+// Sin soft-delete. Las respuestas de alumnos son hechos registrados.
+export const respuestasFormulario = pgTable('respuestas_formulario', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  evaluacionId: uuid('evaluacion_id').notNull().references(() => evaluaciones.id),
+  matriculaId:  uuid('matricula_id').notNull().references(() => matriculas.id),
+  preguntaId:   uuid('pregunta_id').notNull().references(() => preguntas.id),
+  respuesta:    text('respuesta'),
+  esCorrecta:   boolean('es_correcta'),
+  intento:      integer('intento').default(1),
+  createdAt:    tstz('created_at').defaultNow(),
+});
+
+// ── NOTAS ─────────────────────────────────────────────────────────────
+export const notas = pgTable('notas', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  evaluacionId:  uuid('evaluacion_id').notNull().references(() => evaluaciones.id),
+  matriculaId:   uuid('matricula_id').notNull().references(() => matriculas.id),
+  nota:          numeric('nota', { precision: 3, scale: 1 }),
+  observacion:   text('observacion'),
+  entregaUrl:    text('entrega_url'),
+  calificadoPor: uuid('calificado_por').references(() => usuarios.id),
+  fechaNota:     tstz('fecha_nota').defaultNow(),
+  eliminadoAt:   tstz('eliminado_at'),    // para correcciones — registra audit
+  eliminadoPor:  uuid('eliminado_por'),
+}, (t) => ({
+  uniq: unique().on(t.evaluacionId, t.matriculaId),
+}));
+
+// ── CERTIFICADOS ──────────────────────────────────────────────────────
+export const certificados = pgTable('certificados', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  codigoUnico:   text('codigo_unico').unique().notNull(),
+  matriculaId:   uuid('matricula_id').notNull().references(() => matriculas.id),
+  tipo:          tipoCertEnum('tipo').notNull(),
+  datosSnapshot: jsonb('datos_snapshot').notNull(),  // INMUTABLE al emitir
+  urlPublica:    text('url_publica'),
+  qrPayload:     text('qr_payload'),
+  generadoPor:   uuid('generado_por').references(() => usuarios.id),
+  fechaEmision:  tstz('fecha_emision').defaultNow(),
+  valido:        boolean('valido').default(true),
+  // No soft-delete — invalidar = valido: false (con audit log obligatorio)
+});
+
+// ── FINANZAS ──────────────────────────────────────────────────────────
+export const finanzas = pgTable('finanzas', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  tipo:           tipoFinEnum('tipo').notNull(),
+  monto:          numeric('monto', { precision: 12, scale: 2 }).notNull(),
+  descripcion:    text('descripcion').notNull(),
+  categoria:      text('categoria'),
+  asignaturaId:   uuid('asignatura_id').references(() => asignaturas.id),
+  fecha:          date('fecha').notNull(),
+  comprobanteUrl: text('comprobante_url'),
+  createdBy:      uuid('created_by').references(() => usuarios.id),
+  eliminadoAt:    tstz('eliminado_at'),
+  eliminadoPor:   uuid('eliminado_por'),
+  createdAt:      tstz('created_at').defaultNow(),
+}, (t) => ({
+  activoIdx: index('finanzas_activas_idx')
+    .on(t.fecha)
+    .where(sql`${t.eliminadoAt} IS NULL`),
+}));
+
+// ── AUDIT LOGS — COMPLETAMENTE INMUTABLES ─────────────────────────────
+// NUNCA UPDATE ni soft-delete aquí. Solo INSERT.
+// Tabla de verdad absoluta del sistema.
+export const auditLogs = pgTable('audit_logs', {
+  id:         uuid('id').primaryKey().defaultRandom(),
+  userId:     uuid('user_id'),           // null si acción de sistema
+  userRol:    rolEnum('user_rol'),
+  accion:     auditAccionEnum('accion').notNull(),
+  entidad:    text('entidad'),           // 'asignatura', 'nota', 'usuario', etc.
+  entidadId:  uuid('entidad_id'),
+  payload:    jsonb('payload'),          // contexto relevante de la acción
+  ip:         text('ip'),
+  userAgent:  text('user_agent'),
+  exitoso:    boolean('exitoso').default(true),
+  createdAt:  tstz('created_at').defaultNow(),
+}, (t) => ({
+  userIdx:   index('audit_user_idx').on(t.userId),
+  accionIdx: index('audit_accion_idx').on(t.accion),
+  fechaIdx:  index('audit_fecha_idx').on(t.createdAt),
+}));
+
+// ── RATE LIMIT LOG ────────────────────────────────────────────────────
+// Control de DDoS y brute force sin Redis.
+// Limpiar con pg cron cada hora (registros con ventana_at > 1 hora).
+export const rateLimitLog = pgTable('rate_limit_log', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  ip:          text('ip').notNull(),
+  endpoint:    text('endpoint').notNull(),
+  intentos:    integer('intentos').default(1),
+  bloqueadoAt: tstz('bloqueado_at'),     // null = no bloqueado aún
+  ventanaAt:   tstz('ventana_at').defaultNow(),
+}, (t) => ({
+  ipEndpointIdx: index('rate_limit_ip_idx').on(t.ip, t.endpoint),
+}));
+```
+
+---
+
+## SEGURIDAD — IMPLEMENTACIÓN COMPLETA
+
+### Modelo de amenazas (STRIDE · OWASP 2025 · MITRE ATT&CK)
+
+| Amenaza | Vector | Control |
+|---------|--------|---------|
+| Broken Access Control (A01) | Acceso a ruta de otro rol | Middleware + verificación en Server Action |
+| Cryptographic Failures (A02) | Passwords débiles | bcrypt cost 12 + hash único por usuario (salt + id) |
+| Injection / SQLi (A03) | Input malicioso a queries | Drizzle ORM parameterized — imposible SQL raw accidental |
+| XSS (A03) | Input → render HTML | DOMPurify en cliente + sanitizeText() en servidor |
+| SSTI (A03) | Template injection | Sin motores de template server-side; solo JSX compilado |
+| Insecure Design (A04) | Lógica bypasseable | Zod en cliente Y servidor, doble check de rol |
+| RCE (A08) | Código desde input | Sin eval(), Function(), child_process con input de usuario |
+| SSRF | Fetch de URLs internas | Whitelist de dominios en sanitizeVideoUrl() |
+| DDoS / Brute Force (A07) | Flood de requests | Rate limit pg: 5 intentos login/min, 60 req/min default |
+| Session Hijacking (T1539) | Robo de JWT | httpOnly + SameSite=Strict + Secure + maxAge 1h |
+| Path Traversal | `/api/files/../../etc` | sanitizePath() + whitelist de buckets |
+| CORS mal configurado | Requests cross-origin | Origen = solo NEXT_PUBLIC_BASE_URL |
+| Clickjacking | iframe embed malicioso | X-Frame-Options: DENY + CSP frame-ancestors 'none' |
+
+### Security headers — `next.config.ts`
+
+```typescript
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-eval'",      // requerido por react-pdf
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://drive.google.com",
+  "connect-src 'self'",
+  "worker-src blob:",                      // pdfjs-dist
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const securityHeaders = [
+  { key: 'X-Frame-Options',               value: 'DENY' },
+  { key: 'X-Content-Type-Options',        value: 'nosniff' },
+  { key: 'X-DNS-Prefetch-Control',        value: 'on' },
+  { key: 'Referrer-Policy',               value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy',            value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'Strict-Transport-Security',     value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'Content-Security-Policy',       value: csp },
+  { key: 'Cross-Origin-Opener-Policy',    value: 'same-origin' },
+  { key: 'Cross-Origin-Resource-Policy',  value: 'same-origin' },
+  { key: 'Cross-Origin-Embedder-Policy',  value: 'require-corp' },
+];
+```
+
+### Rate limiting — `src/lib/rateLimit.ts`
+
+```typescript
+// Sin Redis. Tabla rate_limit_log con ventana deslizante de 1 minuto.
+
+const LIMITS = {
+  '/login':      { max: 5,  ventanaMs: 60_000,  bloqueoMs: 900_000  }, // 5/min → bloqueo 15min
+  '/api/files':  { max: 30, ventanaMs: 60_000,  bloqueoMs: 300_000  },
+  '/api/sse':    { max: 10, ventanaMs: 60_000,  bloqueoMs: 60_000   },
+  'default':     { max: 60, ventanaMs: 60_000,  bloqueoMs: 60_000   },
+};
+
+export async function checkRateLimit(
+  ip: string,
+  endpoint: string
+): Promise<{ permitido: boolean; retryAfterMs?: number }>;
+// Implementar con Drizzle: upsert en rate_limit_log, contar intentos en ventana
+```
+
+El middleware aplica `checkRateLimit` **antes** que cualquier otra lógica:
+```typescript
+const rl = await checkRateLimit(ip, pathname);
+if (!rl.permitido) {
+  return new NextResponse('Too Many Requests', {
+    status: 429,
+    headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs! / 1000)) },
+  });
+}
+```
+
+### Sanitización — `src/lib/sanitize.ts`
+
+```typescript
+import DOMPurify from 'isomorphic-dompurify';
+import validator from 'validator';
+
+// Texto libre (descripciones, observaciones) — quita TODO HTML/JS
+export const sanitizeText = (s: string): string =>
+  DOMPurify.sanitize(s, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+
+// Paths de archivo — previene path traversal
+export const sanitizePath = (s: string): string => {
+  const clean = s.replace(/\.\./g, '').replace(/[^a-zA-Z0-9\/\-_.]/g, '');
+  if (clean.includes('..')) throw new Error('Invalid path');
+  return clean;
+};
+
+// URLs de video — whitelist estricta de dominios permitidos
+const ALLOWED_VIDEO = ['youtube.com','youtu.be','vimeo.com','drive.google.com'];
+
+export const sanitizeVideoUrl = (url: string): boolean => {
+  if (!validator.isURL(url, { require_protocol: true })) return false;
+  const { hostname } = new URL(url);
+  return ALLOWED_VIDEO.some(d => hostname.endsWith(d));
+};
+```
+
+Cada Server Action que recibe texto libre **debe** pasar por `sanitizeText`.
+
+### CORS — `src/lib/cors.ts`
+
+```typescript
+export function applyCors(res: NextResponse): NextResponse {
+  const origin = process.env.NEXT_PUBLIC_BASE_URL!;
+  res.headers.set('Access-Control-Allow-Origin', origin);
+  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, OPTIONS');
+  res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.headers.set('Access-Control-Allow-Credentials', 'true');
+  res.headers.set('Access-Control-Max-Age', '86400');
+  return res;
+}
+// Solo en Route Handlers externos (SSE, files).
+// Server Actions no necesitan CORS — son same-origin.
+```
+
+### Auditoría — `src/lib/audit.ts`
+
+```typescript
+export async function registrarAudit(params: {
+  userId:     string | null;
+  userRol:    'admin' | 'docente' | 'alumno' | null;
+  accion:     AuditAccion;
+  entidad?:   string;
+  entidadId?: string;
+  payload?:   Record<string, unknown>;
+  ip?:        string;
+  userAgent?: string;
+  exitoso?:   boolean;
+}): Promise<void> {
+  try {
+    await db.insert(auditLogs).values({ ...params, exitoso: params.exitoso ?? true });
+  } catch (e) {
+    // Log a consola como fallback — nunca interrumpir la operación principal
+    console.error('[AUDIT FAIL]', e);
+  }
+}
+```
+
+**Acciones que OBLIGAN audit log:**
+
+| Acción | Accion enum |
+|--------|------------|
+| Login exitoso | `login_ok` |
+| Login fallido | `login_fail` |
+| Crear usuario (alumno/docente) | `crear` |
+| Desactivar usuario | `desactivar` |
+| Cambiar nota ya calificada | `cambiar_nota` |
+| Cerrar ciclo de asignatura | `cerrar_ciclo` |
+| Emitir certificado | `emitir_certificado` |
+| Invalidar certificado | `invalidar_certificado` |
+| Exportar Excel con datos | `exportar_excel` |
+| Cualquier movimiento financiero | `crear` |
+
+### Protección path traversal en `/api/files`
+
+```typescript
+// src/app/api/files/[...path]/route.ts
+export async function GET(req: Request, { params }: { params: { path: string[] } }) {
+  const session = await auth();
+  if (!session) return new Response('Unauthorized', { status: 401 });
+
+  const raw = params.path.join('/');
+  const safe = sanitizePath(raw);
+
+  const ALLOWED_BUCKETS = ['material', 'entregas'];
+  if (!ALLOWED_BUCKETS.includes(safe.split('/')[0])) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
+  // Verificar en DB que el usuario tiene acceso a ese archivo
+  const acceso = await verificarAccesoArchivo(session.user.id, safe);
+  if (!acceso) return new Response('Forbidden', { status: 403 });
+
+  return Response.redirect(await getPresignedUrl(safe.split('/')[0], safe));
+}
+```
+
+---
+
+## AUTENTICACIÓN (Auth.js v5)
+
+Archivo: `src/auth.ts`
+
+```
+Provider 1: alumno-rut
+  - Input: solo RUT en formato 12.345.678-9
+  - Verificación: bcrypt.compare(RUT_SALT + rutLimpio + usuario.id, usuario.password)
+  - En authorize(): registrarAudit login_ok / login_fail
+
+Provider 2: staff-credentials
+  - Input: email + contraseña
+  - Solo docentes y admins — alumnos rechazados explícitamente
+  - En authorize(): registrarAudit login_ok / login_fail
+
+JWT callbacks:
+  - jwt: agrega token.rol + token.id
+  - session: expone session.user.id + session.user.rol
+
+Sesión:
+  - strategy: 'jwt'
+  - maxAge: 3600 (1h)
+  - updateAge: 900 (renovar cada 15min)
+  - cookies: httpOnly, sameSite: 'strict', secure: true (prod)
+```
+
+---
+
+## VALIDACIÓN DE RUT CHILENO
+
+Archivo: `src/lib/rut.ts`
+
+```typescript
+export function validarRut(rut: string): boolean {
+  const cleaned = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (cleaned.length < 2) return false;
+  const dv   = cleaned.slice(-1);
+  const body = cleaned.slice(0, -1);
+  let sum = 0, mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * mul;
+    mul  = mul < 7 ? mul + 1 : 2;
+  }
+  const exp = 11 - (sum % 11);
+  return dv === (exp === 11 ? '0' : exp === 10 ? 'K' : String(exp));
+}
+
+export function formatRut(rut: string): string {
+  const c  = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  const dv = c.slice(-1);
+  const b  = c.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${b}-${dv}`;
+}
+
+// Solo en Server Action — nunca en cliente
+export async function derivarPasswordAlumno(rut: string, id: string): Promise<string> {
+  return bcrypt.hash(process.env.RUT_SALT! + rut + id, 12);
+}
+```
+
+`<RutInput />` usa `inputMode="numeric"`, valida on-blur + on-change,
+muestra ring verde/rojo y mensaje de error con `aria-describedby`.
+
+---
+
+## MIDDLEWARE DE RUTAS
+
+Orden de ejecución fijo — nunca reordenar:
+
+```
+1. Rate limit (IP × endpoint)  →  429 si supera límite
+2. Ruta pública (/login, /verificar)  →  pass-through
+3. Verificar sesión JWT  →  302 /login
+4. Verificar rol vs prefijo  →  302 /{rol}
+5. NextResponse.next()
+```
+
+---
+
+## STORAGE DE ARCHIVOS
+
+`src/lib/storage.ts` — interfaz única, dos drivers:
+
+```typescript
+uploadFile(bucket, path, buffer, contentType): Promise<string>
+getPresignedUrl(bucket, path, expirySecs = 3600): Promise<string>
+// deleteFile() NO EXISTE — storage es append-only
+```
+
+Buckets: `material`, `entregas`. El MD5 se calcula en cliente antes de subir.
+
+---
+
+## REALTIME (SSE + pg LISTEN/NOTIFY)
+
+```sql
+CREATE OR REPLACE FUNCTION notify_material_nuevo() RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM pg_notify('material_nuevo', row_to_json(NEW)::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_material_insert
+  AFTER INSERT ON material
+  FOR EACH ROW EXECUTE FUNCTION notify_material_nuevo();
+```
+
+Route Handler: `src/app/api/sse/material/route.ts`
+- Requiere sesión válida
+- Filtra eventos por asignaturas del usuario
+- Cleanup de conexión pg al cerrar stream
+
+---
+
+## ESTRUCTURA DE CARPETAS
+
+```
+src/
+├── app/
+│   ├── (auth)/login/page.tsx
+│   ├── (roles)/
+│   │   ├── layout.tsx
+│   │   ├── admin/
+│   │   │   ├── page.tsx
+│   │   │   ├── asignaturas/
+│   │   │   ├── docentes/
+│   │   │   ├── alumnos/
+│   │   │   ├── finanzas/
+│   │   │   ├── material/
+│   │   │   └── auditoria/          # Vista de audit_logs — solo admin
+│   │   ├── docente/
+│   │   │   ├── page.tsx
+│   │   │   └── asignaturas/[id]/
+│   │   │       ├── clases/
+│   │   │       ├── asistencia/
+│   │   │       ├── evaluaciones/
+│   │   │       └── alumnos/
+│   │   └── alumno/
+│   │       ├── page.tsx
+│   │       ├── asignaturas/[id]/
+│   │       ├── repasador/
+│   │       └── certificados/
+│   ├── verificar/[codigo]/page.tsx
+│   └── api/
+│       ├── sse/material/route.ts
+│       └── files/[...path]/route.ts
+├── db/
+│   ├── schema.ts
+│   ├── index.ts
+│   ├── filters.ts                  # activo() helper
+│   └── migrations/
+├── lib/
+│   ├── rut.ts
+│   ├── storage.ts
+│   ├── sanitize.ts
+│   ├── rateLimit.ts
+│   ├── audit.ts
+│   ├── cors.ts
+│   ├── pdf/
+│   │   ├── CertificadoRegular.tsx
+│   │   └── DiplomaTermino.tsx
+│   └── validations/
+├── actions/
+│   ├── auth.ts
+│   ├── asignaturas.ts
+│   ├── clases.ts
+│   ├── asistencia.ts
+│   ├── evaluaciones.ts
+│   ├── notas.ts
+│   ├── certificados.ts
+│   └── finanzas.ts
+├── components/
+│   ├── ui/
+│   ├── shared/
+│   │   ├── Sidebar.tsx             # 256px / 64px / drawer mobile (dvh)
+│   │   ├── Topbar.tsx
+│   │   └── ThemeProvider.tsx
+│   ├── clases/
+│   │   ├── VideoPlayer.tsx         # URL whitelist, youtube-nocookie, sandbox
+│   │   └── PdfViewer.tsx
+│   ├── asistencia/AttendanceGrid.tsx
+│   ├── evaluaciones/FormBuilder.tsx
+│   ├── certificados/CertificatePDF.tsx
+│   ├── admin/AuditTable.tsx        # Tabla audit_logs con filtros
+│   └── finanzas/FinanceChart.tsx
+├── hooks/
+│   ├── useSSE.ts
+│   └── use[Entidad].ts
+├── auth.ts
+└── middleware.ts
+```
+
+---
+
+## COMPONENTES CLAVE
+
+| Componente | Descripción |
+|-----------|-------------|
+| `<RutInput />` | `inputMode="numeric"`, formato automático, Módulo 11, aria accesible |
+| `<VideoPlayer />` | URL whitelist, youtube-nocookie, iframe sandbox |
+| `<PdfViewer />` | react-pdf inline, zoom/página, sin nueva pestaña |
+| `<AttendanceGrid />` | Clases × alumnos, semáforo % asistencia |
+| `<GradeTable />` | Notas editable, rojo < 4.0 / amarillo < 5.5 / verde ≥ 5.5 |
+| `<MaterialDropzone />` | MD5 cliente, solo PDF, 5MB, detección duplicados |
+| `<CycleCloseModal />` | Input `CERRAR` requerido, audit log al confirmar |
+| `<CertificatePDF />` | Template A4 + QR, solo cliente, datos snapshot |
+| `<VerificationPage />` | Pública, sin auth, datos_snapshot |
+| `<FinanceChart />` | Recharts barras + donut |
+| `<AuditTable />` | Vista admin de audit_logs con filtros fecha/acción/usuario |
+
+---
+
+## VARIABLES DE ENTORNO
+
+```env
+# Base de datos
+DATABASE_URL=postgresql://user:password@localhost:5432/otec_db
+
+# Auth.js
+AUTH_SECRET=          # openssl rand -base64 32 — rotar cada 90 días en prod
+AUTH_URL=http://localhost:3000
+
+# Login alumnos — NUNCA cambiar en producción una vez con datos reales
+RUT_SALT=             # openssl rand -base64 48
+
+# Storage
+STORAGE_DRIVER=local
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_USE_SSL=false   # true en producción
+MINIO_ACCESS_KEY=
+MINIO_SECRET_KEY=
+MINIO_BUCKET_MATERIAL=material
+MINIO_BUCKET_ENTREGAS=entregas
+
+# App
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# Zona horaria — crítico para timestamps consistentes con Chile
+TZ=America/Santiago
+```
+
+---
+
+## RESTRICCIONES ABSOLUTAS (nunca romper)
+
+1. Solo PostgreSQL 16 — no SQLite, MongoDB, archivos JSON
+2. Solo Drizzle ORM — no Prisma, TypeORM, raw SQL sin tipos
+3. Solo Auth.js v5 — no JWT manual
+4. PDFs generados en cliente con `@react-pdf/renderer` — nunca en servidor
+5. PDFs visualizados inline con `react-pdf` — nunca nueva pestaña
+6. Storage: MinIO o filesystem — nunca base64 en DB, nunca `deleteFile()`
+7. Acciones destructivas: confirmación escrita + audit log
+8. `datosSnapshot` del certificado: inmutable al emitir
+9. `RUT_SALT`: nunca al cliente
+10. Queries listados: paginadas, máximo 50 registros
+11. TypeScript strict: no `any` sin justificación documentada
+12. **NUNCA `DELETE` en PostgreSQL** — soft-delete siempre
+13. Sin `onDelete: 'cascade'` en ninguna FK
+14. Toda query filtra `WHERE eliminado_at IS NULL` (excepto auditoría)
+15. Storage append-only — el archivo físico nunca se borra
+16. **`timestamp` siempre `{ withTimezone: true }`** — sin excepciones
+17. **Índice parcial obligatorio** en tablas con soft-delete y listados frecuentes
+18. **bcrypt cost factor 12 mínimo** — no reducir
+19. **Hash alumno incluye `usuario.id`**: `bcrypt(SALT + rut + id)`
+20. **Rate limit antes de auth** en middleware — orden inamovible
+21. **`registrarAudit()` en toda acción crítica** — lista en sección Seguridad
+22. **`inputMode` declarado en todo `<input>`** — UX móvil obligatorio
+23. **`100dvh`** en lugar de `100vh` en todo layout
+24. **`sanitizeVideoUrl()`** antes de renderizar cualquier iframe
+25. **`eval()`, `Function()`, `child_process` con input de usuario:** prohibidos
+
+---
+
+## FASE ACTIVA: FASE 1 — INFRAESTRUCTURA
+
+### Checklist Fase 1
+
+- [ ] Inicializar proyecto:
+  ```bash
+  pnpm create next-app@latest otec --typescript --app --tailwind --eslint
+  ```
+- [ ] Instalar dependencias:
+  ```bash
+  pnpm add drizzle-orm pg next-auth@beta bcryptjs sonner next-themes
+  pnpm add @radix-ui/react-slot class-variance-authority clsx tailwind-merge
+  pnpm add react-hook-form @hookform/resolvers zod swr
+  pnpm add isomorphic-dompurify validator
+  pnpm add -D drizzle-kit @types/pg @types/bcryptjs @types/validator
+  ```
+- [ ] `pnpx shadcn@latest init` + componentes base:
+  `button card input label badge dropdown-menu avatar separator skeleton toast`
+- [ ] `src/db/schema.ts` — esquema completo: `tstz()`, índices parciales,
+  `audit_logs`, `rate_limit_log`
+- [ ] `src/db/index.ts` — pool pg
+- [ ] `src/db/filters.ts` — helper `activo()`
+- [ ] `pnpm drizzle-kit generate && pnpm drizzle-kit migrate`
+- [ ] `tailwind.config.ts` — paleta + override `h-screen` → `100dvh`
+- [ ] `src/lib/rut.ts` — `validarRut`, `formatRut`, `derivarPasswordAlumno`
+- [ ] `src/lib/sanitize.ts` — `sanitizeText`, `sanitizePath`, `sanitizeVideoUrl`
+- [ ] `src/lib/rateLimit.ts` — ventana deslizante con tabla pg
+- [ ] `src/lib/audit.ts` — `registrarAudit()` con try-catch interno
+- [ ] `src/lib/cors.ts`
+- [ ] `src/auth.ts` — dos providers con audit en `authorize()`
+- [ ] `src/middleware.ts` — orden: rate limit → ruta pública → sesión → rol
+- [ ] `next.config.ts` — security headers completos
+- [ ] `/login` — Tab Alumno (`inputMode="numeric"`) + Tab Docente/Admin
+  (`inputMode="email"`), layout con `min-h-screen` (dvh)
+- [ ] `(roles)/layout.tsx` — verifica sesión + rol
+- [ ] `Sidebar.tsx` — 256px/64px/drawer mobile con `100dvh`
+- [ ] `Topbar.tsx` — breadcrumb + avatar + logout
+- [ ] Dashboard placeholder para cada rol
+- [ ] `docker-compose.yml` — PostgreSQL 16 con `TZ=America/Santiago`
+- [ ] Verificar routing:
+  - Sin sesión → `/login`
+  - Alumno → no accede a `/admin` ni `/docente`
+  - Admin → no accede a `/alumno`
+- [ ] Modo oscuro funcional con `next-themes`
+
+### Entregables de Fase 1
+
+1. App levanta con `pnpm dev` y PostgreSQL en Docker
+2. Admin creado manualmente en DB puede hacer login
+3. Sidebar y topbar funcionales en desktop y mobile (dvh correcto en iOS)
+4. Routing de roles y redirecciones verificado
+5. Rate limit bloquea tras 5 intentos fallidos de login
+6. Intentos de login aparecen en `audit_logs`
+
+**Reportar cada checklist item. Preguntar antes de avanzar a Fase 2.**

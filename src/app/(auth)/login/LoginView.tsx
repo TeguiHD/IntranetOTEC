@@ -60,6 +60,7 @@ function OtecLogo() {
       height={130}
       className="h-24 w-auto object-contain sm:h-28"
       priority
+      unoptimized
     />
   );
 }

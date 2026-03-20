@@ -10,7 +10,7 @@ import { usuarios } from "@/db/schema";
 import { parseAppRole, type AppRole } from "@/lib/authz";
 import { registrarAudit } from "@/lib/audit";
 import { logEvent } from "@/lib/observability/logger";
-import { formatearRut, normalizarRut, validarRut } from "@/lib/rut";
+import { esRutExtranjero, formatearRut, normalizarRut, validarRut } from "@/lib/rut";
 
 type AuthUserRecord = {
   id: string;
@@ -249,23 +249,30 @@ const nextAuth = NextAuth({
       },
       async authorize(credentials, request) {
         const rawRut = typeof credentials?.rut === "string" ? credentials.rut : "";
-        const rutLimpio = normalizarRut(rawRut);
+        const isForeign = esRutExtranjero(rawRut);
+        const rutLimpio = isForeign ? rawRut.trim().toUpperCase() : normalizarRut(rawRut);
 
         try {
           const db = getDb();
 
-          if (!validarRut(rutLimpio)) {
+          if (!isForeign && !validarRut(rutLimpio)) {
             return denyAndAudit(request, "alumno-rut", "rut_invalido");
           }
 
-          const rutFormateado = formatearRut(rutLimpio);
+          if (isForeign && rutLimpio.length < 7) {
+            return denyAndAudit(request, "alumno-rut", "rut_extranjero_corto");
+          }
+
+          const rutFormateado = isForeign ? rutLimpio : formatearRut(rutLimpio);
 
           const [record] = await db
             .select(selectAuthFields)
             .from(usuarios)
             .where(
               and(
-                or(eq(usuarios.rut, rutLimpio), eq(usuarios.rut, rutFormateado)),
+                isForeign
+                  ? eq(usuarios.rut, rutLimpio)
+                  : or(eq(usuarios.rut, rutLimpio), eq(usuarios.rut, rutFormateado)),
                 eq(usuarios.rol, "alumno"),
                 eq(usuarios.activo, true),
                 isNull(usuarios.eliminadoAt),

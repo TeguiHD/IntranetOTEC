@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import { resolverSolicitudAdminFormAction } from "@/actions/solicitudes-documentos";
+import { resolverSolicitudAdminFormAction, eliminarSolicitudesResueltasAction } from "@/actions/solicitudes-documentos";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { formatearRut } from "@/lib/rut";
@@ -56,11 +56,33 @@ const formatRut = (rut: string | null) => {
   return formatearRut(rut);
 };
 
+const escapeCsvValue = (value: string): string => {
+  const normalized = value.replace(/"/g, '""');
+  return /[",\n]/.test(normalized) ? `"${normalized}"` : normalized;
+};
+
+const buildSolicitudesCsvHref = (items: Solicitud[]): string => {
+  const headers = ["Alumno", "RUT", "Tipo", "Estado", "Fecha solicitud", "Fecha resolución", "Observación"];
+  const rows = items.map((s) => [
+    `${s.alumnoNombre} ${s.alumnoApellido}`,
+    formatRut(s.alumnoRut),
+    TIPO_LABELS[s.tipo] ?? s.tipo,
+    ESTADO_LABELS[s.estado] ?? s.estado,
+    formatDate(s.createdAt),
+    formatDate(s.resueltoAt),
+    s.observacion ?? "",
+  ]);
+  const lines = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(","));
+  const csv = `\uFEFF${lines.join("\n")}`;
+  return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
+};
+
 export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [filterEstado, setFilterEstado] = useState<string>("all");
   const [pending, setPending] = useState<PendingAction>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -97,6 +119,13 @@ export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
     startTransition(async () => {
       await resolverSolicitudAdminFormAction(formData);
       setPending(null);
+    });
+  };
+
+  const handleDeleteResolved = () => {
+    startTransition(async () => {
+      await eliminarSolicitudesResueltasAction();
+      setDeleteConfirm(false);
     });
   };
 
@@ -281,6 +310,26 @@ export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
         )}
       </article>
 
+      {/* Actions bar for resolved */}
+      {resueltas.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={buildSolicitudesCsvHref(resueltas)}
+            download="solicitudes-resueltas.csv"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-primary px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:text-primary-light"
+          >
+            Exportar CSV
+          </a>
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-danger/30 px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger/10 dark:text-red-400"
+          >
+            Limpiar Resueltas
+          </button>
+        </div>
+      )}
+
       <ConfirmDialog
         open={pending !== null}
         onClose={() => setPending(null)}
@@ -294,6 +343,17 @@ export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
         }
         confirmLabel={pending?.action === "aprobada" ? "Aprobar" : "Rechazar"}
         variant={pending?.action === "rechazada" ? "danger" : "primary"}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        onConfirm={handleDeleteResolved}
+        isPending={isPending}
+        title="Limpiar solicitudes resueltas"
+        description="¿Confirmas eliminar todas las solicitudes aprobadas y rechazadas? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
       />
     </>
   );

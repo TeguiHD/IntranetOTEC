@@ -5,6 +5,7 @@ import { SolicitudesView } from "./SolicitudesView";
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   solicitud_aprobada: { tone: "success", text: "Solicitud aprobada correctamente." },
   solicitud_rechazada: { tone: "success", text: "Solicitud rechazada correctamente." },
+  solicitudes_limpiadas: { tone: "success", text: "Solicitudes resueltas eliminadas correctamente." },
   already_resolved: { tone: "error", text: "La solicitud ya fue resuelta anteriormente." },
   not_found: { tone: "error", text: "Solicitud no encontrada." },
   invalid_input: { tone: "error", text: "Datos inválidos." },

@@ -7,7 +7,7 @@ import { RouteStateToast } from "@/components/shared/RouteStateToast";
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   request_created: {
     tone: "success",
-    text: "Solicitud enviada correctamente.",
+    text: "Solicitud enviada correctamente. Será revisada en las próximas 48 horas hábiles.",
   },
   already_pending: {
     tone: "error",
@@ -15,11 +15,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   },
   invalid_input: {
     tone: "error",
-    text: "Datos invalidos en la solicitud.",
+    text: "Datos inválidos en la solicitud.",
   },
   forbidden: {
     tone: "error",
-    text: "No autorizado para esta accion.",
+    text: "No autorizado para esta acción.",
   },
   error: {
     tone: "error",
@@ -69,20 +69,20 @@ export default async function AlumnoSolicitudesPage({
         </p>
       </header>
 
-      {/* Info banner */}
+      {/* Información importante */}
       <article className="rounded-2xl border border-primary/20 bg-primary/5 p-4 dark:border-primary/30 dark:bg-primary/10">
         <h2 className="text-sm font-semibold text-text-primary dark:text-white">
-          Informacion importante
+          Información Importante
         </h2>
         <div className="mt-3 space-y-2 sm:flex sm:gap-3 sm:space-y-0 sm:overflow-x-auto sm:pb-1">
           <div className="rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:min-w-[200px]">
             Solo puedes tener una solicitud pendiente por tipo de documento.
           </div>
           <div className="rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:min-w-[200px]">
-            El administrador revisara tu solicitud y la aprobara o rechazara.
+            El administrador revisará tu solicitud y la aprobará o rechazará en las próximas 48 horas hábiles.
           </div>
           <div className="rounded-xl border border-gray-200/80 bg-white px-3 py-2.5 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 sm:min-w-[200px]">
-            Revisa el estado de tus solicitudes en la seccion inferior.
+            Revisa el estado de tus solicitudes en la sección inferior.
           </div>
         </div>
       </article>
@@ -115,14 +115,14 @@ export default async function AlumnoSolicitudesPage({
 
           <div className="space-y-1.5">
             <label htmlFor="solicitud-observacion" className="text-sm font-medium text-text-primary dark:text-gray-200">
-              Observacion (opcional)
+              Observación (opcional)
             </label>
             <textarea
               id="solicitud-observacion"
               name="observacion"
               rows={3}
               maxLength={300}
-              placeholder="Ej: Necesito el documento para tramite institucional"
+              placeholder="Ej: Necesito el documento para trámite institucional"
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30"
             />
           </div>
@@ -144,7 +144,7 @@ export default async function AlumnoSolicitudesPage({
 
         {solicitudes.length === 0 ? (
           <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-            Aun no tienes solicitudes registradas.
+            Aún no tienes solicitudes registradas.
           </p>
         ) : (
           <>
@@ -180,7 +180,7 @@ export default async function AlumnoSolicitudesPage({
                     <th className="px-3 py-2.5">Documento</th>
                     <th className="px-3 py-2.5">Estado</th>
                     <th className="px-3 py-2.5">Fecha</th>
-                    <th className="px-3 py-2.5">Observacion</th>
+                    <th className="px-3 py-2.5">Observación</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">

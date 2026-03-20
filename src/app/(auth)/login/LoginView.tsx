@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { RutInput } from "@/components/shared/RutInput";
-import { normalizarRut } from "@/lib/rut";
+import { esRutExtranjero, normalizarRut } from "@/lib/rut";
 
 type LoginTab = "alumno" | "staff";
 
@@ -54,7 +54,7 @@ function EyeIcon({ open }: { open: boolean }) {
 function OtecLogo() {
   return (
     <Image
-      src="/logo.svg"
+      src="/logo-intranet.webp"
       alt="Mi OTEC Intranet"
       width={320}
       height={130}
@@ -126,12 +126,12 @@ export function LoginView({ authError }: LoginViewProps) {
 
     const rutLimpio = normalizarRut(rut);
 
-    if (!rutLimpio || !isRutValid) {
+    if (!rutLimpio || (!isRutValid && !esRutExtranjero(rut))) {
       setFormError("Debes ingresar un RUT válido para continuar.");
       return;
     }
 
-    runSignIn("alumno-rut", { rut: rutLimpio });
+    runSignIn("alumno-rut", { rut: esRutExtranjero(rut) ? rut.trim().toUpperCase() : rutLimpio });
   };
 
   const handleStaffSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -212,6 +212,7 @@ export function LoginView({ authError }: LoginViewProps) {
                     required
                     autoFocus
                     disabled={isPending}
+                    allowForeign
                     onChange={setRut}
                     onValidityChange={setIsRutValid}
                   />
@@ -304,7 +305,7 @@ export function LoginView({ authError }: LoginViewProps) {
 
             <p className="mt-5 text-center text-xs text-text-secondary dark:text-gray-500">
               ¿Problemas de acceso?{" "}
-              <a href="mailto:nikoholas.lopetegui@gmail.com" className="text-primary dark:text-primary-light underline hover:opacity-80">Contacta al administrador.</a>
+              <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "vitoko.good@gmail.com"}`} className="text-primary dark:text-primary-light underline hover:opacity-80">Contacta al administrador.</a>
             </p>
           </div>
         </div>

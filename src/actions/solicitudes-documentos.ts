@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -309,4 +309,39 @@ export async function resolverSolicitudAdminFormAction(formData: FormData): Prom
 
   revalidatePath("/admin/solicitudes");
   redirect(`/admin/solicitudes?state=${result.code}`);
+}
+
+export async function eliminarSolicitudesResueltasAction(): Promise<void> {
+  const actorResult = await requireActionActor("admin_solicitudes_delete_resolved", ["admin"]);
+
+  if (!actorResult.ok) {
+    revalidatePath("/admin/solicitudes");
+    redirect("/admin/solicitudes?state=forbidden");
+    return;
+  }
+
+  const db = getDb();
+
+  const deleted = await db
+    .delete(solicitudesDocumentos)
+    .where(
+      or(
+        eq(solicitudesDocumentos.estado, "aprobada"),
+        eq(solicitudesDocumentos.estado, "rechazada"),
+      ),
+    )
+    .returning({ id: solicitudesDocumentos.id });
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "solicitudes_documentos",
+    payload: { action: "delete_resolved", count: deleted.length },
+    exitoso: true,
+  });
+
+  revalidatePath("/admin/solicitudes");
+  redirect(`/admin/solicitudes?state=solicitudes_limpiadas`);
 }

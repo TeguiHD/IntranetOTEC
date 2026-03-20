@@ -183,7 +183,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <input name="titulo" inputMode="text" placeholder="Título de la clase" required minLength={3} maxLength={140} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
                 <input name="fecha" type="date" inputMode="numeric" required title="Fecha de clase" placeholder="Fecha de clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
                 <input name="horaInicio" type="time" inputMode="numeric" title="Hora de inicio" placeholder="Hora de inicio" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-                <input name="numeroSesion" type="number" inputMode="numeric" min={1} max={1000} required title="Numero de sesion" placeholder="Numero de sesion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+                <input name="numeroSesion" type="number" inputMode="numeric" min={1} max={1000} required title="Número de sesión" placeholder="Número de sesión" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
                   Crear clase
@@ -223,7 +223,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona clase</option>
                 {clases.map((clase) => (
                   <option key={clase.id} value={clase.id}>
-                    Sesion {clase.numeroSesion} - {clase.titulo}
+                  Sesión {clase.numeroSesion} - {clase.titulo}
                   </option>
                 ))}
               </select>
@@ -238,7 +238,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
                   Subir archivo
                 </button>
-                <span className="ml-3 text-xs text-text-secondary dark:text-gray-400">Max 50 MB. PDF, DOC, PPT, XLS, imagenes, video, ZIP.</span>
+                 <span className="ml-3 text-xs text-text-secondary dark:text-gray-400">Máx 50 MB. PDF, DOC, PPT, XLS, imágenes, video, ZIP.</span>
               </div>
             </form>
 
@@ -251,7 +251,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                       <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
                         <th className="px-2 py-2">Archivo</th>
                         <th className="px-2 py-2">Clase</th>
-                        <th className="px-2 py-2">Tamano</th>
+                        <th className="px-2 py-2">Tamaño</th>
                         <th className="px-2 py-2">Acciones</th>
                       </tr>
                     </thead>

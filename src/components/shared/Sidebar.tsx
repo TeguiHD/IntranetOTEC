@@ -95,6 +95,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
+      { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
     ],
   },
   {

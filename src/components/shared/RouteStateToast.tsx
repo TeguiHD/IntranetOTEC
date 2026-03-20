@@ -42,6 +42,13 @@ export function RouteStateToast({
     return map[state] ?? map.error ?? null;
   }, [map, state]);
 
+  // Dismiss toasts when navigating away from the current page
+  useEffect(() => {
+    return () => {
+      toast.dismiss();
+    };
+  }, [pathname]);
+
   useEffect(() => {
     if (!state || !notification) {
       return;

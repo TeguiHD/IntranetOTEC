@@ -51,6 +51,7 @@ const DOCENTE_ITEMS: NavItem[] = [
 const ALUMNO_ITEMS: NavItem[] = [
   { href: "/alumno",             label: "Panel",       Icon: LayoutDashboard, gradient: "grad-purple" },
   { href: "/alumno/asignaturas", label: "Mis Cursos",  Icon: GraduationCap,   gradient: "grad-blue" },
+  { href: "/alumno/clases",      label: "Clases",      Icon: CalendarDays,    gradient: "grad-cyan" },
   { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText,      gradient: "grad-violet" },
 ];
 

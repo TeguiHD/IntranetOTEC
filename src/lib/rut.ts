@@ -1,5 +1,13 @@
+export function esRutExtranjero(value: string): boolean {
+  return value.trim().toUpperCase().startsWith("EXT-");
+}
+
 export function normalizarRut(value: string): string {
-  return value.replace(/[^0-9kK]/g, "").toUpperCase();
+  const trimmed = value.trim();
+  if (esRutExtranjero(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+  return trimmed.replace(/[^0-9kK]/g, "").toUpperCase();
 }
 
 export function formatearRut(value: string): string {
@@ -17,7 +25,18 @@ export function formatearRut(value: string): string {
   return `${body}-${dv}`;
 }
 
+export function validarRutExtranjero(value: string): boolean {
+  const trimmed = value.trim().toUpperCase();
+  if (!trimmed.startsWith("EXT-")) return false;
+  const body = trimmed.slice(4);
+  return body.length >= 3 && body.length <= 20;
+}
+
 export function validarRut(value: string): boolean {
+  if (esRutExtranjero(value)) {
+    return validarRutExtranjero(value);
+  }
+
   const cleaned = normalizarRut(value);
 
   if (cleaned.length < 8 || cleaned.length > 9) {

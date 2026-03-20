@@ -56,9 +56,9 @@ function OtecLogo() {
     <Image
       src="/logo-intranet.webp"
       alt="Mi OTEC Intranet"
-      width={320}
-      height={130}
-      className="h-24 w-auto object-contain sm:h-28"
+      width={480}
+      height={200}
+      className="h-36 w-auto object-contain sm:h-44"
       priority
       unoptimized
     />

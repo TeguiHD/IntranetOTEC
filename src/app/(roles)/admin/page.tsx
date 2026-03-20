@@ -1,5 +1,16 @@
 import Link from "next/link";
 
+import {
+  BookOpen,
+  CalendarDays,
+  FileText,
+  type LucideIcon,
+  Shield,
+  UserCog,
+  Users,
+  Wallet,
+} from "lucide-react";
+
 import { obtenerMetricasGlobales, obtenerMetricasPorAsignatura } from "@/actions/admin-metricas";
 import { obtenerResumenDatosDocentes } from "@/actions/admin-resumen";
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
@@ -7,26 +18,25 @@ import { AccordionItem } from "@/components/shared/Accordion";
 import { MessageToast } from "@/components/shared/MessageToast";
 import { formatearRut } from "@/lib/rut";
 
-const MODULE_CARDS = [
-  { href: "/admin/administradores", title: "Administradores", description: "Gestionar cuentas con acceso total al panel.", gradient: "grad-purple" },
-  { href: "/admin/docentes",     title: "Docentes",     description: "Crear y desactivar cuentas docentes.", gradient: "grad-amber" },
-  { href: "/admin/alumnos",      title: "Alumnos",      description: "Registrar alumnos y controlar su acceso.", gradient: "grad-emerald" },
-  { href: "/admin/asignaturas",  title: "Asignaturas",  description: "Crear asignaturas y asignar docentes.", gradient: "grad-blue" },
-  { href: "/admin/matriculas",   title: "Matriculas",   description: "Vincular alumnos a asignaturas.", gradient: "grad-pink" },
-  { href: "/admin/clases",       title: "Clases",       description: "Programar sesiones y publicar contenido.", gradient: "grad-cyan" },
-  { href: "/admin/solicitudes",  title: "Solicitudes",  description: "Gestionar solicitudes de documentos.", gradient: "grad-violet" },
-] as const;
-
-const MODULE_ICON_PATHS: Record<string, string> = {
-  Administradores: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
-  Docentes: "M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM4 21a8 8 0 0 1 16 0",
-
-  Alumnos: "M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21a6 6 0 0 1 12 0M14 21a5 5 0 0 1 8 0",
-  Asignaturas: "M5 4.5h10.5A3.5 3.5 0 0 1 19 8v12.5H8A3 3 0 0 1 5 17.5V4.5Z",
-  Matriculas: "M12 7a6.5 3.5 0 1 0 0-.01M5.5 7v10c0 1.93 2.91 3.5 6.5 3.5s6.5-1.57 6.5-3.5V7",
-  Clases: "M3 4h18v17H3zM8 2v4M16 2v4M3 10h18",
-  Solicitudes: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6ZM14 2v6h6",
+const GRADIENT_COLORS: Record<string, string> = {
+  "grad-purple": "#8B3A9E",
+  "grad-blue": "#3B82F6",
+  "grad-cyan": "#06B6D4",
+  "grad-amber": "#F5A623",
+  "grad-emerald": "#10B981",
+  "grad-pink": "#EC4899",
+  "grad-violet": "#8B5CF6",
 };
+
+const MODULE_CARDS: { href: string; title: string; description: string; gradient: string; Icon: LucideIcon }[] = [
+  { href: "/admin/administradores", title: "Administradores", description: "Gestionar cuentas con acceso total al panel.", gradient: "grad-purple", Icon: Shield },
+  { href: "/admin/docentes",     title: "Docentes",     description: "Crear y desactivar cuentas docentes.", gradient: "grad-amber", Icon: UserCog },
+  { href: "/admin/alumnos",      title: "Alumnos",      description: "Registrar alumnos y controlar su acceso.", gradient: "grad-emerald", Icon: Users },
+  { href: "/admin/asignaturas",  title: "Asignaturas",  description: "Crear asignaturas y asignar docentes.", gradient: "grad-blue", Icon: BookOpen },
+  { href: "/admin/matriculas",   title: "Matriculas",   description: "Vincular alumnos a asignaturas.", gradient: "grad-pink", Icon: Wallet },
+  { href: "/admin/clases",       title: "Clases",       description: "Programar sesiones y publicar contenido.", gradient: "grad-cyan", Icon: CalendarDays },
+  { href: "/admin/solicitudes",  title: "Solicitudes",  description: "Gestionar solicitudes de documentos.", gradient: "grad-violet", Icon: FileText },
+];
 
 type AdminDashboardPageProps = {
   searchParams?: { rut?: string };
@@ -96,9 +106,11 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
             href={card.href}
             className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
           >
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14">
-              <path strokeLinecap="round" strokeLinejoin="round" stroke={`url(#${card.gradient})`} d={MODULE_ICON_PATHS[card.title] ?? ""} />
-            </svg>
+            <card.Icon
+              className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14"
+              style={{ color: GRADIENT_COLORS[card.gradient] ?? "#8B3A9E" }}
+              strokeWidth={1.5}
+            />
             <div>
               <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">{card.title}</h2>
               <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">{card.description}</p>

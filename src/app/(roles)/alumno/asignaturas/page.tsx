@@ -1,4 +1,5 @@
 import { obtenerResumenAsistenciaAlumno } from "@/actions/asistencia";
+import { listarMaterialPorAsignatura } from "@/actions/material";
 import { PieChart } from "@/components/shared/PieChart";
 
 const COLORS = {
@@ -10,9 +11,23 @@ const COLORS = {
 
 export default async function AlumnoAsignaturasPage() {
   let resumenAsistencia;
+  const materialesPorAsig = new Map<string, { id: string; nombre: string; tamanioBytes: number | null; claseTitulo: string }[]>();
 
   try {
     resumenAsistencia = await obtenerResumenAsistenciaAlumno();
+
+    // Load materials for all enrolled asignaturas in parallel
+    const asigIds = resumenAsistencia.map((a) => a.asignaturaId);
+    const materialResults = await Promise.all(
+      asigIds.map((id) => listarMaterialPorAsignatura(id)),
+    );
+    asigIds.forEach((id, i) => {
+      if (materialResults[i].length > 0) {
+        materialesPorAsig.set(id, materialResults[i].map((m) => ({
+          id: m.id, nombre: m.nombre, tamanioBytes: m.tamanioBytes, claseTitulo: m.claseTitulo,
+        })));
+      }
+    });
   } catch {
     return (
       <section className="space-y-6">
@@ -68,6 +83,34 @@ export default async function AlumnoAsignaturasPage() {
                   Total de registros: {asig.total}
                 </p>
               </div>
+
+              {(() => {
+                const mats = materialesPorAsig.get(asig.asignaturaId);
+                if (!mats || mats.length === 0) return null;
+                return (
+                  <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">
+                      Material disponible
+                    </h3>
+                    <ul className="space-y-1.5">
+                      {mats.map((m) => (
+                        <li key={m.id} className="flex items-center justify-between gap-2 text-xs">
+                          <a
+                            href={`/api/files/download/${m.id}`}
+                            className="truncate text-primary underline hover:opacity-80 dark:text-primary-light"
+                            title={`${m.claseTitulo} — ${m.nombre}`}
+                          >
+                            {m.nombre}
+                          </a>
+                          <span className="shrink-0 text-text-secondary dark:text-gray-400">
+                            {m.tamanioBytes ? `${(m.tamanioBytes / 1024).toFixed(0)} KB` : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
             </article>
           ))}
         </div>

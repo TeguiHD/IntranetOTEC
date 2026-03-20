@@ -10,6 +10,11 @@ import {
   registrarNotaDocenteFormAction,
   registrarObservacionDocenteFormAction,
 } from "@/actions/docente";
+import {
+  eliminarMaterialFormAction,
+  listarMaterialPorAsignatura,
+  subirMaterialFormAction,
+} from "@/actions/material";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearRut } from "@/lib/rut";
 
@@ -22,6 +27,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   asistencia_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
   nota_created: { tone: "success", text: "Nota registrada correctamente." },
   observacion_created: { tone: "success", text: "Observación registrada correctamente." },
+  material_uploaded: { tone: "success", text: "Material subido correctamente." },
+  material_deleted: { tone: "success", text: "Material eliminado correctamente." },
+  file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
+  invalid_type: { tone: "error", text: "Tipo de archivo no permitido." },
+  duplicate: { tone: "error", text: "Este archivo ya fue subido a esta clase." },
   invalid_input: { tone: "error", text: "Datos inválidos. Revisa los campos requeridos." },
   forbidden: { tone: "error", text: "No autorizado para operar sobre esta asignatura." },
   error: { tone: "error", text: "No fue posible completar la acción solicitada." },
@@ -53,14 +63,15 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
       ? searchParams.asignaturaId
       : asignaturas[0]?.id;
 
-  const [clases, matriculas, notas, observaciones] = selectedAsignaturaId
+  const [clases, matriculas, notas, observaciones, materiales] = selectedAsignaturaId
     ? await Promise.all([
         listarClasesDocente(selectedAsignaturaId),
         listarMatriculasDocente(selectedAsignaturaId),
         listarNotasDocente(selectedAsignaturaId),
         listarObservacionesDocente(selectedAsignaturaId),
+        listarMaterialPorAsignatura(selectedAsignaturaId),
       ])
-    : [[], [], [], []];
+    : [[], [], [], [], []];
 
   const anioParam =
     typeof searchParams?.anio === "string" && /^\d{4}$/.test(searchParams.anio)
@@ -202,6 +213,76 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">Guardar cambios de clase</button>
               </div>
             </form>
+          </article>
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Subir material</h2>
+            <form action={subirMaterialFormAction} encType="multipart/form-data" className="mt-4 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <select name="claseId" required title="Seleccionar clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona clase</option>
+                {clases.map((clase) => (
+                  <option key={clase.id} value={clase.id}>
+                    Sesion {clase.numeroSesion} - {clase.titulo}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="archivo"
+                type="file"
+                required
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.mp4,.webm,.zip"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+                  Subir archivo
+                </button>
+                <span className="ml-3 text-xs text-text-secondary dark:text-gray-400">Max 50 MB. PDF, DOC, PPT, XLS, imagenes, video, ZIP.</span>
+              </div>
+            </form>
+
+            {materiales.length > 0 && (
+              <div className="mt-5">
+                <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Material subido</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
+                    <thead>
+                      <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
+                        <th className="px-2 py-2">Archivo</th>
+                        <th className="px-2 py-2">Clase</th>
+                        <th className="px-2 py-2">Tamano</th>
+                        <th className="px-2 py-2">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {materiales.map((m) => (
+                        <tr key={m.id}>
+                          <td className="px-2 py-2">
+                            <a
+                              href={`/api/files/download/${m.id}`}
+                              className="text-primary underline hover:opacity-80 dark:text-primary-light"
+                            >
+                              {m.nombre}
+                            </a>
+                          </td>
+                          <td className="px-2 py-2">S{m.claseNumeroSesion} - {m.claseTitulo}</td>
+                          <td className="px-2 py-2">{m.tamanioBytes ? `${(m.tamanioBytes / 1024).toFixed(0)} KB` : "-"}</td>
+                          <td className="px-2 py-2">
+                            <form action={eliminarMaterialFormAction} className="inline">
+                              <input type="hidden" name="materialId" value={m.id} />
+                              <button type="submit" className="text-xs text-red-600 underline hover:opacity-80 dark:text-red-400">
+                                Eliminar
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </article>
 
           <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { CalendarDays, Pencil } from "lucide-react";
+import { CalendarDays, ExternalLink, Pencil } from "lucide-react";
 
 import { editarClaseFormAction } from "@/actions/clases";
 import { Modal } from "@/components/shared/Modal";
@@ -91,9 +91,17 @@ export function ClasesTable({
               </div>
             </div>
             {clase.urlGrabacion && (
-              <p className="mt-2 text-xs text-text-secondary dark:text-gray-500">
-                {clase.tipoUrl ?? "URL"}: grabación disponible
-              </p>
+              <div className="mt-2">
+                <a
+                  href={clase.urlGrabacion}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {clase.tipoUrl ?? "URL"} - Ver grabación
+                </a>
+              </div>
             )}
           </div>
         ))}
@@ -125,7 +133,19 @@ export function ClasesTable({
                   {clase.horaInicio ? ` ${clase.horaInicio}` : ""}
                 </td>
                 <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
-                  {clase.urlGrabacion ? (clase.tipoUrl ?? "URL") : "Sin URL"}
+                  {clase.urlGrabacion ? (
+                    <a
+                      href={clase.urlGrabacion}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {clase.tipoUrl ?? "URL"}
+                    </a>
+                  ) : (
+                    <span className="text-xs text-text-muted dark:text-gray-500">Sin URL</span>
+                  )}
                 </td>
                 <td className="px-3 py-3">
                   <span

@@ -4,7 +4,6 @@ import {
 } from "@/actions/asignaturas";
 import {
   countMatriculasAdmin,
-  desmatricularAlumnoFormAction,
   listarMatriculasAdmin,
   matricularAlumnoFormAction,
 } from "@/actions/matriculas";
@@ -12,6 +11,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { AlumnoCombobox } from "./AlumnoCombobox";
 import { AsignaturaCombobox } from "./AsignaturaCombobox";
+import { DesmatricularButton } from "./DesmatricularButton";
 import { EditMatriculaButton } from "./EditMatriculaButton";
 import { ExportCsvButton } from "./ExportCsvButton";
 
@@ -298,17 +298,13 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                         asignaturaId={selectedAsignaturaId ?? ""}
                         currentPage={currentPage}
                       />
-                      <form action={desmatricularAlumnoFormAction} className="flex-1">
-                        <input type="hidden" name="matriculaId" value={matricula.id} />
-                        <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
-                        <input type="hidden" name="page" value={String(currentPage)} />
-                        <button
-                          type="submit"
-                          className="h-10 w-full rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
-                        >
-                          Desmatricular
-                        </button>
-                      </form>
+                      <DesmatricularButton
+                        matriculaId={matricula.id}
+                        alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                        asignaturaId={selectedAsignaturaId ?? ""}
+                        currentPage={currentPage}
+                        className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
+                      />
                     </div>
                   )}
                 </div>
@@ -377,17 +373,12 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                               asignaturaId={selectedAsignaturaId ?? ""}
                               currentPage={currentPage}
                             />
-                            <form action={desmatricularAlumnoFormAction} className="inline">
-                              <input type="hidden" name="matriculaId" value={matricula.id} />
-                              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
-                              <input type="hidden" name="page" value={String(currentPage)} />
-                              <button
-                                type="submit"
-                                className="rounded-xl border border-danger/30 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
-                              >
-                                Desmatricular
-                              </button>
-                            </form>
+                            <DesmatricularButton
+                              matriculaId={matricula.id}
+                              alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                              asignaturaId={selectedAsignaturaId ?? ""}
+                              currentPage={currentPage}
+                            />
                           </div>
                         ) : (
                           <span className="text-xs text-text-secondary dark:text-gray-400">—</span>

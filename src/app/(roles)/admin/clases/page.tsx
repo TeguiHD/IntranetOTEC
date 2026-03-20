@@ -55,6 +55,9 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const totalPublicadas = clases.filter((c) => c.publicada).length;
+  const totalBorrador = clases.filter((c) => !c.publicada).length;
+  const totalConGrabacion = clases.filter((c) => c.urlGrabacion).length;
 
   function buildHref(page: number) {
     const params = new URLSearchParams();
@@ -78,6 +81,26 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
           </p>
         </header>
         <ClaseCreateModal asignaturaId={selectedAsignaturaId} currentPage={currentPage} />
+      </div>
+
+      {/* Métricas */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">Total clases</p>
+          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">{totalCount}</p>
+        </article>
+        <article className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm dark:border-green-900 dark:bg-green-950">
+          <p className="text-xs font-medium uppercase tracking-wide text-green-800 dark:text-green-300">Publicadas</p>
+          <p className="mt-1 text-2xl font-bold text-green-800 dark:text-green-200">{totalPublicadas}</p>
+        </article>
+        <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950">
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-300">Borrador</p>
+          <p className="mt-1 text-2xl font-bold text-amber-800 dark:text-amber-200">{totalBorrador}</p>
+        </article>
+        <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950">
+          <p className="text-xs font-medium uppercase tracking-wide text-blue-800 dark:text-blue-300">Con grabación</p>
+          <p className="mt-1 text-2xl font-bold text-blue-800 dark:text-blue-200">{totalConGrabacion}</p>
+        </article>
       </div>
 
       {/* Filters */}

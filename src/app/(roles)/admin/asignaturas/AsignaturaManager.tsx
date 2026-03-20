@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState, useTransition } from "react";
 
 import { BookOpen, Plus, Search, UserCog, X } from "lucide-react";
 
@@ -8,6 +8,7 @@ import {
   asignarDocenteFormAction,
   crearAsignaturaFormAction,
 } from "@/actions/asignaturas";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Pagination } from "@/components/shared/Pagination";
 
@@ -61,10 +62,12 @@ function DocenteCombobox({
   docentes,
   defaultId,
   name,
+  onSelect,
 }: {
   docentes: Docente[];
   defaultId: string | null;
   name: string;
+  onSelect?: (d: Docente | null) => void;
 }) {
   const defaultDocente = docentes.find((d) => d.id === defaultId) ?? null;
   const [query, setQuery] = useState(
@@ -88,12 +91,14 @@ function DocenteCombobox({
     setSelected(d);
     setQuery(`${d.nombre} ${d.apellido}`);
     setOpen(false);
+    onSelect?.(d);
   };
 
   const handleClear = () => {
     setSelected(null);
     setQuery("");
     setOpen(false);
+    onSelect?.(null);
   };
 
   return (
@@ -114,6 +119,7 @@ function DocenteCombobox({
               setQuery(e.target.value);
               setSelected(null);
               setOpen(true);
+              onSelect?.(null);
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -181,6 +187,18 @@ export function AsignaturaManager({
 }: AsignaturaManagerProps) {
   const [openCreate, setOpenCreate] = useState(false);
   const [assigningAsig, setAssigningAsig] = useState<Asignatura | null>(null);
+  const [confirmDocente, setConfirmDocente] = useState<Docente | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const assignFormRef = useRef<HTMLFormElement>(null);
+
+  const handleAssignSubmit = () => {
+    if (!confirmDocente || !assignFormRef.current) return;
+    setShowConfirm(false);
+    startTransition(() => {
+      assignFormRef.current?.requestSubmit();
+    });
+  };
 
   return (
     <>
@@ -395,7 +413,7 @@ export function AsignaturaManager({
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        buildHref={(page) => `${buildHref}?page=${page}`}
+        buildHref={(page) => `${buildHref}page=${page}`}
       />
 
       {/* ── Modal: Nueva asignatura ── */}
@@ -542,7 +560,7 @@ export function AsignaturaManager({
       {/* ── Modal: Asignar docente ── */}
       <Modal
         open={assigningAsig !== null}
-        onClose={() => setAssigningAsig(null)}
+        onClose={() => { setAssigningAsig(null); setConfirmDocente(null); }}
         title={
           assigningAsig
             ? `Asignar docente · ${assigningAsig.nombre}`
@@ -556,7 +574,7 @@ export function AsignaturaManager({
         size="max-w-md"
       >
         {assigningAsig && (
-          <form action={asignarDocenteFormAction} className="space-y-4">
+          <form ref={assignFormRef} action={asignarDocenteFormAction} className="space-y-4">
             <input
               type="hidden"
               name="asignaturaId"
@@ -567,6 +585,7 @@ export function AsignaturaManager({
               docentes={docentes}
               defaultId={assigningAsig.docenteId}
               name="docenteId"
+              onSelect={(d) => setConfirmDocente(d)}
             />
 
             {docentes.length === 0 && (
@@ -578,14 +597,15 @@ export function AsignaturaManager({
             <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
               <button
                 type="button"
-                onClick={() => setAssigningAsig(null)}
+                onClick={() => { setAssigningAsig(null); setConfirmDocente(null); }}
                 className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
               >
                 Cancelar
               </button>
               <button
-                type="submit"
-                disabled={docentes.length === 0}
+                type="button"
+                disabled={!confirmDocente || docentes.length === 0 || isPending}
+                onClick={() => setShowConfirm(true)}
                 className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
               >
                 Guardar asignación
@@ -594,6 +614,22 @@ export function AsignaturaManager({
           </form>
         )}
       </Modal>
+
+      {/* ── Confirm dialog for docente assignment ── */}
+      <ConfirmDialog
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleAssignSubmit}
+        title="Confirmar asignación de docente"
+        description={
+          confirmDocente && assigningAsig
+            ? `Vas a asignar a ${confirmDocente.nombre} ${confirmDocente.apellido} como docente responsable de "${assigningAsig.nombre}". Se enviará una notificación por correo al docente.`
+            : ""
+        }
+        confirmLabel="Confirmar asignación"
+        variant="primary"
+        isPending={isPending}
+      />
     </>
   );
 }

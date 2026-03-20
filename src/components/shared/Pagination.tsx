@@ -4,6 +4,8 @@ type PaginationProps = {
   currentPage: number;
   totalPages: number;
   buildHref: (page: number) => string;
+  totalCount?: number;
+  pageSize?: number;
 };
 
 function getPageNumbers(current: number, total: number): (number | "...")[] {
@@ -28,7 +30,7 @@ function getPageNumbers(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
-export function Pagination({ currentPage, totalPages, buildHref }: PaginationProps) {
+export function Pagination({ currentPage, totalPages, buildHref, totalCount, pageSize = 20 }: PaginationProps) {
   if (totalPages <= 1) return null;
 
   const pages = getPageNumbers(currentPage, totalPages);
@@ -44,11 +46,21 @@ export function Pagination({ currentPage, totalPages, buildHref }: PaginationPro
   const disabledBtn =
     "border-gray-200 text-gray-400 cursor-not-allowed dark:border-gray-800 dark:text-gray-600";
 
+  const rangeStart = totalCount != null ? (currentPage - 1) * pageSize + 1 : null;
+  const rangeEnd = totalCount != null ? Math.min(currentPage * pageSize, totalCount) : null;
+
   return (
     <nav
       aria-label="Paginación"
-      className="mt-4 flex items-center justify-between gap-2 sm:justify-end sm:gap-1"
+      className="mt-4 flex items-center justify-between gap-2"
     >
+      {/* Range indicator */}
+      {totalCount != null && (
+        <span className="hidden text-xs text-text-secondary dark:text-gray-400 sm:block">
+          Mostrando {rangeStart}–{rangeEnd} de {totalCount}
+        </span>
+      )}
+
       {/* Mobile: anterior / info / siguiente */}
       <div className="flex flex-1 items-center justify-between sm:hidden">
         {prevDisabled ? (
@@ -71,7 +83,7 @@ export function Pagination({ currentPage, totalPages, buildHref }: PaginationPro
       </div>
 
       {/* Desktop: numerado con ellipsis */}
-      <div className="hidden sm:flex sm:items-center sm:gap-1">
+      <div className={`hidden sm:flex sm:items-center sm:gap-1 ${totalCount == null ? "sm:ml-auto" : ""}`}>
         {prevDisabled ? (
           <span className={`${baseBtn} ${disabledBtn}`}>←</span>
         ) : (

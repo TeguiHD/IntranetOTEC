@@ -172,7 +172,7 @@ function SidebarNav({
                     className={`h-[18px] w-[18px] flex-shrink-0 transition-transform duration-200 ${
                       !active ? "group-hover:scale-110" : ""
                     }`}
-                    strokeWidth={active ? 2.2 : 1.8}
+                    strokeWidth={2}
                     stroke={active ? "currentColor" : `url(#${item.gradient})`}
                   />
                   {!collapsed && <span className="truncate">{item.label}</span>}

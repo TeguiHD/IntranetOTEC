@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { asignaturas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { sendEmail, templateDocenteAsignado } from "@/lib/email";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
@@ -91,7 +92,7 @@ export async function buscarAsignaturasAdminAction(
 }
 
 export async function countAsignaturasAdmin(
-  options?: { incluirArchivadas?: boolean },
+  options?: { incluirArchivadas?: boolean; q?: string; estado?: "borrador" | "activo" | "finalizado" | "archivado" },
 ): Promise<number> {
   const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
 
@@ -100,14 +101,29 @@ export async function countAsignaturasAdmin(
   }
 
   const db = getDb();
-  const baseQuery = db.select({ total: count() }).from(asignaturas);
+  const conditions = [];
 
-  if (options?.incluirArchivadas) {
-    const result = await baseQuery;
-    return Number(result[0]?.total ?? 0);
+  if (!options?.incluirArchivadas) {
+    conditions.push(ne(asignaturas.estado, "archivado"));
   }
 
-  const result = await baseQuery.where(ne(asignaturas.estado, "archivado"));
+  if (options?.estado) {
+    conditions.push(eq(asignaturas.estado, options.estado));
+  }
+
+  if (options?.q) {
+    const term = `%${options.q}%`;
+    conditions.push(
+      or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
+    );
+  }
+
+  const baseQuery = db.select({ total: count() }).from(asignaturas);
+
+  const result = conditions.length > 0
+    ? await baseQuery.where(and(...conditions))
+    : await baseQuery;
+
   return Number(result[0]?.total ?? 0);
 }
 
@@ -140,7 +156,7 @@ export async function listarAsignaturas(
 
 export async function listarAsignaturasAdmin(
   pagination: PaginationInput = {},
-  options?: { incluirArchivadas?: boolean },
+  options?: { incluirArchivadas?: boolean; q?: string; estado?: "borrador" | "activo" | "finalizado" | "archivado" },
 ) {
   const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
 
@@ -152,6 +168,23 @@ export async function listarAsignaturasAdmin(
 
   const db = getDb();
   const { limit, offset } = resolvePagination(pagination);
+
+  const conditions = [];
+
+  if (!options?.incluirArchivadas) {
+    conditions.push(ne(asignaturas.estado, "archivado"));
+  }
+
+  if (options?.estado) {
+    conditions.push(eq(asignaturas.estado, options.estado));
+  }
+
+  if (options?.q) {
+    const term = `%${options.q}%`;
+    conditions.push(
+      or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
+    );
+  }
 
   const baseQuery = db
     .select({
@@ -170,16 +203,20 @@ export async function listarAsignaturasAdmin(
       docenteActivo: usuarios.activo,
     })
     .from(asignaturas)
-    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id))
+    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id));
+
+  if (conditions.length > 0) {
+    return baseQuery
+      .where(and(...conditions))
+      .orderBy(desc(asignaturas.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  return baseQuery
     .orderBy(desc(asignaturas.createdAt))
     .limit(limit)
     .offset(offset);
-
-  if (options?.incluirArchivadas) {
-    return baseQuery;
-  }
-
-  return baseQuery.where(ne(asignaturas.estado, "archivado"));
 }
 
 export async function crearAsignaturaAction(input: {
@@ -310,7 +347,7 @@ export async function asignarDocenteAction(input: {
 
   try {
     const [subject] = await db
-      .select({ id: asignaturas.id, estado: asignaturas.estado })
+      .select({ id: asignaturas.id, estado: asignaturas.estado, nombre: asignaturas.nombre, codigo: asignaturas.codigo, fechaInicio: asignaturas.fechaInicio })
       .from(asignaturas)
       .where(eq(asignaturas.id, parsed.data.asignaturaId))
       .limit(1);
@@ -332,7 +369,7 @@ export async function asignarDocenteAction(input: {
     }
 
     const [docente] = await db
-      .select({ id: usuarios.id })
+      .select({ id: usuarios.id, nombre: usuarios.nombre, email: usuarios.email })
       .from(usuarios)
       .where(
         and(
@@ -372,6 +409,17 @@ export async function asignarDocenteAction(input: {
       },
       exitoso: true,
     });
+
+    // Send email notification (non-blocking)
+    if (docente.email) {
+      const { subject: emailSubject, html } = templateDocenteAsignado({
+        docenteNombre: docente.nombre ?? "Docente",
+        asignaturaNombre: subject.nombre,
+        asignaturaCodigo: subject.codigo,
+        fechaInicio: subject.fechaInicio,
+      });
+      sendEmail(docente.email, emailSubject, html).catch(() => {});
+    }
 
     return { ok: true, code: "docente_assigned" };
   } catch (error) {

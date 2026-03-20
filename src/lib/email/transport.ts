@@ -1,5 +1,8 @@
 import nodemailer from "nodemailer";
 
+const tlsRejectUnauthorized =
+  process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== "false";
+
 const transport = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || "587"),
@@ -7,6 +10,9 @@ const transport = nodemailer.createTransport({
   auth: process.env.SMTP_USER
     ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
     : undefined,
+  tls: {
+    rejectUnauthorized: tlsRejectUnauthorized,
+  },
 });
 
 const FROM = process.env.SMTP_FROM || "Mi OTEC <noreply@miotecimpulsate.cl>";

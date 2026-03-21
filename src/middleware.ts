@@ -75,6 +75,62 @@ const resolvePublicOrigin = (request: NextRequest): string => {
   return request.nextUrl.origin;
 };
 
+const normalizeForwardedHeaders = (
+  request: NextRequest,
+  headers: Headers,
+): Headers => {
+  const configuredOrigin =
+    process.env.AUTH_URL?.trim() ?? process.env.NEXT_PUBLIC_BASE_URL?.trim();
+
+  if (!configuredOrigin) {
+    return headers;
+  }
+
+  let parsedOrigin: URL;
+
+  try {
+    parsedOrigin = new URL(configuredOrigin);
+  } catch {
+    return headers;
+  }
+
+  const currentHost = headers.get("host")?.split(",")[0]?.trim() ?? "";
+  const forwardedHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim() ?? "";
+  const forwardedProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "";
+  const currentOrigin = headers.get("origin")?.trim() ?? "";
+  const currentReferer = headers.get("referer")?.trim() ?? "";
+  const invalidHost =
+    currentHost.includes("0.0.0.0") ||
+    forwardedHost.includes("0.0.0.0") ||
+    currentHost.length === 0 ||
+    forwardedHost.length === 0;
+
+  if (!invalidHost) {
+    return headers;
+  }
+
+  headers.set("host", parsedOrigin.host);
+  headers.set("x-forwarded-host", parsedOrigin.host);
+  headers.set("x-forwarded-proto", parsedOrigin.protocol.replace(":", ""));
+
+  if (!currentOrigin || currentOrigin.includes("0.0.0.0")) {
+    headers.set("origin", parsedOrigin.origin);
+  }
+
+  if (
+    request.nextUrl.pathname.startsWith("/api/auth/") &&
+    (!currentReferer || currentReferer.includes("0.0.0.0"))
+  ) {
+    headers.set("referer", parsedOrigin.origin);
+  }
+
+  if (!forwardedProto || forwardedProto === "http") {
+    headers.set("x-forwarded-port", parsedOrigin.port || (parsedOrigin.protocol === "https:" ? "443" : "80"));
+  }
+
+  return headers;
+};
+
 const buildRedirectUrl = (request: NextRequest, path: string): URL =>
   new URL(path, resolvePublicOrigin(request));
 
@@ -176,9 +232,12 @@ export async function middleware(request: NextRequest) {
   const startedAt = Date.now();
   const { pathname } = request.nextUrl;
   const correlationId = resolveCorrelationId(request);
-  const forwardedHeaders = withCorrelationRequestHeaders(
-    request.headers,
-    correlationId,
+  const forwardedHeaders = normalizeForwardedHeaders(
+    request,
+    withCorrelationRequestHeaders(
+      request.headers,
+      correlationId,
+    ),
   );
 
   const finalize = (

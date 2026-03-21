@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import {
+  Bell,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
@@ -28,6 +29,7 @@ type TopbarProps = {
   onToggleDesktopSidebar: () => void;
   onToggleMobileSidebar: () => void;
   onToggleNavMode: () => void;
+  pendingSolicitudes?: number;
 };
 
 const ROLE_NAMES: Record<AppRole, string> = {
@@ -56,6 +58,7 @@ export function Topbar({
   onToggleDesktopSidebar,
   onToggleMobileSidebar,
   onToggleNavMode,
+  pendingSolicitudes,
 }: TopbarProps) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
@@ -155,6 +158,20 @@ export function Topbar({
             <LayoutGrid className="h-5 w-5" />
           )}
         </button>
+
+        {/* Notifications bell — only for admin when there are pending solicitudes */}
+        {role === "admin" && pendingSolicitudes != null && pendingSolicitudes > 0 && (
+          <a
+            href="/admin/solicitudes"
+            aria-label={`${pendingSolicitudes} solicitud${pendingSolicitudes !== 1 ? "es" : ""} pendiente${pendingSolicitudes !== 1 ? "s" : ""}`}
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 dark:text-gray-100 dark:hover:bg-primary/20"
+          >
+            <Bell className="h-5 w-5" />
+            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold leading-none text-white">
+              {pendingSolicitudes > 9 ? "9+" : pendingSolicitudes}
+            </span>
+          </a>
+        )}
 
         {/* Theme toggle */}
         <button

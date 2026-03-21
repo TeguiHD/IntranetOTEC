@@ -21,6 +21,19 @@ const isAuthCallbackRoute = (pathname: string): boolean =>
 const isPublicApiRoute = (pathname: string): boolean =>
   pathname.startsWith("/api/auth") && !isAuthCallbackRoute(pathname);
 
+const isStaticAssetPath = (pathname: string): boolean => {
+  if (
+    pathname.startsWith("/_next/static/") ||
+    pathname.startsWith("/_next/image") ||
+    pathname === "/favicon.ico"
+  ) {
+    return true;
+  }
+
+  const lastSegment = pathname.split("/").pop() ?? "";
+  return /\.[a-z0-9]+$/i.test(lastSegment);
+};
+
 const getClientIp = (request: NextRequest): string => {
   const forwardedFor = request.headers.get("x-forwarded-for");
 
@@ -278,12 +291,13 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/internal/rate-limit") ||
     pathname.startsWith("/api/internal/metrics") ||
     pathname === "/api/health" ||
-    isPublicApiRoute(pathname)
+    isPublicApiRoute(pathname) ||
+    isStaticAssetPath(pathname)
   ) {
     return finalize(
       NextResponse.next({ request: { headers: forwardedHeaders } }),
       "success",
-      "middleware_public_api_bypass",
+      "middleware_public_bypass",
     );
   }
 

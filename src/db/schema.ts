@@ -366,6 +366,12 @@ export const notasDocente = pgTable(
       t.matriculaId,
       t.fechaRegistro,
     ),
+    // #45: prevent duplicate notas for same matricula+asignatura+date
+    matriculaAsignaturaFechaUniq: unique("notas_docente_matricula_asig_fecha_uniq").on(
+      t.matriculaId,
+      t.asignaturaId,
+      t.fechaRegistro,
+    ),
   }),
 );
 
@@ -380,10 +386,17 @@ export const observacionesDocente = pgTable(
     fechaRegistro: date("fecha_registro").notNull(),
     anioRegistro: integer("anio_registro").notNull(),
     createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
   },
   (t) => ({
     alumnoFechaIdx: index("obs_docente_alumno_fecha_idx").on(
       t.matriculaId,
+      t.fechaRegistro,
+    ),
+    // #46: prevent duplicate observaciones for same matricula+asignatura+date
+    matriculaAsignaturaFechaUniq: unique("obs_docente_matricula_asig_fecha_uniq").on(
+      t.matriculaId,
+      t.asignaturaId,
       t.fechaRegistro,
     ),
   }),

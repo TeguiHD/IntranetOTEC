@@ -5,6 +5,12 @@ import { ArrowLeft, BookOpen, Calendar, CheckCircle2, GraduationCap, MessageSqua
 import { obtenerDetalleAlumnoAdmin } from "@/actions/usuarios";
 import { formatearRut } from "@/lib/rut";
 
+// CSV helpers
+const escapeCsv = (v: string) => { const s = v.replace(/"/g, '""'); return /[",\n]/.test(s) ? `"${s}"` : s; };
+const toCsvUri = (headers: string[], rows: string[][]) =>
+  `data:text/csv;charset=utf-8,${encodeURIComponent(`\uFEFF${[headers, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\n")}`)}`;
+const csvLinkClass = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-xs font-semibold text-primary hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10 dark:text-primary-light";
+
 type AlumnoDetailPageProps = {
   params: Promise<{ alumnoId: string }>;
 };
@@ -68,10 +74,12 @@ const TIPO_EVAL_LABELS: Record<string, string> = {
 function SectionCard({
   icon,
   title,
+  action,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -80,7 +88,8 @@ function SectionCard({
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary-light">
           {icon}
         </span>
-        <h2 className="text-base font-semibold text-text-primary dark:text-white">{title}</h2>
+        <h2 className="flex-1 text-base font-semibold text-text-primary dark:text-white">{title}</h2>
+        {action}
       </header>
       <div className="p-5">{children}</div>
     </article>
@@ -122,6 +131,28 @@ export default async function AdminAlumnoDetailPage({ params }: AlumnoDetailPage
   const { alumno, matriculas, notas, asistencias, observaciones } = result;
 
   const nombreCompleto = `${alumno.nombre} ${alumno.apellido}`;
+
+  // CSV exports
+  const notasCsvHref = toCsvUri(
+    ["Asignatura", "Evaluación", "Tipo", "Nota", "Fecha"],
+    notas.map((n) => [
+      n.asignaturaNombre ?? "",
+      n.evaluacionTitulo ?? "",
+      n.tipoEval ?? "",
+      n.nota != null ? String(n.nota) : "",
+      n.fechaNota ? new Date(n.fechaNota).toLocaleDateString("es-CL") : "",
+    ]),
+  );
+  const asistenciasCsvHref = toCsvUri(
+    ["Asignatura", "Presente", "Ausente", "Tardanza", "Justificado"],
+    asistencias.map((a) => [
+      a.asignaturaNombre ?? "",
+      String(a.presente ?? 0),
+      String(a.ausente ?? 0),
+      String(a.tardanza ?? 0),
+      String(a.justificado ?? 0),
+    ]),
+  );
 
   return (
     <section className="space-y-6">
@@ -244,7 +275,15 @@ export default async function AdminAlumnoDetailPage({ params }: AlumnoDetailPage
       </SectionCard>
 
       {/* 3. Notas */}
-      <SectionCard icon={<BookOpen className="h-4 w-4" />} title={`Notas (${notas.length})`}>
+      <SectionCard
+        icon={<BookOpen className="h-4 w-4" />}
+        title={`Notas (${notas.length})`}
+        action={notas.length > 0 ? (
+          <a href={notasCsvHref} download={`notas_${alumno.rut ?? alumnoId}.csv`} className={csvLinkClass}>
+            CSV
+          </a>
+        ) : undefined}
+      >
         {notas.length === 0 ? (
           <EmptyState message="El alumno no tiene notas registradas." />
         ) : (
@@ -292,7 +331,15 @@ export default async function AdminAlumnoDetailPage({ params }: AlumnoDetailPage
       </SectionCard>
 
       {/* 4. Asistencias */}
-      <SectionCard icon={<Calendar className="h-4 w-4" />} title="Asistencias por asignatura">
+      <SectionCard
+        icon={<Calendar className="h-4 w-4" />}
+        title="Asistencias por asignatura"
+        action={asistencias.length > 0 ? (
+          <a href={asistenciasCsvHref} download={`asistencias_${alumno.rut ?? alumnoId}.csv`} className={csvLinkClass}>
+            CSV
+          </a>
+        ) : undefined}
+      >
         {asistencias.length === 0 ? (
           <EmptyState message="No se han registrado asistencias para este alumno." />
         ) : (

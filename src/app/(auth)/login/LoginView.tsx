@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
-
 import Image from "next/image";
 
 import {
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { RutInput } from "@/components/shared/RutInput";
+import logoIntranet from "@/assets/LOGO Intranet.webp";
 import { normalizarRut } from "@/lib/rut";
 
 type LoginTab = "alumno" | "staff";
@@ -53,22 +53,19 @@ function EyeIcon({ open }: { open: boolean }) {
 function OtecLogo() {
   return (
     <Image
-      src="/logo.svg"
+      src={logoIntranet}
       alt="Mi OTEC Intranet"
-      width={320}
-      height={130}
-      className="h-24 w-auto object-contain sm:h-28"
+      width={600}
+      height={260}
+      className="h-48 w-auto object-contain sm:h-56"
       priority
+      unoptimized
     />
   );
 }
 
 export function LoginView({ authError }: LoginViewProps) {
-  const [activeTab, setActiveTab] = useState<LoginTab>(() => {
-    if (typeof window === "undefined") return "alumno";
-    const stored = localStorage.getItem("login_last_tab");
-    return stored === "alumno" || stored === "staff" ? stored : "alumno";
-  });
+  const [activeTab, setActiveTab] = useState<LoginTab>("alumno");
   const [rut, setRut] = useState("");
   const [isRutValid, setIsRutValid] = useState(false);
   const [email, setEmail] = useState("");
@@ -80,6 +77,14 @@ export function LoginView({ authError }: LoginViewProps) {
   const lastFormErrorRef = useRef<string | null>(null);
 
   const queryError = mapAuthError(authError ?? null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("login_last_tab");
+
+    if (stored === "alumno" || stored === "staff") {
+      setActiveTab(stored);
+    }
+  }, []);
 
   useEffect(() => {
     if (!queryError || lastQueryErrorRef.current === queryError) {
@@ -165,7 +170,7 @@ export function LoginView({ authError }: LoginViewProps) {
 
       <section className="relative w-full max-w-md">
         {/* Logo + brand */}
-        <div className="mb-8 flex flex-col items-center gap-2">
+        <div className="-mb-14 flex flex-col items-center gap-0">
           <OtecLogo />
           <p className="text-sm text-text-secondary dark:text-gray-400">
             Acceso seguro a tu intranet educativa

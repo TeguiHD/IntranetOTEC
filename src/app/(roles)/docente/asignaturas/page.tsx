@@ -1,6 +1,10 @@
 import {
   crearClaseDocenteFormAction,
   editarClaseDocenteFormAction,
+  editarNotaDocenteFormAction,
+  editarObservacionDocenteFormAction,
+  eliminarNotaDocenteFormAction,
+  eliminarObservacionDocenteFormAction,
   listarAsignaturasDocente,
   listarClasesDocente,
   listarMatriculasDocente,
@@ -26,7 +30,13 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   asistencia_created: { tone: "success", text: "Asistencia registrada correctamente." },
   asistencia_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
   nota_created: { tone: "success", text: "Nota registrada correctamente." },
+  nota_updated: { tone: "success", text: "Nota actualizada correctamente." },
+  nota_deleted: { tone: "success", text: "Nota eliminada correctamente." },
+  nota_not_found: { tone: "error", text: "Nota no encontrada." },
   observacion_created: { tone: "success", text: "Observación registrada correctamente." },
+  observacion_updated: { tone: "success", text: "Observación actualizada correctamente." },
+  observacion_deleted: { tone: "success", text: "Observación eliminada correctamente." },
+  observacion_not_found: { tone: "error", text: "Observación no encontrada." },
   material_uploaded: { tone: "success", text: "Material subido correctamente." },
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
   file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
@@ -395,6 +405,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                       <th className="px-2 py-2">Nota</th>
                       <th className="px-2 py-2">Fecha</th>
                       <th className="px-2 py-2">Año</th>
+                      <th className="px-2 py-2">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -405,6 +416,22 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                         <td className="px-2 py-2">{n.nota}</td>
                         <td className="px-2 py-2">{n.fechaRegistro}</td>
                         <td className="px-2 py-2">{n.anioRegistro}</td>
+                        <td className="px-2 py-2">
+                          <details className="relative">
+                            <summary className="cursor-pointer rounded px-2 py-1 text-xs text-primary hover:bg-primary/10">Editar</summary>
+                            <form action={editarNotaDocenteFormAction} className="absolute right-0 z-10 mt-1 w-40 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                              <input type="hidden" name="notaId" value={n.id} />
+                              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
+                              <input name="nota" type="number" defaultValue={n.nota} step="0.1" min={1} max={7} className="mb-2 w-full rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900" />
+                              <button type="submit" className="w-full rounded bg-primary px-2 py-1 text-xs font-semibold text-white hover:bg-primary-dark">Guardar</button>
+                            </form>
+                          </details>
+                          <form action={eliminarNotaDocenteFormAction} className="inline">
+                            <input type="hidden" name="notaId" value={n.id} />
+                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
+                            <button type="submit" className="ml-1 rounded px-2 py-1 text-xs text-danger hover:bg-danger/10" onClick={(e) => { if (!confirm("¿Eliminar esta nota?")) e.preventDefault(); }}>Eliminar</button>
+                          </form>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -421,6 +448,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                       <th className="px-2 py-2">Fecha</th>
                       <th className="px-2 py-2">Año</th>
                       <th className="px-2 py-2">Observación</th>
+                      <th className="px-2 py-2">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -430,7 +458,23 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                         <td className="px-2 py-2">{o.alumnoRut ? formatearRut(o.alumnoRut) : "-"}</td>
                         <td className="px-2 py-2">{o.fechaRegistro}</td>
                         <td className="px-2 py-2">{o.anioRegistro}</td>
-                        <td className="px-2 py-2">{o.observacion}</td>
+                        <td className="max-w-[160px] truncate px-2 py-2" title={o.observacion}>{o.observacion}</td>
+                        <td className="px-2 py-2">
+                          <details className="relative">
+                            <summary className="cursor-pointer rounded px-2 py-1 text-xs text-primary hover:bg-primary/10">Editar</summary>
+                            <form action={editarObservacionDocenteFormAction} className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                              <input type="hidden" name="observacionId" value={o.id} />
+                              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
+                              <textarea name="observacion" rows={3} defaultValue={o.observacion} maxLength={300} className="mb-2 w-full rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900" />
+                              <button type="submit" className="w-full rounded bg-primary px-2 py-1 text-xs font-semibold text-white hover:bg-primary-dark">Guardar</button>
+                            </form>
+                          </details>
+                          <form action={eliminarObservacionDocenteFormAction} className="inline">
+                            <input type="hidden" name="observacionId" value={o.id} />
+                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
+                            <button type="submit" className="ml-1 rounded px-2 py-1 text-xs text-danger hover:bg-danger/10" onClick={(e) => { if (!confirm("¿Eliminar esta observación?")) e.preventDefault(); }}>Eliminar</button>
+                          </form>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

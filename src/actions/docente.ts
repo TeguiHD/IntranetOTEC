@@ -905,6 +905,52 @@ export async function registrarObservacionDocenteFormAction(formData: FormData):
   redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
 }
 
+// #94: edit nota form action
+export async function editarNotaDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await editarNotaDocenteAction({
+    notaId: getStringField(formData, "notaId"),
+    nota: Number.parseFloat(getStringField(formData, "nota")),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+// #94: delete nota form action
+export async function eliminarNotaDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await eliminarNotaDocenteAction({
+    notaId: getStringField(formData, "notaId"),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+// #95: edit observacion form action
+export async function editarObservacionDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await editarObservacionDocenteAction({
+    observacionId: getStringField(formData, "observacionId"),
+    observacion: getStringField(formData, "observacion"),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+// #95: delete observacion form action
+export async function eliminarObservacionDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await eliminarObservacionDocenteAction({
+    observacionId: getStringField(formData, "observacionId"),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
 export type ResumenDocente = {
   totalAlumnos: number;
   proximasClases: number;

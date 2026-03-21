@@ -19,8 +19,15 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Mi OTEC Intranet",
-  description: "Intranet educativa OTEC",
+  title: {
+    default: "Intranet OTEC Impulsate",
+    template: "%s | OTEC Impulsate",
+  },
+  description: "Plataforma educativa para alumnos, docentes y administración de OTEC Impulsate.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

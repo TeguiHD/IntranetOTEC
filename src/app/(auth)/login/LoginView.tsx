@@ -58,7 +58,7 @@ function OtecLogo() {
       alt="Mi OTEC Intranet"
       width={600}
       height={260}
-      className="h-44 w-auto object-contain sm:h-52"
+      className="h-36 w-auto object-contain sm:h-40"
       priority
       unoptimized
     />
@@ -159,7 +159,7 @@ export function LoginView({ authError }: LoginViewProps) {
 
       <section className="relative w-full max-w-md">
         {/* Logo + brand */}
-        <div className="mb-4 flex flex-col items-center gap-2">
+        <div className="mb-3 flex flex-col items-center gap-1">
           <OtecLogo />
           <p className="text-sm text-text-secondary dark:text-gray-400">
             Acceso seguro a tu intranet educativa

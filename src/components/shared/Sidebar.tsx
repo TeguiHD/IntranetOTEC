@@ -18,7 +18,9 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Shield,
+  TrendingUp,
   Upload,
+  User,
   UserCog,
   Users,
   Wallet,
@@ -94,6 +96,12 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Finanzas",
+    items: [
+      { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp, gradient: "grad-emerald" },
+    ],
+  },
+  {
     title: "Sistema",
     items: [
       { href: "/admin/auditoria", label: "Auditoría", Icon: ClipboardList, gradient: "grad-slate" },
@@ -112,6 +120,12 @@ const DOCENTE_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
+    ],
+  },
+  {
+    title: "Mi cuenta",
+    items: [
+      { href: "/docente/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue" },
     ],
   },
 ];
@@ -138,6 +152,12 @@ const ALUMNO_SECTIONS: NavSection[] = [
       { href: "/alumno/solicitudes?tipo=credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
       { href: "/alumno/solicitudes?tipo=alumno_regular", label: "Cert. Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
       { href: "/alumno/solicitudes?tipo=tarjeta_beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
+    ],
+  },
+  {
+    title: "Mi cuenta",
+    items: [
+      { href: "/alumno/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue" },
     ],
   },
 ];

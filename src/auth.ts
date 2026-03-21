@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import "@/lib/env";
+
 import { and, eq, isNull, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
@@ -75,16 +77,17 @@ const getEmergencyAlumnoRuts = (): Set<string> =>
 const verifyEmergencyPassword = async (password: string): Promise<boolean> => {
   const hashed = process.env.EMERGENCY_AUTH_PASSWORD_HASH?.trim();
 
-  if (hashed) {
-    try {
-      return await bcrypt.compare(password, hashed);
-    } catch {
-      return false;
-    }
+  if (!hashed) {
+    // #17: Refuse emergency login entirely when hash is not configured
+    console.warn("[auth] EMERGENCY_AUTH_PASSWORD_HASH is not set — emergency login refused.");
+    return false;
   }
 
-  const plain = process.env.EMERGENCY_AUTH_PASSWORD;
-  return Boolean(plain && password === plain);
+  try {
+    return await bcrypt.compare(password, hashed);
+  } catch {
+    return false;
+  }
 };
 
 const resolveEmergencyStaffUser = async (

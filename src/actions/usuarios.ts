@@ -489,7 +489,7 @@ export async function crearDocenteAction(input: {
         .set({
           nombre,
           apellido,
-          rut: rutFormateado,
+          rut: rutNormalizado,
           email,
           password: passwordHash,
           rol: "docente",
@@ -647,7 +647,7 @@ export async function crearAlumnoAction(input: {
       ? (parsed.data.credencialExtranjera ?? "").trim().toUpperCase()
       : null;
   const identificadorLogin = isRutCredential
-    ? rutFormateado
+    ? rutNormalizado
     : credencialExtranjera
       ? `EXT-${credencialExtranjera}`
       : null;
@@ -1043,18 +1043,8 @@ export async function activarUsuarioAction(input: {
   }
 }
 
-export async function crearDocenteFormAction(formData: FormData): Promise<void> {
-  const result = await crearDocenteAction({
-    nombre: getStringField(formData, "nombre"),
-    apellido: getStringField(formData, "apellido"),
-    rut: getStringField(formData, "rut"),
-    email: getStringField(formData, "email"),
-    password: getStringField(formData, "password"),
-  });
-
-  revalidatePath("/admin/docentes");
-  redirect(`/admin/docentes?state=${result.code}`);
-}
+// removed: unused legacy FormAction
+// crearDocenteFormAction was removed — use crearDocenteAction directly
 
 export async function crearAlumnoFormAction(formData: FormData): Promise<void> {
   const result = await crearAlumnoAction({
@@ -1135,7 +1125,7 @@ export async function editarDocenteAction(input: {
     return {
       ok: false,
       code: "invalid_input",
-      message: parsed.error.issues.map((i) => i.message).join(", "),
+      message: "Datos inválidos. Verifica los campos e intenta de nuevo.",
     };
   }
 
@@ -1222,7 +1212,7 @@ export async function editarAlumnoAction(input: {
     return {
       ok: false,
       code: "invalid_input",
-      message: parsed.error.issues.map((i) => i.message).join(", "),
+      message: "Datos inválidos. Verifica los campos e intenta de nuevo.",
     };
   }
 
@@ -1398,7 +1388,7 @@ export async function crearAdminAction(input: {
         .set({
           nombre,
           apellido,
-          rut: rutFormateado,
+          rut: rutNormalizado,
           email,
           password: passwordHash,
           rol: "admin",
@@ -1418,7 +1408,7 @@ export async function crearAdminAction(input: {
       id: userId,
       nombre,
       apellido,
-      rut: rutFormateado,
+      rut: rutNormalizado,
       email,
       password: passwordHash,
       rol: "admin",

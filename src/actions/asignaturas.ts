@@ -15,6 +15,7 @@ import {
   asignarDocenteInputSchema,
   asignaturaInputSchema,
   comboboxSearchQuerySchema,
+  editarAsignaturaInputSchema,
 } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
@@ -133,6 +134,12 @@ export async function listarAsignaturas(
   pagination: PaginationInput = {},
   options?: { incluirArchivadas?: boolean },
 ) {
+  const actorResult = await requireActionActor("listar_asignaturas", ["admin", "docente", "alumno"]);
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
   await finalizarAsignaturasVencidas();
 
   const db = getDb();
@@ -457,6 +464,106 @@ export async function crearAsignaturaFormAction(formData: FormData): Promise<voi
 
   revalidatePath("/admin/asignaturas");
   redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
+export async function editarAsignaturaAction(input: {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  maxAlumnos: number;
+  fechaInicio: string;
+  duracionMeses: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_edit", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = editarAsignaturaInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Datos inválidos para editar asignatura.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: asignaturas.id, estado: asignaturas.estado })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, parsed.data.id))
+      .limit(1);
+
+    if (!existing) {
+      return {
+        ok: false,
+        code: "asignatura_not_found",
+        message: "No se encontró la asignatura.",
+      };
+    }
+
+    if (existing.estado === "archivado") {
+      return {
+        ok: false,
+        code: "asignatura_archived",
+        message: "No puedes editar asignaturas archivadas.",
+      };
+    }
+
+    const sanitizedDesc = parsed.data.descripcion
+      ? sanitizeText(parsed.data.descripcion).replace(/\s+/g, " ").trim() || undefined
+      : undefined;
+
+    await db
+      .update(asignaturas)
+      .set({
+        nombre: sanitizeText(parsed.data.nombre),
+        descripcion: sanitizedDesc,
+        maxAlumnos: parsed.data.maxAlumnos,
+        fechaInicio: parsed.data.fechaInicio,
+        duracionMeses: parsed.data.duracionMeses,
+        updatedAt: new Date(),
+      })
+      .where(eq(asignaturas.id, parsed.data.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "asignaturas",
+      entidadId: parsed.data.id,
+      payload: {
+        nombre: parsed.data.nombre,
+        maxAlumnos: parsed.data.maxAlumnos,
+      },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "asignatura_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_asignatura_edit_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return {
+      ok: false,
+      code: "edit_failed",
+      message: "No fue posible editar la asignatura.",
+    };
+  }
 }
 
 export async function asignarDocenteFormAction(formData: FormData): Promise<void> {

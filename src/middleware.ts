@@ -37,7 +37,8 @@ const isAuthRelatedPath = (pathname: string): boolean =>
   pathname.startsWith("/admin") ||
   pathname.startsWith("/docente") ||
   pathname.startsWith("/alumno") ||
-  pathname.startsWith("/api/internal");
+  pathname.startsWith("/api/internal") ||
+  pathname.startsWith("/api/auth");
 
 const resolvePublicOrigin = (request: NextRequest): string => {
   const configuredOrigin =
@@ -154,8 +155,6 @@ export async function middleware(request: NextRequest) {
   };
 
   if (
-    pathname.startsWith("/api/internal/rate-limit") ||
-    pathname.startsWith("/api/internal/metrics") ||
     isPublicApiRoute(pathname)
   ) {
     return finalize(

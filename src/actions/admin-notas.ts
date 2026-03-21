@@ -1,6 +1,6 @@
 "use server";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { asignaturas, matriculas, notasDocente, usuarios } from "@/db/schema";
@@ -21,7 +21,9 @@ export type NotaAdminRow = {
   docenteApellido: string;
 };
 
-export async function listarNotasAdmin(): Promise<NotaAdminRow[]> {
+const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+export async function listarNotasAdmin(options?: { q?: string; asignaturaId?: string }): Promise<NotaAdminRow[]> {
   const actorResult = await requireActionActor("admin_notas_list", ["admin"]);
   if (!actorResult.ok) return [];
 
@@ -36,7 +38,7 @@ export async function listarNotasAdmin(): Promise<NotaAdminRow[]> {
     .from(usuarios)
     .as("docente");
 
-  const rows = await db
+  const baseQuery = db
     .select({
       id: notasDocente.id,
       nota: notasDocente.nota,
@@ -54,8 +56,28 @@ export async function listarNotasAdmin(): Promise<NotaAdminRow[]> {
     .innerJoin(matriculas, eq(notasDocente.matriculaId, matriculas.id))
     .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
     .innerJoin(asignaturas, eq(notasDocente.asignaturaId, asignaturas.id))
-    .innerJoin(docenteAlias, eq(notasDocente.docenteId, docenteAlias.id))
-    .orderBy(desc(notasDocente.fechaRegistro), asc(usuarios.apellido));
+    .innerJoin(docenteAlias, eq(notasDocente.docenteId, docenteAlias.id));
 
-  return rows;
+  const conditions = [];
+
+  if (options?.asignaturaId) {
+    conditions.push(eq(notasDocente.asignaturaId, options.asignaturaId));
+  }
+
+  if (options?.q) {
+    const term = `%${escapeLike(options.q)}%`;
+    conditions.push(
+      or(
+        ilike(usuarios.nombre, term),
+        ilike(usuarios.apellido, term),
+        ilike(usuarios.rut, term),
+      )!,
+    );
+  }
+
+  const query = conditions.length > 0
+    ? baseQuery.where(and(...conditions))
+    : baseQuery;
+
+  return query.orderBy(desc(notasDocente.fechaRegistro), asc(usuarios.apellido));
 }

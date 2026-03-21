@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const csp = [
 	"default-src 'self'",
-	"script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+	`script-src 'self' ${process.env.NODE_ENV === 'production' ? "" : "'unsafe-eval'"} 'unsafe-inline'`,
 	"style-src 'self' 'unsafe-inline'",
 	"img-src 'self' data: blob:",
 	"media-src 'self' data: blob:",
@@ -24,7 +24,7 @@ const securityHeaders = [
 	{ key: 'Content-Security-Policy', value: csp },
 	{ key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 	{ key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
-	{ key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+	{ key: 'Cross-Origin-Embedder-Policy', value: 'unsafe-none' },
 ];
 
 const nextConfig = {

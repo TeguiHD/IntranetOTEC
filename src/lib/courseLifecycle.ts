@@ -3,6 +3,9 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
 
+// #51: In-memory throttle — run at most once per minute
+let lastRun = 0;
+
 const toUtcDayStart = (value: Date): Date =>
   new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 
@@ -19,6 +22,12 @@ const parseIsoDateUtc = (value: string): Date | null => {
 };
 
 export async function finalizarAsignaturasVencidas(): Promise<number> {
+  const nowMs = Date.now();
+  if (nowMs - lastRun < 60_000) {
+    return 0;
+  }
+  lastRun = nowMs;
+
   const db = getDb();
   const todayStart = toUtcDayStart(new Date());
 

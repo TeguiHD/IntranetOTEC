@@ -296,6 +296,71 @@ export const crearClaseInputSchema = z
     }
   });
 
+export const editarAsignaturaInputSchema = z.object({
+  id: z.string().uuid("Asignatura inválida."),
+  nombre: z
+    .string()
+    .transform(trimAndCollapse)
+    .pipe(z.string().min(3, "Nombre muy corto.").max(120, "Nombre demasiado largo.")),
+  descripcion: optionalTrimmed(500),
+  maxAlumnos: z
+    .number()
+    .int("Debe ser un número entero.")
+    .min(1, "Debe permitir al menos 1 alumno.")
+    .max(300, "Máximo 300 alumnos."),
+  fechaInicio: isoDate,
+  duracionMeses: z.union([z.literal(2), z.literal(4), z.literal(6)]),
+});
+
+export const editarClaseInputSchema = z
+  .object({
+    id: z.string().uuid("Clase inválida."),
+    titulo: z
+      .string()
+      .transform(trimAndCollapse)
+      .pipe(z.string().min(3, "Título muy corto.").max(140, "Título demasiado largo.")),
+    descripcion: optionalTrimmed(600),
+    fecha: isoDate,
+    horaInicio: optionalTime,
+    tipoUrl: optionalTipoUrl,
+    urlGrabacion: z
+      .union([z.string(), z.undefined()])
+      .transform((value) => {
+        if (typeof value !== "string") {
+          return undefined;
+        }
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+      })
+      .refine((value) => !value || value.length <= 500, "URL demasiado larga."),
+    publicada: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (value.urlGrabacion && !value.tipoUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tipoUrl"],
+        message: "Debes seleccionar el tipo de video.",
+      });
+    }
+
+    if (!value.urlGrabacion && value.tipoUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urlGrabacion"],
+        message: "Debes ingresar la URL de grabación.",
+      });
+    }
+
+    if (value.urlGrabacion && !sanitizeVideoUrl(value.urlGrabacion)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urlGrabacion"],
+        message: "La URL de video no está permitida.",
+      });
+    }
+  });
+
 export const desactivarUsuarioInputSchema = z.object({
   userId: z.string().uuid("Usuario inválido."),
 });

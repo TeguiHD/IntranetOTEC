@@ -12,7 +12,7 @@ import { registrarAudit } from "@/lib/audit";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
-import { crearClaseInputSchema } from "@/lib/validations/admin";
+import { crearClaseInputSchema, editarClaseInputSchema } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
 import { requireActionActor, type MutationResult } from "./_security";
@@ -209,8 +209,10 @@ export async function editarClaseAction(input: {
     return actorResult.result;
   }
 
-  if (!input.id || !input.titulo || !input.fecha) {
-    return { ok: false, code: "invalid_input", message: "Datos inválidos." };
+  const parsed = editarClaseInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Datos inválidos para editar clase." };
   }
 
   const db = getDb();
@@ -219,7 +221,7 @@ export async function editarClaseAction(input: {
     const [existing] = await db
       .select({ id: clases.id })
       .from(clases)
-      .where(eq(clases.id, input.id))
+      .where(eq(clases.id, parsed.data.id))
       .limit(1);
 
     if (!existing) {
@@ -229,15 +231,15 @@ export async function editarClaseAction(input: {
     await db
       .update(clases)
       .set({
-        titulo: sanitizeText(input.titulo),
-        descripcion: sanitizeOptionalText(input.descripcion),
-        fecha: input.fecha,
-        horaInicio: input.horaInicio || null,
-        tipoUrl: input.tipoUrl ?? null,
-        urlGrabacion: input.urlGrabacion || null,
-        publicada: input.publicada,
+        titulo: sanitizeText(parsed.data.titulo),
+        descripcion: sanitizeOptionalText(parsed.data.descripcion),
+        fecha: parsed.data.fecha,
+        horaInicio: parsed.data.horaInicio || null,
+        tipoUrl: parsed.data.tipoUrl ?? null,
+        urlGrabacion: parsed.data.urlGrabacion || null,
+        publicada: parsed.data.publicada,
       })
-      .where(eq(clases.id, input.id));
+      .where(eq(clases.id, parsed.data.id));
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -245,8 +247,8 @@ export async function editarClaseAction(input: {
       userRol: actorResult.actor.userRol,
       accion: "editar",
       entidad: "clases",
-      entidadId: input.id,
-      payload: { titulo: input.titulo },
+      entidadId: parsed.data.id,
+      payload: { titulo: parsed.data.titulo },
       exitoso: true,
     });
 
@@ -410,6 +412,61 @@ export async function crearClaseAction(input: {
       code: "clase_create_failed",
       message: "No fue posible crear la clase.",
     };
+  }
+}
+
+export async function eliminarClaseAction(id: string): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_clase_delete", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  if (!id || typeof id !== "string") {
+    return { ok: false, code: "invalid_input", message: "ID de clase inválido." };
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: clases.id })
+      .from(clases)
+      .where(eq(clases.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "clase_not_found", message: "Clase no encontrada." };
+    }
+
+    await db
+      .update(clases)
+      .set({ eliminadoAt: new Date(), eliminadoPor: actorResult.actor.userId })
+      .where(eq(clases.id, id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "archivar",
+      entidad: "clases",
+      entidadId: id,
+      exitoso: true,
+    });
+
+    revalidatePath("/admin/clases");
+    return { ok: true, code: "clase_deleted" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_clase_delete_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "clase_delete_failed", message: "No fue posible eliminar la clase." };
   }
 }
 

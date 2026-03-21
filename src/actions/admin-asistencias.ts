@@ -1,6 +1,6 @@
 "use server";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { asignaturas, asistencia, clases, matriculas, usuarios } from "@/db/schema";
@@ -23,13 +23,15 @@ export type AsistenciaAdminRow = {
   alumnoRut: string | null;
 };
 
-export async function listarAsistenciasAdmin(): Promise<AsistenciaAdminRow[]> {
+const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+export async function listarAsistenciasAdmin(options?: { q?: string; asignaturaId?: string }): Promise<AsistenciaAdminRow[]> {
   const actorResult = await requireActionActor("admin_asistencias_list", ["admin"]);
   if (!actorResult.ok) return [];
 
   const db = getDb();
 
-  const rows = await db
+  const baseQuery = db
     .select({
       id: asistencia.id,
       estado: asistencia.estado,
@@ -49,8 +51,28 @@ export async function listarAsistenciasAdmin(): Promise<AsistenciaAdminRow[]> {
     .innerJoin(clases, eq(asistencia.claseId, clases.id))
     .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
     .innerJoin(matriculas, eq(asistencia.matriculaId, matriculas.id))
-    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
-    .orderBy(desc(clases.fecha), asc(clases.numeroSesion), asc(usuarios.apellido));
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id));
 
-  return rows;
+  const conditions = [];
+
+  if (options?.asignaturaId) {
+    conditions.push(eq(asignaturas.id, options.asignaturaId));
+  }
+
+  if (options?.q) {
+    const term = `%${escapeLike(options.q)}%`;
+    conditions.push(
+      or(
+        ilike(usuarios.nombre, term),
+        ilike(usuarios.apellido, term),
+        ilike(usuarios.rut, term),
+      )!,
+    );
+  }
+
+  const query = conditions.length > 0
+    ? baseQuery.where(and(...conditions))
+    : baseQuery;
+
+  return query.orderBy(desc(clases.fecha), asc(clases.numeroSesion), asc(usuarios.apellido));
 }

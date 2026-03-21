@@ -1,3 +1,5 @@
+import { Search } from "lucide-react";
+
 import { listarAsistenciasAdmin } from "@/actions/admin-asistencias";
 import { formatearRut } from "@/lib/rut";
 
@@ -25,8 +27,24 @@ export const metadata = {
   title: "Asistencias — Admin",
 };
 
-export default async function AdminAsistenciasPage() {
-  const asistencias = await listarAsistenciasAdmin();
+type AdminAsistenciasPageProps = {
+  searchParams?: {
+    q?: string;
+    asignaturaId?: string;
+  };
+};
+
+export default async function AdminAsistenciasPage({ searchParams }: AdminAsistenciasPageProps) {
+  const q = typeof searchParams?.q === "string" ? searchParams.q.trim() : undefined;
+  const asignaturaId = typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
+
+  const asistencias = await listarAsistenciasAdmin({ q: q || undefined, asignaturaId });
+
+  // Build asignatura list for dropdown
+  const allAsistencias = (!q && !asignaturaId) ? asistencias : await listarAsistenciasAdmin();
+  const asignaturaOptions = Array.from(
+    new Map(allAsistencias.map((r) => [r.asignaturaId, r.asignaturaNombre])).entries(),
+  );
 
   // Group by asignatura
   const grouped = new Map<string, { nombre: string; items: typeof asistencias }>();
@@ -49,10 +67,52 @@ export default async function AdminAsistenciasPage() {
         </p>
       </div>
 
+      {/* Search & Filter */}
+      <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            <input
+              name="q"
+              type="text"
+              defaultValue={q}
+              placeholder="Buscar por nombre o RUT del alumno..."
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+            />
+          </div>
+          <select
+            name="asignaturaId"
+            defaultValue={asignaturaId ?? ""}
+            className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 sm:w-52"
+          >
+            <option value="">Todas las asignaturas</option>
+            {asignaturaOptions.map(([id, nombre]) => (
+              <option key={id} value={id}>{nombre}</option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
+          >
+            Filtrar
+          </button>
+        </div>
+        {(q || asignaturaId) && (
+          <div className="mt-2">
+            <a
+              href="/admin/asistencias"
+              className="rounded-lg border border-gray-200 px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+            >
+              Limpiar filtros
+            </a>
+          </div>
+        )}
+      </form>
+
       {asistencias.length === 0 ? (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <p className="text-sm text-text-secondary dark:text-gray-400">
-            Aún no hay registros de asistencia en el sistema.
+            {q || asignaturaId ? "No se encontraron registros con los filtros aplicados." : "Aún no hay registros de asistencia en el sistema."}
           </p>
         </article>
       ) : (

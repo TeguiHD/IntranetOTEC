@@ -163,14 +163,14 @@ export async function POST(request: Request) {
         } else {
           // Create new
           const userId = randomUUID();
-          const derivedPassword = `${rutSalt}${rutFormateado}${userId}`;
+          const derivedPassword = `${rutSalt}${rutNormalizado}${userId}`;
           const passwordHash = await bcrypt.hash(derivedPassword, 12);
 
           await db.insert(usuarios).values({
             id: userId,
             nombre,
             apellido,
-            rut: rutFormateado,
+            rut: rutNormalizado,
             email,
             password: passwordHash,
             rol: "alumno",

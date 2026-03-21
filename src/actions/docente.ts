@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -165,7 +165,7 @@ export async function listarClasesDocente(asignaturaId: string) {
       horaInicio: clases.horaInicio,
     })
     .from(clases)
-    .where(eq(clases.asignaturaId, asignaturaId))
+    .where(and(eq(clases.asignaturaId, asignaturaId), isNull(clases.eliminadoAt)))
     .orderBy(asc(clases.numeroSesion));
 }
 

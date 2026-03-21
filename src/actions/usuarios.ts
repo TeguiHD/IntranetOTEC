@@ -516,7 +516,14 @@ export async function crearDocenteAction(input: {
         nombre: `${nombre} ${apellido}`.trim(),
         rol: "docente",
       });
-      sendEmail(email, subject, html).catch(() => {});
+      sendEmail(email, subject, html).catch((err) => {
+        logEvent({
+          correlationId: actorResult.actor.correlationId,
+          action: "email_send_failed",
+          result: "error",
+          details: { reason: "smtp_error", message: err instanceof Error ? err.message : String(err) },
+        });
+      });
 
       return {
         ok: true,
@@ -526,18 +533,30 @@ export async function crearDocenteAction(input: {
 
     const userId = randomUUID();
 
-    await db.insert(usuarios).values({
-      id: userId,
-      nombre,
-      apellido,
-      rut: rutFormateado,
-      email,
-      password: passwordHash,
-      rol: "docente",
-      activo: true,
-      createdAt: now,
-      updatedAt: now,
-    });
+    try {
+      await db.insert(usuarios).values({
+        id: userId,
+        nombre,
+        apellido,
+        rut: rutFormateado,
+        email,
+        password: passwordHash,
+        rol: "docente",
+        activo: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (insertError: unknown) {
+      const err = insertError as { code?: string };
+      if (err.code === "23505" || String(err).includes("unique constraint")) {
+        return {
+          ok: false,
+          code: "conflict_race_condition",
+          message: "El usuario o correo fue registrado simultáneamente. Por favor, intenta de nuevo.",
+        };
+      }
+      throw insertError;
+    }
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -556,7 +575,14 @@ export async function crearDocenteAction(input: {
       nombre: `${nombre} ${apellido}`.trim(),
       rol: "docente",
     });
-    sendEmail(email, subject, html).catch(() => {});
+    sendEmail(email, subject, html).catch((err) => {
+      logEvent({
+        correlationId: actorResult.actor.correlationId,
+        action: "email_send_failed",
+        result: "error",
+        details: { reason: "smtp_error", message: err instanceof Error ? err.message : String(err) },
+      });
+    });
 
     return { ok: true, code: "docente_created" };
   } catch (error) {
@@ -721,7 +747,14 @@ export async function crearAlumnoAction(input: {
           nombre: `${nombre} ${apellido}`.trim(),
           rol: "alumno",
         });
-        sendEmail(email, subject, html).catch(() => {});
+        sendEmail(email, subject, html).catch((err) => {
+          logEvent({
+            correlationId: actorResult.actor.correlationId,
+            action: "email_send_failed",
+            result: "error",
+            details: { reason: "smtp_error", message: err instanceof Error ? err.message : String(err) },
+          });
+        });
       }
 
       return { ok: true, code: "alumno_updated" };
@@ -731,18 +764,30 @@ export async function crearAlumnoAction(input: {
     const derivedPassword = `${rutSalt}${identificadorLogin}${userId}`;
     const passwordHash = await bcrypt.hash(derivedPassword, 12);
 
-    await db.insert(usuarios).values({
-      id: userId,
-      nombre,
-      apellido,
-      rut: identificadorLogin,
-      email,
-      password: passwordHash,
-      rol: "alumno",
-      activo: true,
-      createdAt: now,
-      updatedAt: now,
-    });
+    try {
+      await db.insert(usuarios).values({
+        id: userId,
+        nombre,
+        apellido,
+        rut: identificadorLogin,
+        email,
+        password: passwordHash,
+        rol: "alumno",
+        activo: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (insertError: unknown) {
+      const err = insertError as { code?: string };
+      if (err.code === "23505" || String(err).includes("unique constraint")) {
+        return {
+          ok: false,
+          code: "conflict_race_condition",
+          message: "El alumno o correo fue registrado simultáneamente. Por favor, intenta de nuevo.",
+        };
+      }
+      throw insertError;
+    }
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -762,7 +807,14 @@ export async function crearAlumnoAction(input: {
         nombre: `${nombre} ${apellido}`.trim(),
         rol: "alumno",
       });
-      sendEmail(email, subject, html).catch(() => {});
+      sendEmail(email, subject, html).catch((err) => {
+        logEvent({
+          correlationId: actorResult.actor.correlationId,
+          action: "email_send_failed",
+          result: "error",
+          details: { reason: "smtp_error", message: err instanceof Error ? err.message : String(err) },
+        });
+      });
     }
 
     return { ok: true, code: "alumno_created" };

@@ -46,23 +46,21 @@ const ESTADO_LABELS: Record<string, string> = {
 };
 
 type AlumnoSolicitudesPageProps = {
-  searchParams?: {
-    state?: string;
-  };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export const metadata = {
   title: "Solicitudes",
 };
 
-export default async function AlumnoSolicitudesPage({
-  searchParams,
-}: AlumnoSolicitudesPageProps) {
+export default async function AlumnoSolicitudesPage(props: AlumnoSolicitudesPageProps) {
+  const searchParams = await props.searchParams;
+  const state = searchParams.state as string | undefined;
   const solicitudes = await listarSolicitudesDocumentosAlumno();
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">

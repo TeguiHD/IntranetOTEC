@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { usuarios } from "@/db/schema";
+import { registrarAudit } from "@/lib/audit";
 import { parseAppRole } from "@/lib/authz";
 import { formatearRut, normalizarRut, validarRut } from "@/lib/rut";
 
@@ -32,6 +33,13 @@ export async function POST(request: Request) {
     if (!file || !(file instanceof Blob)) {
       return NextResponse.json(
         { message: "No se proporcionó un archivo válido." },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { message: "El archivo excede el tamaño máximo permitido (5MB)." },
         { status: 400 },
       );
     }
@@ -182,6 +190,24 @@ export async function POST(request: Request) {
         }
       }
     }
+
+    const correlationId = request.headers.get("x-correlation-id") ?? randomUUID();
+    await registrarAudit({
+      correlationId,
+      userId: session?.user?.id ?? "unknown",
+      userRol: "admin",
+      accion: "crear",
+      entidad: "usuarios",
+      payload: {
+        action: "importar_excel",
+        fileName: file instanceof File ? file.name : "upload.csv",
+        created,
+        updated,
+        erroresCount: errors.length,
+        total: rows.length,
+      },
+      exitoso: true,
+    });
 
     return NextResponse.json({
       created,

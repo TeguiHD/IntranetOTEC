@@ -226,8 +226,8 @@ const nextAuth = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60,
-    updateAge: 15 * 60,
+    maxAge: 12 * 60 * 60, // 12 hours
+    updateAge: 15 * 60, // 15 mins
   },
   cookies: {
     sessionToken: {

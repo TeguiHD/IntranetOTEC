@@ -192,6 +192,7 @@ export async function matricularAlumnoAction(input: {
         id: asignaturas.id,
         nombre: asignaturas.nombre,
         estado: asignaturas.estado,
+        maxAlumnos: asignaturas.maxAlumnos,
       })
       .from(asignaturas)
       .where(eq(asignaturas.id, parsed.data.asignaturaId))
@@ -211,6 +212,39 @@ export async function matricularAlumnoAction(input: {
         code: "asignatura_closed",
         message: "No puedes matricular en una asignatura cerrada.",
       };
+    }
+
+    // Check capacity before inserting (skip if the alumno already has an existing matricula being reactivated)
+    const [existingCheck] = await db
+      .select({ id: matriculas.id })
+      .from(matriculas)
+      .where(
+        and(
+          eq(matriculas.alumnoId, parsed.data.alumnoId),
+          eq(matriculas.asignaturaId, parsed.data.asignaturaId),
+        ),
+      )
+      .limit(1);
+
+    if (!existingCheck && subject.maxAlumnos !== null) {
+      const [countResult] = await db
+        .select({ total: count() })
+        .from(matriculas)
+        .where(
+          and(
+            eq(matriculas.asignaturaId, parsed.data.asignaturaId),
+            eq(matriculas.activa, true),
+            isNull(matriculas.eliminadoAt),
+          ),
+        );
+      const currentCount = Number(countResult?.total ?? 0);
+      if (currentCount >= subject.maxAlumnos) {
+        return {
+          ok: false,
+          code: "max_alumnos_reached",
+          message: "La asignatura ha alcanzado el cupo máximo de alumnos",
+        };
+      }
     }
 
     const [student] = await db

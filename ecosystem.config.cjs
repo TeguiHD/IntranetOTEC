@@ -2,8 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'otec',
-      script: 'npm',
-      args: 'start',
+      script: '.next/standalone/server.js',
       cwd: './',
       instances: 'max',
       exec_mode: 'cluster',

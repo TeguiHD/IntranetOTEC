@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
+import { listarObservacionesAlumno } from "@/actions/docente";
 
 const TIPO_EVAL_LABELS: Record<string, string> = {
   formulario: "Formulario",
@@ -52,10 +53,15 @@ export const metadata = {
 
 export default async function AlumnoDashboardPage() {
   let data;
+  let observaciones: Awaited<ReturnType<typeof listarObservacionesAlumno>> = [];
 
   try {
-    data = await obtenerDashboardAlumno();
+    [data, observaciones] = await Promise.all([
+      obtenerDashboardAlumno(),
+      listarObservacionesAlumno(),
+    ]);
   } catch {
+    observaciones = [];
     return (
       <section className="space-y-5">
         <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
@@ -301,6 +307,37 @@ export default async function AlumnoDashboardPage() {
           </div>
         </article>
       )}
+
+      {/* Observaciones de docentes */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+          Observaciones de Docentes
+        </h2>
+        {observaciones.length === 0 ? (
+          <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
+            No tienes observaciones registradas por tus docentes.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {observaciones.slice(0, 10).map((obs) => (
+              <div
+                key={obs.id}
+                className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm text-text-primary dark:text-gray-100">{obs.observacion}</p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-xs font-medium text-primary dark:text-primary-light">
+                      {formatFecha(obs.fechaRegistro)}
+                    </p>
+                    <p className="text-[10px] text-text-muted dark:text-gray-500">{obs.asignaturaNombre}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </article>
 
       {/* Enrolled courses */}
       {cursos.length > 0 && (

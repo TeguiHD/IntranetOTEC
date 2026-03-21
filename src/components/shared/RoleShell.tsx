@@ -19,9 +19,10 @@ type RoleShellProps = {
   role: AppRole;
   userName: string;
   children: React.ReactNode;
+  pendingSolicitudes?: number;
 };
 
-export function RoleShell({ role, userName, children }: RoleShellProps) {
+export function RoleShell({ role, userName, children, pendingSolicitudes }: RoleShellProps) {
   const pathname = usePathname();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -81,6 +82,7 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
         collapsed={isSidebarCollapsed}
         mobileOpen={isMobileSidebarOpen && navMode === "sidebar"}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        pendingSolicitudes={pendingSolicitudes}
       />
 
       <div

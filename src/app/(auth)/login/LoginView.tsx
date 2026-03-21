@@ -24,7 +24,7 @@ type LoginTab = "alumno" | "staff";
 
 const TAB_LABELS: Record<LoginTab, string> = {
   alumno: "Alumno",
-  staff: "Docente",
+  staff: "Staff",
 };
 
 const AUTH_ERROR_MESSAGE = "Credenciales inválidas. Verifica tus datos e inténtalo nuevamente.";
@@ -68,7 +68,11 @@ function OtecLogo() {
 export function LoginView({ authError }: LoginViewProps) {
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<LoginTab>("alumno");
+  const [activeTab, setActiveTab] = useState<LoginTab>(() => {
+    if (typeof window === "undefined") return "alumno";
+    const saved = window.localStorage.getItem("login_tab");
+    return saved === "staff" ? "staff" : "alumno";
+  });
   const [rut, setRut] = useState("");
   const [isRutValid, setIsRutValid] = useState(false);
   const [email, setEmail] = useState("");
@@ -180,6 +184,7 @@ export function LoginView({ authError }: LoginViewProps) {
                   onClick={() => {
                     setFormError(null);
                     setActiveTab(tab);
+                    window.localStorage.setItem("login_tab", tab);
                   }}
                   className={`relative flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
                     active

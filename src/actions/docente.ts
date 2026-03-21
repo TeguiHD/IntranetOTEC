@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -226,6 +226,39 @@ export async function listarObservacionesDocente(asignaturaId: string) {
     .innerJoin(matriculas, eq(observacionesDocente.matriculaId, matriculas.id))
     .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
     .where(eq(observacionesDocente.asignaturaId, asignaturaId))
+    .orderBy(desc(observacionesDocente.fechaRegistro), desc(observacionesDocente.createdAt));
+}
+
+export async function listarObservacionesAlumno() {
+  const actorResult = await requireActionActor("alumno_observaciones_list", ["alumno"]);
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const db = getDb();
+
+  // Get the alumno's active matricula IDs
+  const matriculasAlumno = await db
+    .select({ id: matriculas.id, asignaturaId: matriculas.asignaturaId })
+    .from(matriculas)
+    .where(and(eq(matriculas.alumnoId, actorResult.actor.userId), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
+
+  if (matriculasAlumno.length === 0) {
+    return [];
+  }
+
+  const matriculaIds = matriculasAlumno.map((m) => m.id);
+
+  return db
+    .select({
+      id: observacionesDocente.id,
+      observacion: observacionesDocente.observacion,
+      fechaRegistro: observacionesDocente.fechaRegistro,
+      asignaturaNombre: asignaturas.nombre,
+    })
+    .from(observacionesDocente)
+    .innerJoin(asignaturas, eq(observacionesDocente.asignaturaId, asignaturas.id))
+    .where(inArray(observacionesDocente.matriculaId, matriculaIds))
     .orderBy(desc(observacionesDocente.fechaRegistro), desc(observacionesDocente.createdAt));
 }
 

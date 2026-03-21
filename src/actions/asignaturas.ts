@@ -25,6 +25,8 @@ const getStringField = (formData: FormData, field: string): string => {
   return typeof rawValue === "string" ? rawValue : "";
 };
 
+const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
 const parseIntegerField = (value: string): number | undefined => {
   const trimmed = value.trim();
 
@@ -70,7 +72,7 @@ export async function buscarAsignaturasAdminAction(
   await finalizarAsignaturasVencidas();
 
   const db = getDb();
-  const term = `%${parsed.data}%`;
+  const term = `%${escapeLike(parsed.data)}%`;
 
   return db
     .select({
@@ -112,7 +114,7 @@ export async function countAsignaturasAdmin(
   }
 
   if (options?.q) {
-    const term = `%${options.q}%`;
+    const term = `%${escapeLike(options.q)}%`;
     conditions.push(
       or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
     );
@@ -180,7 +182,7 @@ export async function listarAsignaturasAdmin(
   }
 
   if (options?.q) {
-    const term = `%${options.q}%`;
+    const term = `%${escapeLike(options.q)}%`;
     conditions.push(
       or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
     );

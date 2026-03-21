@@ -22,6 +22,8 @@ const getStringField = (formData: FormData, field: string): string => {
   return typeof rawValue === "string" ? rawValue : "";
 };
 
+const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
 const parseIntegerField = (value: string): number | undefined => {
   const trimmed = value.trim();
 
@@ -110,7 +112,7 @@ export async function listarClasesAdmin(
   const qFilter = (() => {
     const q = options?.q?.trim();
     if (!q) return undefined;
-    const term = `%${q}%`;
+    const term = `%${escapeLike(q)}%`;
     // If q is a pure integer, also match by session number
     const sessionNum = Number.parseInt(q, 10);
     const bySession =
@@ -162,7 +164,7 @@ export async function countClasesAdmin(
   const qFilter = (() => {
     const q = options?.q?.trim();
     if (!q) return undefined;
-    const term = `%${q}%`;
+    const term = `%${escapeLike(q)}%`;
     const sessionNum = Number.parseInt(q, 10);
     const bySession =
       Number.isFinite(sessionNum) && String(sessionNum) === q

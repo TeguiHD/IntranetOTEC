@@ -32,6 +32,8 @@ const sanitizeName = (value: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
 const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
   return typeof rawValue === "string" ? rawValue : "";
@@ -187,7 +189,7 @@ export async function buscarAlumnosAction(query: string): Promise<AlumnoBusqueda
   const q = parsed.data;
 
   const db = getDb();
-  const term = `%${q}%`;
+  const term = `%${escapeLike(q)}%`;
 
   return db
     .select({

@@ -47,6 +47,7 @@ const GRADIENT_COLORS: Record<string, string> = {
   "grad-pink": "#EC4899",
   "grad-violet": "#8B5CF6",
   "grad-gold": "#F5A623",
+  "grad-slate": "#64748B",
 };
 
 type NavSection = {
@@ -90,6 +91,12 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
       { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload, gradient: "grad-emerald" },
+    ],
+  },
+  {
+    title: "Sistema",
+    items: [
+      { href: "/admin/auditoria", label: "Auditoría", Icon: ClipboardList, gradient: "grad-slate" },
     ],
   },
 ];
@@ -146,16 +153,19 @@ type SidebarProps = {
   collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  pendingSolicitudes?: number;
 };
 
 function SidebarNav({
   role,
   collapsed,
   onNavigate,
+  pendingSolicitudes,
 }: {
   role: AppRole;
   collapsed: boolean;
   onNavigate?: () => void;
+  pendingSolicitudes?: number;
 }) {
   const pathname = usePathname();
   const sections = ROLE_SECTIONS[role];
@@ -183,6 +193,10 @@ function SidebarNav({
           <div className="space-y-0.5">
             {section.items.map((item) => {
               const active = isActive(item.href);
+              const isSolicitudesAdmin = role === "admin" && item.href === "/admin/solicitudes";
+              const badge = isSolicitudesAdmin && pendingSolicitudes && pendingSolicitudes > 0
+                ? pendingSolicitudes
+                : null;
 
               return (
                 <Link
@@ -206,6 +220,11 @@ function SidebarNav({
                     style={active ? undefined : { color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
                   />
                   {!collapsed && <span className="truncate">{item.label}</span>}
+                  {!collapsed && badge !== null && (
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -229,7 +248,7 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
+export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile, pendingSolicitudes }: SidebarProps) {
   const widthClass = collapsed ? "w-[4.5rem]" : "w-64";
 
   return (
@@ -268,7 +287,7 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarP
           </button>
         </div>
 
-        <SidebarNav role={role} collapsed={false} onNavigate={onCloseMobile} />
+        <SidebarNav role={role} collapsed={false} onNavigate={onCloseMobile} pendingSolicitudes={pendingSolicitudes} />
 
         <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
           <p className="text-[11px] text-text-muted dark:text-gray-500">Entorno seguro · v1.0</p>
@@ -293,7 +312,7 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile }: SidebarP
           )}
         </div>
 
-        <SidebarNav role={role} collapsed={collapsed} />
+        <SidebarNav role={role} collapsed={collapsed} pendingSolicitudes={pendingSolicitudes} />
 
         {!collapsed ? (
           <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">

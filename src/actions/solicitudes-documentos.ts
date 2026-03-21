@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, count, desc, eq, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -168,6 +168,22 @@ export async function solicitarDocumentoAlumnoFormAction(formData: FormData): Pr
 
   revalidatePath("/alumno/solicitudes");
   redirect(`/alumno/solicitudes?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function countSolicitudesPendientesAdmin(): Promise<number> {
+  const actorResult = await requireActionActor("admin_solicitudes_list", ["admin"]);
+
+  if (!actorResult.ok) {
+    return 0;
+  }
+
+  const db = getDb();
+  const [result] = await db
+    .select({ total: count() })
+    .from(solicitudesDocumentos)
+    .where(eq(solicitudesDocumentos.estado, "pendiente"));
+
+  return Number(result?.total ?? 0);
 }
 
 export async function listarSolicitudesDocumentosAdmin() {

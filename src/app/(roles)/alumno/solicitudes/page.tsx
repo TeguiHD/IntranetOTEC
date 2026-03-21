@@ -56,6 +56,10 @@ export const metadata = {
 export default async function AlumnoSolicitudesPage(props: AlumnoSolicitudesPageProps) {
   const searchParams = await props.searchParams;
   const state = searchParams.state as string | undefined;
+  const tipoParam = searchParams.tipo as string | undefined;
+  const tipoValido = tipoParam === "credencial" || tipoParam === "alumno_regular" || tipoParam === "tarjeta_beneficio"
+    ? tipoParam
+    : "credencial";
   const solicitudes = await listarSolicitudesDocumentosAlumno();
 
   return (
@@ -105,7 +109,7 @@ export default async function AlumnoSolicitudesPage(props: AlumnoSolicitudesPage
                 id="solicitud-tipo"
                 name="tipo"
                 required
-                defaultValue="credencial"
+                defaultValue={tipoValido}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-primary-light dark:focus:ring-primary/30"
               >
                 <option value="credencial">Credencial</option>

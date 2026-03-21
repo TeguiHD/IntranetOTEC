@@ -8,6 +8,7 @@ import {
   Award,
   BookOpen,
   CalendarDays,
+  ClipboardList,
   DollarSign,
   FileText,
   GraduationCap,
@@ -69,6 +70,7 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Gestión",
     items: [
+      { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
       { href: "/admin/finanzas", label: "Finanzas", Icon: DollarSign, gradient: "grad-emerald" },
       { href: "/admin/certificados", label: "Certificados", Icon: Award, gradient: "grad-cyan" },
@@ -121,6 +123,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
   {
     title: "Gestión",
     items: [
+      { href: "/alumno/evaluaciones", label: "Mis Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText, gradient: "grad-violet" },
     ],
   },

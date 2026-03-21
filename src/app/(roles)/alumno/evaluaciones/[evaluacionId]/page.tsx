@@ -1,0 +1,162 @@
+import { CalendarDays, CheckCircle, ClipboardList, Clock } from "lucide-react";
+import { notFound } from "next/navigation";
+
+import {
+  listarEvaluacionesAlumno,
+  listarPreguntasByEvaluacion,
+} from "@/actions/evaluaciones";
+
+import { EvaluacionForm } from "./EvaluacionForm";
+
+type AlumnoEvaluacionPageProps = {
+  params: Promise<{ evaluacionId: string }>;
+  searchParams?: Promise<{ state?: string }>;
+};
+
+const TIPO_LABELS: Record<string, string> = {
+  formulario: "Formulario",
+  tarea: "Tarea",
+  examen: "Examen",
+  proyecto: "Proyecto",
+};
+
+export default async function AlumnoEvaluacionPage({
+  params,
+  searchParams,
+}: AlumnoEvaluacionPageProps) {
+  const { evaluacionId } = await params;
+  const sp = await (searchParams ?? Promise.resolve({} as { state?: string }));
+  const state = sp?.state;
+
+  // Load evaluacion list to find the specific one (already filtered to enrolled + publicada)
+  const evaluaciones = await listarEvaluacionesAlumno();
+  const evaluacion = evaluaciones.find((e) => e.id === evaluacionId);
+
+  if (!evaluacion) {
+    notFound();
+  }
+
+  const preguntas = await listarPreguntasByEvaluacion(evaluacionId);
+
+  const isSubmitted = state === "respuestas_enviadas";
+  const isOverdue =
+    evaluacion.fechaLimite && new Date(evaluacion.fechaLimite) < new Date();
+  const hasError = state === "error" || state === "max_intentos_reached" || state === "not_enrolled";
+
+  return (
+    <section className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            <h1 className="text-xl font-bold text-text-primary dark:text-white sm:text-2xl">
+              {evaluacion.titulo}
+            </h1>
+          </div>
+          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+            {evaluacion.asignaturaNombre}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            {TIPO_LABELS[evaluacion.tipo] ?? evaluacion.tipo}
+          </span>
+          {evaluacion.ponderacion && (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+              {evaluacion.ponderacion}%
+            </span>
+          )}
+        </div>
+      </header>
+
+      {/* Metadata row */}
+      <div className="flex flex-wrap gap-4 text-sm text-text-secondary dark:text-gray-400">
+        {evaluacion.fechaInicio && (
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-4 w-4" />
+            Inicio:{" "}
+            {new Date(evaluacion.fechaInicio).toLocaleDateString("es-CL", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+        )}
+        {evaluacion.fechaLimite && (
+          <span
+            className={`flex items-center gap-1.5 ${isOverdue ? "text-danger" : ""}`}
+          >
+            <CalendarDays className="h-4 w-4" />
+            {isOverdue ? "Venció el " : "Límite: "}
+            {new Date(evaluacion.fechaLimite).toLocaleDateString("es-CL", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <ClipboardList className="h-4 w-4" />
+          {evaluacion.totalPreguntas} pregunta
+          {evaluacion.totalPreguntas !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Success result */}
+      {isSubmitted && (
+        <article className="rounded-xl border border-success/30 bg-success/5 p-6 dark:border-success/40 dark:bg-success/10">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 shrink-0 text-success" />
+            <div>
+              <p className="font-semibold text-success">
+                Respuestas enviadas correctamente
+              </p>
+              <p className="mt-0.5 text-sm text-text-secondary dark:text-gray-400">
+                Tu evaluación ha sido registrada.
+              </p>
+            </div>
+          </div>
+        </article>
+      )}
+
+      {/* Error */}
+      {hasError && (
+        <article className="rounded-xl border border-danger/30 bg-danger/5 p-6 dark:border-danger/40 dark:bg-danger/10">
+          <p className="text-sm font-medium text-danger">
+            {state === "max_intentos_reached"
+              ? "Has alcanzado el número máximo de intentos para esta evaluación."
+              : state === "not_enrolled"
+                ? "No tienes matrícula en esta asignatura."
+                : "No fue posible enviar las respuestas. Intenta nuevamente."}
+          </p>
+        </article>
+      )}
+
+      {/* Form or no-questions state */}
+      {!isSubmitted && preguntas.length === 0 && (
+        <article className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-center text-sm text-text-secondary dark:text-gray-400">
+            Esta evaluación no tiene preguntas disponibles aún.
+          </p>
+        </article>
+      )}
+
+      {!isSubmitted && preguntas.length > 0 && (
+        <EvaluacionForm evaluacionId={evaluacionId} preguntas={preguntas} />
+      )}
+
+      {isSubmitted && preguntas.length > 0 && (
+        <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="mb-4 text-base font-semibold text-text-primary dark:text-gray-100">
+            Resumen de preguntas
+          </h2>
+          <p className="text-sm text-text-secondary dark:text-gray-400">
+            {preguntas.length} pregunta{preguntas.length !== 1 ? "s" : ""} respondida
+            {preguntas.length !== 1 ? "s" : ""}.
+          </p>
+        </article>
+      )}
+    </section>
+  );
+}

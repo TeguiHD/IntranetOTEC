@@ -223,7 +223,6 @@ const nextAuth = NextAuth({
     signIn: "/login",
     error: "/login",
   },
-  trustHost: true,
   session: {
     strategy: "jwt",
     maxAge: 12 * 60 * 60, // 12 hours

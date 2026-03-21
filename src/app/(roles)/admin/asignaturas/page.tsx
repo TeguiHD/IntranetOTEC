@@ -73,6 +73,8 @@ export default async function AdminAsignaturasPage({
     id: d.id,
     nombre: d.nombre ?? "",
     apellido: d.apellido ?? "",
+    rut: d.rut ?? null,
+    activo: d.activo ?? false,
   }));
 
   const asignaturasSimple = asignaturas.map((a) => ({

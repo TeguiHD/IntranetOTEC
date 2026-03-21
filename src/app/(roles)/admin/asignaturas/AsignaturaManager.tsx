@@ -2,12 +2,13 @@
 
 import { useRef, useMemo, useState, useTransition } from "react";
 
-import { BookOpen, Plus, Search, UserCog, X } from "lucide-react";
+import { BookOpen, Plus, RotateCcw, Search, UserCog, X } from "lucide-react";
 
 import {
   asignarDocenteFormAction,
   crearAsignaturaFormAction,
 } from "@/actions/asignaturas";
+import { activarUsuarioAction } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Pagination } from "@/components/shared/Pagination";
@@ -18,6 +19,8 @@ type Docente = {
   id: string;
   nombre: string;
   apellido: string;
+  rut: string | null;
+  activo: boolean;
 };
 
 type Asignatura = {
@@ -63,11 +66,13 @@ function DocenteCombobox({
   defaultId,
   name,
   onSelect,
+  onReactivated,
 }: {
   docentes: Docente[];
   defaultId: string | null;
   name: string;
   onSelect?: (d: Docente | null) => void;
+  onReactivated?: () => void;
 }) {
   const defaultDocente = docentes.find((d) => d.id === defaultId) ?? null;
   const [query, setQuery] = useState(
@@ -77,6 +82,8 @@ function DocenteCombobox({
   );
   const [selected, setSelected] = useState<Docente | null>(defaultDocente);
   const [open, setOpen] = useState(false);
+  const [reactivating, setReactivating] = useState<string | null>(null);
+  const [isPendingReactivate, startReactivateTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -85,11 +92,13 @@ function DocenteCombobox({
       (d) =>
         `${d.nombre} ${d.apellido}`.toLowerCase().includes(q) ||
         d.nombre.toLowerCase().includes(q) ||
-        d.apellido.toLowerCase().includes(q),
+        d.apellido.toLowerCase().includes(q) ||
+        (d.rut && d.rut.toLowerCase().includes(q)),
     );
   }, [docentes, query]);
 
   const handleSelect = (d: Docente) => {
+    if (!d.activo) return;
     setSelected(d);
     setQuery(`${d.nombre} ${d.apellido}`);
     setOpen(false);
@@ -101,6 +110,15 @@ function DocenteCombobox({
     setQuery("");
     setOpen(false);
     onSelect?.(null);
+  };
+
+  const handleReactivate = (d: Docente) => {
+    setReactivating(d.id);
+    startReactivateTransition(async () => {
+      await activarUsuarioAction({ userId: d.id });
+      setReactivating(null);
+      onReactivated?.();
+    });
   };
 
   return (
@@ -115,7 +133,7 @@ function DocenteCombobox({
           <input
             type="text"
             value={query}
-            placeholder="Buscar por nombre..."
+            placeholder="Buscar por nombre o RUT..."
             autoComplete="off"
             onChange={(e) => {
               setQuery(e.target.value);
@@ -124,7 +142,7 @@ function DocenteCombobox({
               onSelect?.(null);
             }}
             onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onBlur={() => setTimeout(() => setOpen(false), 200)}
             className="h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
           {selected && (
@@ -146,17 +164,54 @@ function DocenteCombobox({
           >
             {filtered.map((d) => (
               <li key={d.id} role="option" aria-selected={selected?.id === d.id}>
-                <button
-                  type="button"
-                  onMouseDown={() => handleSelect(d)}
-                  className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-primary/5 dark:hover:bg-primary/10 ${
-                    selected?.id === d.id
-                      ? "bg-primary/5 font-medium text-primary dark:bg-primary/10 dark:text-primary-light"
-                      : "text-text-primary dark:text-gray-100"
+                <div
+                  className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                    !d.activo
+                      ? "opacity-70"
+                      : selected?.id === d.id
+                        ? "bg-primary/5 dark:bg-primary/10"
+                        : "hover:bg-primary/5 dark:hover:bg-primary/10"
                   }`}
                 >
-                  {d.nombre} {d.apellido}
-                </button>
+                  <button
+                    type="button"
+                    onMouseDown={() => handleSelect(d)}
+                    disabled={!d.activo}
+                    className={`flex min-w-0 flex-1 flex-col text-left ${
+                      !d.activo ? "cursor-default" : "cursor-pointer"
+                    }`}
+                  >
+                    <span className={`truncate ${
+                      selected?.id === d.id
+                        ? "font-medium text-primary dark:text-primary-light"
+                        : "text-text-primary dark:text-gray-100"
+                    }`}>
+                      {d.nombre} {d.apellido}
+                    </span>
+                    <span className="text-[11px] text-text-muted dark:text-gray-500">
+                      {d.rut ?? "Sin RUT"}
+                    </span>
+                  </button>
+                  {d.activo ? (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      Activo
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleReactivate(d);
+                      }}
+                      disabled={isPendingReactivate && reactivating === d.id}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 transition-colors hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900"
+                    >
+                      <RotateCcw className={`h-3 w-3 ${isPendingReactivate && reactivating === d.id ? "animate-spin" : ""}`} />
+                      {isPendingReactivate && reactivating === d.id ? "Activando..." : "Inactivo · Reactivar"}
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

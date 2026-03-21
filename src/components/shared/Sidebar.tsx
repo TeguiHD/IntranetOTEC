@@ -7,13 +7,18 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   CalendarDays,
+  ClipboardCheck,
+  ClipboardList,
+  CreditCard,
+  FileCheck,
   FileText,
   GraduationCap,
   Home,
+  IdCard,
   LayoutDashboard,
   type LucideIcon,
-  ScrollText,
   Shield,
+  Upload,
   UserCog,
   Users,
   Wallet,
@@ -67,6 +72,8 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
       { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
+      { href: "/admin/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-gold" },
+      { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald" },
     ],
   },
   {
@@ -79,9 +86,10 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Gestión",
+    title: "Solicitudes",
     items: [
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
+      { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload, gradient: "grad-emerald" },
     ],
   },
 ];
@@ -113,12 +121,16 @@ const ALUMNO_SECTIONS: NavSection[] = [
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
       { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
+      { href: "/alumno/notas", label: "Mis Notas", Icon: ClipboardList, gradient: "grad-gold" },
+      { href: "/alumno/asistencias", label: "Mi Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald" },
     ],
   },
   {
-    title: "Gestión",
+    title: "Solicitudes",
     items: [
-      { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText, gradient: "grad-violet" },
+      { href: "/alumno/solicitudes?tipo=credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
+      { href: "/alumno/solicitudes?tipo=alumno_regular", label: "Cert. Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
+      { href: "/alumno/solicitudes?tipo=tarjeta_beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
     ],
   },
 ];

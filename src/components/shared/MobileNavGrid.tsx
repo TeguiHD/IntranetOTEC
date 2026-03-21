@@ -7,11 +7,16 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   CalendarDays,
+  ClipboardCheck,
+  ClipboardList,
+  CreditCard,
+  FileCheck,
   FileText,
   GraduationCap,
+  IdCard,
   LayoutDashboard,
   type LucideIcon,
-  ScrollText,
+  Upload,
   UserCog,
   Users,
   Wallet,
@@ -34,13 +39,16 @@ const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 const ADMIN_ITEMS: NavItem[] = [
-  { href: "/admin",              label: "Panel",       Icon: LayoutDashboard, gradient: "grad-purple" },
-  { href: "/admin/asignaturas",  label: "Asignaturas", Icon: BookOpen,        gradient: "grad-blue" },
-  { href: "/admin/clases",       label: "Clases",      Icon: CalendarDays,    gradient: "grad-cyan" },
-  { href: "/admin/docentes",     label: "Docentes",    Icon: UserCog,         gradient: "grad-amber" },
-  { href: "/admin/alumnos",      label: "Alumnos",     Icon: Users,           gradient: "grad-emerald" },
-  { href: "/admin/matriculas",   label: "Matrículas",  Icon: Wallet,          gradient: "grad-pink" },
-  { href: "/admin/solicitudes",  label: "Solicitudes", Icon: FileText,        gradient: "grad-violet" },
+  { href: "/admin",              label: "Panel",           Icon: LayoutDashboard, gradient: "grad-purple" },
+  { href: "/admin/asignaturas",  label: "Asignaturas",     Icon: BookOpen,        gradient: "grad-blue" },
+  { href: "/admin/clases",       label: "Clases",          Icon: CalendarDays,    gradient: "grad-cyan" },
+  { href: "/admin/notas",        label: "Notas",           Icon: ClipboardList,   gradient: "grad-gold" },
+  { href: "/admin/asistencias",  label: "Asistencias",     Icon: ClipboardCheck,  gradient: "grad-emerald" },
+  { href: "/admin/docentes",     label: "Docentes",        Icon: UserCog,         gradient: "grad-amber" },
+  { href: "/admin/alumnos",      label: "Alumnos",         Icon: Users,           gradient: "grad-emerald" },
+  { href: "/admin/matriculas",   label: "Matrículas",      Icon: Wallet,          gradient: "grad-pink" },
+  { href: "/admin/solicitudes",  label: "Solicitudes",     Icon: FileText,        gradient: "grad-violet" },
+  { href: "/admin/importar",     label: "Importar",        Icon: Upload,          gradient: "grad-emerald" },
 ];
 
 const DOCENTE_ITEMS: NavItem[] = [
@@ -49,10 +57,14 @@ const DOCENTE_ITEMS: NavItem[] = [
 ];
 
 const ALUMNO_ITEMS: NavItem[] = [
-  { href: "/alumno",             label: "Panel",       Icon: LayoutDashboard, gradient: "grad-purple" },
-  { href: "/alumno/asignaturas", label: "Mis Cursos",  Icon: GraduationCap,   gradient: "grad-blue" },
-  { href: "/alumno/clases",      label: "Clases",      Icon: CalendarDays,    gradient: "grad-cyan" },
-  { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText,      gradient: "grad-violet" },
+  { href: "/alumno",                                label: "Panel",             Icon: LayoutDashboard, gradient: "grad-purple" },
+  { href: "/alumno/asignaturas",                    label: "Mis Cursos",        Icon: GraduationCap,   gradient: "grad-blue" },
+  { href: "/alumno/clases",                         label: "Clases",            Icon: CalendarDays,    gradient: "grad-cyan" },
+  { href: "/alumno/notas",                          label: "Mis Notas",         Icon: ClipboardList,   gradient: "grad-gold" },
+  { href: "/alumno/asistencias",                    label: "Mi Asistencia",     Icon: ClipboardCheck,  gradient: "grad-emerald" },
+  { href: "/alumno/solicitudes?tipo=credencial",    label: "Credencial",        Icon: IdCard,          gradient: "grad-violet" },
+  { href: "/alumno/solicitudes?tipo=alumno_regular",label: "Cert. Alumno",      Icon: FileCheck,       gradient: "grad-blue" },
+  { href: "/alumno/solicitudes?tipo=tarjeta_beneficio", label: "Tarjeta Benef.", Icon: CreditCard,     gradient: "grad-pink" },
 ];
 
 const ROLE_ITEMS: Record<AppRole, NavItem[]> = {

@@ -1,18 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
-import { Eye, EyeOff, Plus } from "lucide-react";
+import { Eye, EyeOff, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 
-import { crearDocenteFormAction } from "@/actions/usuarios";
+import { crearDocenteAction } from "@/actions/usuarios";
 import { Modal } from "@/components/shared/Modal";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
+const CODE_MESSAGES: Record<string, string> = {
+  docente_created: "Docente creado exitosamente.",
+  docente_updated: "Docente restaurado y actualizado.",
+  email_conflict: "El correo ya está registrado por otro usuario.",
+  invalid_rut: "El RUT ingresado no es válido.",
+  invalid_email: "El correo ingresado no es válido.",
+  invalid_password_policy: "La contraseña no cumple con la política de seguridad.",
+  invalid_name: "Nombre o apellido inválidos.",
+  invalid_input: "Datos inválidos para crear docente.",
+  docente_mutation_failed: "No fue posible crear el docente. Intenta nuevamente.",
+  forbidden: "No tienes permisos para esta acción.",
+};
+
 export function DocenteCreateModal() {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+
+    const nombre = (formData.get("nombre") as string)?.trim() ?? "";
+    const apellido = (formData.get("apellido") as string)?.trim() ?? "";
+    const email = (formData.get("email") as string)?.trim() ?? "";
+    const rut = (formData.get("rut") as string)?.trim() ?? "";
+    const password = (formData.get("password") as string) ?? "";
+
+    if (!nombre || !apellido || !email || !rut || !password) {
+      toast.error("Todos los campos son obligatorios.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await crearDocenteAction({
+          nombre,
+          apellido,
+          email,
+          rut,
+          password,
+        });
+
+        if (result.ok) {
+          toast.success(CODE_MESSAGES[result.code] ?? "Docente creado exitosamente.");
+          form.reset();
+          setOpen(false);
+          // Force a page reload to refresh the table
+          window.location.href = `/admin/docentes?state=${result.code}`;
+        } else {
+          toast.error(CODE_MESSAGES[result.code] ?? result.message ?? "Error al crear docente.");
+        }
+      } catch {
+        toast.error("Error de conexión. Intenta nuevamente.");
+      }
+    });
+  };
 
   return (
     <>
@@ -32,7 +89,7 @@ export function DocenteCreateModal() {
         description="Ingresa los datos del docente. La contraseña debe cumplir con la política de seguridad."
         size="max-w-xl"
       >
-        <form action={crearDocenteFormAction} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label htmlFor="modal-docente-nombre" className="block text-sm font-medium text-text-primary dark:text-gray-200">
@@ -48,6 +105,7 @@ export function DocenteCreateModal() {
                 placeholder="Ej: María"
                 className={inputClass}
                 autoFocus
+                disabled={isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -63,6 +121,7 @@ export function DocenteCreateModal() {
                 maxLength={80}
                 placeholder="Ej: González"
                 className={inputClass}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -82,6 +141,7 @@ export function DocenteCreateModal() {
                 maxLength={180}
                 placeholder="docente@ejemplo.cl"
                 className={inputClass}
+                disabled={isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -98,6 +158,7 @@ export function DocenteCreateModal() {
                 maxLength={12}
                 placeholder="12.345.678-5"
                 className={inputClass}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -117,6 +178,7 @@ export function DocenteCreateModal() {
                 maxLength={128}
                 placeholder="Mínimo 12 caracteres"
                 className={`${inputClass} pr-11`}
+                disabled={isPending}
               />
               <button
                 type="button"
@@ -137,15 +199,24 @@ export function DocenteCreateModal() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              disabled={isPending}
+              className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              disabled={isPending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
             >
-              Crear Docente
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creando…
+                </>
+              ) : (
+                "Crear Docente"
+              )}
             </button>
           </div>
         </form>

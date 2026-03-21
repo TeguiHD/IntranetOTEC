@@ -27,11 +27,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type AdminMatriculasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     asignaturaId?: string;
     page?: string;
-  };
+  }>;
 };
 
 const estaPagado = (estadoPago: string | null | undefined): boolean =>
@@ -48,7 +48,8 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export default async function AdminMatriculasPage({ searchParams }: AdminMatriculasPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string; page?: string }));
+  const currentPage = Math.max(1, Number(params?.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   const asignaturas = await listarAsignaturasAdmin(
@@ -57,7 +58,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
   );
 
   const selectedAsignaturaIdRaw =
-    typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
+    typeof params?.asignaturaId === "string" ? params.asignaturaId : undefined;
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
@@ -105,7 +106,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params?.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">

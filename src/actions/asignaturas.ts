@@ -10,10 +10,12 @@ import { registrarAudit } from "@/lib/audit";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
+import { buildLikeTerm } from "@/lib/search";
 import {
   asignarDocenteInputSchema,
   asignaturaInputSchema,
   comboboxSearchQuerySchema,
+  editarAsignaturaInputSchema,
 } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
@@ -69,7 +71,7 @@ export async function buscarAsignaturasAdminAction(
   await finalizarAsignaturasVencidas();
 
   const db = getDb();
-  const term = `%${parsed.data}%`;
+  const term = buildLikeTerm(parsed.data);
 
   return db
     .select({
@@ -115,6 +117,12 @@ export async function listarAsignaturas(
   pagination: PaginationInput = {},
   options?: { incluirArchivadas?: boolean },
 ) {
+  // Bug #32: add auth check - was missing requireActionActor
+  const actorResult = await requireActionActor("asignatura_list", ["admin", "docente", "alumno"]);
+  if (!actorResult.ok) {
+    return [];
+  }
+
   await finalizarAsignaturasVencidas();
 
   const db = getDb();
@@ -392,6 +400,117 @@ export async function asignarDocenteAction(input: {
       message: "No fue posible asignar docente.",
     };
   }
+}
+
+// Fix #96: Add editarAsignaturaAction
+export async function editarAsignaturaAction(input: {
+  asignaturaId: string;
+  nombre: string;
+  descripcion?: string;
+  codigo?: string;
+  fechaInicio: string;
+  duracionMeses: number;
+  maxAlumnos: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_edit", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = editarAsignaturaInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Datos inválidos para editar asignatura.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: asignaturas.id, estado: asignaturas.estado })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, parsed.data.asignaturaId))
+      .limit(1);
+
+    if (!existing) {
+      return {
+        ok: false,
+        code: "asignatura_not_found",
+        message: "No se encontró la asignatura.",
+      };
+    }
+
+    if (existing.estado === "archivado") {
+      return {
+        ok: false,
+        code: "asignatura_closed",
+        message: "No puedes editar una asignatura archivada.",
+      };
+    }
+
+    await db
+      .update(asignaturas)
+      .set({
+        nombre: sanitizeText(parsed.data.nombre),
+        descripcion: sanitizeOptionalText(parsed.data.descripcion),
+        codigo: parsed.data.codigo,
+        fechaInicio: parsed.data.fechaInicio,
+        duracionMeses: parsed.data.duracionMeses,
+        maxAlumnos: parsed.data.maxAlumnos,
+        updatedAt: new Date(),
+      })
+      .where(eq(asignaturas.id, parsed.data.asignaturaId));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "asignaturas",
+      entidadId: parsed.data.asignaturaId,
+      payload: { nombre: parsed.data.nombre },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "asignatura_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_asignatura_edit_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return {
+      ok: false,
+      code: "edit_failed",
+      message: "No fue posible editar la asignatura.",
+    };
+  }
+}
+
+export async function editarAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await editarAsignaturaAction({
+    asignaturaId: getStringField(formData, "asignaturaId"),
+    nombre: getStringField(formData, "nombre"),
+    descripcion: getStringField(formData, "descripcion"),
+    codigo: getStringField(formData, "codigo"),
+    fechaInicio: getStringField(formData, "fechaInicio"),
+    duracionMeses: parseIntegerField(getStringField(formData, "duracionMeses")) ?? 0,
+    maxAlumnos: parseIntegerField(getStringField(formData, "maxAlumnos")) ?? 0,
+  });
+
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function crearAsignaturaFormAction(formData: FormData): Promise<void> {

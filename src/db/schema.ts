@@ -41,6 +41,7 @@ export const auditAccionEnum = pgEnum("audit_accion", [
   "exportar_excel",
   "cambiar_nota",
   "registrar_asistencia",
+  "cambiar_password",
 ]);
 
 export type Rol = (typeof rolEnum.enumValues)[number];
@@ -152,6 +153,7 @@ export const matriculas = pgTable(
     eliminadoAt: tstz("eliminado_at"),
     eliminadoPor: uuid("eliminado_por"),
     createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
   },
   (t) => ({
     uniq: unique().on(t.alumnoId, t.asignaturaId),

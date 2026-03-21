@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import Image from "next/image";
@@ -24,7 +23,7 @@ type LoginTab = "alumno" | "staff";
 
 const TAB_LABELS: Record<LoginTab, string> = {
   alumno: "Alumno",
-  staff: "Docente",
+  staff: "Admin / Docente",
 };
 
 const AUTH_ERROR_MESSAGE = "Credenciales inválidas. Verifica tus datos e inténtalo nuevamente.";
@@ -65,9 +64,11 @@ function OtecLogo() {
 }
 
 export function LoginView({ authError }: LoginViewProps) {
-  const router = useRouter();
-
-  const [activeTab, setActiveTab] = useState<LoginTab>("alumno");
+  const [activeTab, setActiveTab] = useState<LoginTab>(() => {
+    if (typeof window === "undefined") return "alumno";
+    const stored = localStorage.getItem("login_last_tab");
+    return stored === "alumno" || stored === "staff" ? stored : "alumno";
+  });
   const [rut, setRut] = useState("");
   const [isRutValid, setIsRutValid] = useState(false);
   const [email, setEmail] = useState("");
@@ -98,6 +99,12 @@ export function LoginView({ authError }: LoginViewProps) {
     toast.error(formError);
   }, [formError]);
 
+  const handleTabChange = (tab: LoginTab) => {
+    setFormError(null);
+    setActiveTab(tab);
+    localStorage.setItem("login_last_tab", tab);
+  };
+
   const runSignIn = (
     provider: "alumno-rut" | "staff-credentials",
     payload: Record<string, string>,
@@ -116,8 +123,8 @@ export function LoginView({ authError }: LoginViewProps) {
       }
 
       toast.success("Inicio de sesión exitoso. Redirigiendo...");
-      router.replace("/");
-      router.refresh();
+      // Full page load so the server middleware redirect to /{role} runs correctly
+      window.location.href = "/";
     });
   };
 
@@ -176,10 +183,7 @@ export function LoginView({ authError }: LoginViewProps) {
                 <button
                   key={tab}
                   type="button"
-                  onClick={() => {
-                    setFormError(null);
-                    setActiveTab(tab);
-                  }}
+                  onClick={() => handleTabChange(tab)}
                   className={`relative flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
                     active
                       ? "bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary-light"

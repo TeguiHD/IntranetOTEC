@@ -45,20 +45,29 @@ const ESTADO_LABELS: Record<string, string> = {
   rechazada: "Rechazada",
 };
 
+const VALID_TIPOS = ["credencial", "alumno_regular", "tarjeta_beneficio"] as const;
+type TipoSolicitud = typeof VALID_TIPOS[number];
+
 type AlumnoSolicitudesPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
-  };
+    tipo?: string;
+  }>;
 };
 
 export default async function AlumnoSolicitudesPage({
   searchParams,
 }: AlumnoSolicitudesPageProps) {
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; tipo?: string }));
+  const preselectedTipo: TipoSolicitud =
+    VALID_TIPOS.includes(params?.tipo as TipoSolicitud)
+      ? (params.tipo as TipoSolicitud)
+      : "credencial";
   const solicitudes = await listarSolicitudesDocumentosAlumno();
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params?.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
@@ -103,7 +112,7 @@ export default async function AlumnoSolicitudesPage({
                 id="solicitud-tipo"
                 name="tipo"
                 required
-                defaultValue="credencial"
+                defaultValue={preselectedTipo}
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-primary-light dark:focus:ring-primary/30"
               >
                 <option value="credencial">Credencial</option>

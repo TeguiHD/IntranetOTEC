@@ -6,18 +6,13 @@ import { parseAppRole, type AuthzContext } from "@/lib/authz";
 export async function getRequestAuthContext(
   request: NextRequest,
 ): Promise<AuthzContext | null> {
-  const forwardedProto = request.headers
-    .get("x-forwarded-proto")
-    ?.split(",")[0]
-    ?.trim()
-    ?.toLowerCase();
-  const secureByForwardedProto = forwardedProto === "https";
-  const secureByConfig = (process.env.AUTH_URL ?? "").startsWith("https://");
+  // Must match the cookie name used in src/auth.ts (isProd = NODE_ENV === "production")
+  const secureCookie = process.env.NODE_ENV === "production";
 
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
-    secureCookie: secureByForwardedProto || secureByConfig,
+    secureCookie,
   });
 
   if (!token) {

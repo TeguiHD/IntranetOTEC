@@ -218,6 +218,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/api/internal/rate-limit") ||
     pathname.startsWith("/api/internal/metrics") ||
+    pathname === "/api/health" ||
     isPublicApiRoute(pathname)
   ) {
     return finalize(

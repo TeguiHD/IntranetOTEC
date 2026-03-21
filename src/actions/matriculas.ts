@@ -186,6 +186,7 @@ export async function matricularAlumnoAction(input: {
       .select({
         id: asignaturas.id,
         estado: asignaturas.estado,
+        maxAlumnos: asignaturas.maxAlumnos,
       })
       .from(asignaturas)
       .where(eq(asignaturas.id, parsed.data.asignaturaId))
@@ -205,6 +206,27 @@ export async function matricularAlumnoAction(input: {
         code: "asignatura_closed",
         message: "No puedes matricular en una asignatura cerrada.",
       };
+    }
+
+    // Bug #31: validate maxAlumnos before enrolling
+    if (subject.maxAlumnos) {
+      const [enrolled] = await db
+        .select({ total: count() })
+        .from(matriculas)
+        .where(
+          and(
+            eq(matriculas.asignaturaId, parsed.data.asignaturaId),
+            eq(matriculas.activa, true),
+            isNull(matriculas.eliminadoAt),
+          ),
+        );
+      if ((enrolled?.total ?? 0) >= subject.maxAlumnos) {
+        return {
+          ok: false,
+          code: "max_alumnos_reached",
+          message: `La asignatura ya alcanzó el cupo máximo de ${subject.maxAlumnos} alumnos.`,
+        };
+      }
     }
 
     const [student] = await db
@@ -252,6 +274,7 @@ export async function matricularAlumnoAction(input: {
           activa: true,
           eliminadoAt: null,
           eliminadoPor: null,
+          updatedAt: new Date(),
         })
         .where(eq(matriculas.id, existing.id));
 
@@ -443,6 +466,7 @@ export async function editarMatriculaAction(input: {
       .set({
         estadoPago: parsed.data.estadoPago,
         montoArancel: formatMoneyForDb(parsed.data.montoArancel),
+        updatedAt: new Date(),
       })
       .where(eq(matriculas.id, row.id));
 

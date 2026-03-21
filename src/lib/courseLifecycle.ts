@@ -18,7 +18,17 @@ const parseIsoDateUtc = (value: string): Date | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+// Performance #51: throttle to max once per 60 seconds instead of 14+ calls per request
+let lastRunAt = 0;
+const THROTTLE_MS = 60_000;
+
 export async function finalizarAsignaturasVencidas(): Promise<number> {
+  const now = Date.now();
+  if (now - lastRunAt < THROTTLE_MS) {
+    return 0;
+  }
+  lastRunAt = now;
+
   const db = getDb();
   const todayStart = toUtcDayStart(new Date());
 
@@ -47,12 +57,12 @@ export async function finalizarAsignaturasVencidas(): Promise<number> {
     return 0;
   }
 
-  const now = new Date();
+  const timestamp = new Date();
   await Promise.all(
     expiredIds.map((id) =>
       db
         .update(asignaturas)
-        .set({ estado: "finalizado", updatedAt: now })
+        .set({ estado: "finalizado", updatedAt: timestamp })
         .where(and(eq(asignaturas.id, id), eq(asignaturas.estado, "activo"))),
     ),
   );

@@ -26,16 +26,17 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> =
   };
 
 type AdminAsignaturasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     page?: string;
-  };
+  }>;
 };
 
 export default async function AdminAsignaturasPage({
   searchParams,
 }: AdminAsignaturasPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string }));
+  const currentPage = Math.max(1, Number(params?.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   const [asignaturas, docentes, totalCount] = await Promise.all([
@@ -45,8 +46,6 @@ export default async function AdminAsignaturasPage({
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const buildHref = (page: number): string => `/admin/asignaturas?page=${page}`;
-
   const docentesSimple = docentes.map((d) => ({
     id: d.id,
     nombre: d.nombre ?? "",
@@ -68,7 +67,7 @@ export default async function AdminAsignaturasPage({
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params?.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-gray-100 sm:text-2xl">
@@ -86,7 +85,7 @@ export default async function AdminAsignaturasPage({
           totalCount={totalCount}
           currentPage={currentPage}
           totalPages={totalPages}
-          buildHref={buildHref}
+          buildHref="/admin/asignaturas"
         />
       </article>
     </section>

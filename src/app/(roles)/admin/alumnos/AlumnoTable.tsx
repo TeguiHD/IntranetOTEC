@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useTransition } from "react";
 
-import { Pencil, Search } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, Pencil, Search } from "lucide-react";
 
 import {
   activarAlumnoFormAction,
@@ -126,6 +127,13 @@ export function AlumnoTable({ alumnos }: AlumnoTableProps) {
                   </span>
                 </div>
                 <div className="mt-3 flex gap-2">
+                  <Link
+                    href={`/admin/alumnos/${a.id}`}
+                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-medium text-text-primary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200 dark:hover:border-primary-light dark:hover:text-primary-light"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Historial
+                  </Link>
                   <button
                     type="button"
                     onClick={() => setEditing(a)}
@@ -177,6 +185,13 @@ export function AlumnoTable({ alumnos }: AlumnoTableProps) {
                     </td>
                     <td className="px-3 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
+                        <Link
+                          href={`/admin/alumnos/${a.id}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-text-secondary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-primary-light dark:hover:text-primary-light"
+                          aria-label={`Ver historial de ${a.nombre} ${a.apellido}`}
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                        </Link>
                         <button
                           type="button"
                           onClick={() => setEditing(a)}

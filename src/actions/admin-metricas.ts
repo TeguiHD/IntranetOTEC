@@ -21,6 +21,7 @@ export type MetricasGlobales = {
   asignaturasActivas: number;
   asignaturasPorFinalizar: number;
   totalClases: number;
+  totalMatriculas: number;
   solicitudesPendientes: number;
 };
 
@@ -73,6 +74,11 @@ export async function obtenerMetricasGlobales(): Promise<MetricasGlobales | null
     .from(solicitudesDocumentos)
     .where(eq(solicitudesDocumentos.estado, "pendiente"));
 
+  const [matriculasCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(matriculas)
+    .where(and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
+
   return {
     totalDocentes: Number(docentesCount?.count ?? 0),
     totalAlumnos: Number(alumnosCount?.count ?? 0),
@@ -80,6 +86,7 @@ export async function obtenerMetricasGlobales(): Promise<MetricasGlobales | null
     asignaturasActivas: activasCount,
     asignaturasPorFinalizar: finalizadoCount,
     totalClases: Number(clasesCount?.count ?? 0),
+    totalMatriculas: Number(matriculasCount?.count ?? 0),
     solicitudesPendientes: Number(solicitudesCount?.count ?? 0),
   };
 }

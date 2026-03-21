@@ -296,6 +296,78 @@ export const crearClaseInputSchema = z
     }
   });
 
+// Bug #35: Zod schema for editarClaseAction (replaces manual validation)
+export const editarClaseInputSchema = z
+  .object({
+    id: z.string().uuid("Clase inválida."),
+    titulo: z
+      .string()
+      .transform(trimAndCollapse)
+      .pipe(z.string().min(3, "Título muy corto.").max(140, "Título demasiado largo.")),
+    descripcion: optionalTrimmed(600),
+    fecha: isoDate,
+    horaInicio: optionalTime,
+    tipoUrl: z
+      .union([
+        z.enum(["youtube", "vimeo", "drive", "directo"]),
+        z.undefined(),
+      ])
+      .optional(),
+    urlGrabacion: z
+      .union([z.string(), z.undefined()])
+      .transform((value) => {
+        if (typeof value !== "string") return undefined;
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+      })
+      .refine((value) => !value || value.length <= 500, "URL demasiado larga."),
+    publicada: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (value.urlGrabacion && !value.tipoUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tipoUrl"],
+        message: "Debes seleccionar el tipo de video.",
+      });
+    }
+    if (value.urlGrabacion && !sanitizeVideoUrl(value.urlGrabacion)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urlGrabacion"],
+        message: "La URL de video no está permitida.",
+      });
+    }
+  });
+
+// Bug #96: Zod schema for editarAsignaturaAction
+export const editarAsignaturaInputSchema = z.object({
+  asignaturaId: z.string().uuid("Asignatura inválida."),
+  nombre: z
+    .string()
+    .transform(trimAndCollapse)
+    .pipe(z.string().min(3, "Nombre muy corto.").max(120, "Nombre demasiado largo.")),
+  descripcion: optionalTrimmed(500),
+  codigo: z
+    .union([z.string(), z.undefined()])
+    .transform((value) => {
+      if (typeof value !== "string") return undefined;
+      const trimmed = value.trim().toUpperCase();
+      return trimmed.length > 0 ? trimmed : undefined;
+    })
+    .refine(
+      (value) => !value || /^[A-Z0-9-]{3,24}$/.test(value),
+      "Código inválido (solo mayúsculas, números y guion).",
+    ),
+  fechaInicio: isoDate,
+  duracionMeses: z.union([z.literal(2), z.literal(4), z.literal(6)]),
+  maxAlumnos: z
+    .number()
+    .int("Debe ser un número entero.")
+    .min(1, "Debe permitir al menos 1 alumno.")
+    .max(300, "Máximo 300 alumnos."),
+});
+
 export const desactivarUsuarioInputSchema = z.object({
   userId: z.string().uuid("Usuario inválido."),
 });
@@ -368,3 +440,89 @@ export const comboboxSearchQuerySchema = z
     (value) => !/[<>]/.test(value),
     "La búsqueda contiene caracteres no permitidos.",
   );
+
+export const crearFinanzaInputSchema = z.object({
+  tipo: z.enum(["ingreso", "gasto"]),
+  monto: z
+    .number()
+    .positive("El monto debe ser mayor a 0.")
+    .refine(
+      (value) => Number.isFinite(value),
+      "Monto inválido.",
+    ),
+  descripcion: z
+    .string()
+    .transform(trimAndCollapse)
+    .pipe(
+      z
+        .string()
+        .min(3, "Descripción muy corta.")
+        .max(500, "Descripción demasiado larga."),
+    ),
+  categoria: optionalTrimmed(120),
+  asignaturaId: z
+    .union([z.string().uuid(), z.undefined()])
+    .optional(),
+  fecha: isoDate,
+  comprobanteUrl: z
+    .union([z.string(), z.undefined()])
+    .transform((value) => {
+      if (typeof value !== "string") return undefined;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    })
+    .refine((value) => !value || value.length <= 500, "URL demasiado larga."),
+});
+
+export const emitirCertificadoInputSchema = z.object({
+  matriculaId: z.string().uuid("Matrícula inválida."),
+  tipo: z.enum(["alumno_regular", "termino_curso"]),
+});
+
+export const editarFinanzaInputSchema = z.object({
+  id: z.string().uuid("Registro financiero inválido."),
+  tipo: z.enum(["ingreso", "gasto"]),
+  monto: z
+    .number()
+    .positive("El monto debe ser mayor a 0.")
+    .refine(
+      (value) => Number.isFinite(value),
+      "Monto inválido.",
+    ),
+  descripcion: z
+    .string()
+    .transform(trimAndCollapse)
+    .pipe(
+      z
+        .string()
+        .min(3, "Descripción muy corta.")
+        .max(500, "Descripción demasiado larga."),
+    ),
+  categoria: optionalTrimmed(120),
+  asignaturaId: z
+    .union([z.string().uuid(), z.undefined()])
+    .optional(),
+  fecha: isoDate,
+  comprobanteUrl: z
+    .union([z.string(), z.undefined()])
+    .transform((value) => {
+      if (typeof value !== "string") return undefined;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    })
+    .refine((value) => !value || value.length <= 500, "URL demasiado larga."),
+});
+
+export const cambiarPasswordInputSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Debes ingresar tu contraseña actual."),
+    newPassword: z
+      .string()
+      .min(8, "La nueva contraseña debe tener mínimo 8 caracteres.")
+      .max(72, "La nueva contraseña debe tener máximo 72 caracteres."),
+    confirmPassword: z.string().min(1, "Debes confirmar la nueva contraseña."),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Las contraseñas no coinciden.",
+    path: ["confirmPassword"],
+  });

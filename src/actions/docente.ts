@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -82,13 +82,17 @@ const observacionDocenteInputSchema = z.object({
 
 const assertDocenteOwnsAsignatura = async (docenteId: string, asignaturaId: string) => {
   const db = getDb();
-  const [owned] = await db
-    .select({ id: asignaturas.id })
+  const [asignatura] = await db
+    .select({ id: asignaturas.id, estado: asignaturas.estado, docenteId: asignaturas.docenteId })
     .from(asignaturas)
-    .where(and(eq(asignaturas.id, asignaturaId), eq(asignaturas.docenteId, docenteId)))
+    .where(eq(asignaturas.id, asignaturaId))
     .limit(1);
 
-  return Boolean(owned);
+  if (!asignatura || asignatura.docenteId !== docenteId) {
+    return null;
+  }
+
+  return asignatura;
 };
 
 export async function listarAsignaturasDocente() {
@@ -121,8 +125,8 @@ export async function listarMatriculasDocente(asignaturaId: string) {
     return [];
   }
 
-  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
-  if (!isOwner) {
+  const asignatura = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!asignatura) {
     return [];
   }
 
@@ -149,8 +153,8 @@ export async function listarClasesDocente(asignaturaId: string) {
     return [];
   }
 
-  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
-  if (!isOwner) {
+  const asignatura = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!asignatura) {
     return [];
   }
 
@@ -165,7 +169,7 @@ export async function listarClasesDocente(asignaturaId: string) {
       horaInicio: clases.horaInicio,
     })
     .from(clases)
-    .where(eq(clases.asignaturaId, asignaturaId))
+    .where(and(eq(clases.asignaturaId, asignaturaId), isNull(clases.eliminadoAt)))
     .orderBy(asc(clases.numeroSesion));
 }
 
@@ -175,8 +179,8 @@ export async function listarNotasDocente(asignaturaId: string) {
     return [];
   }
 
-  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
-  if (!isOwner) {
+  const asignatura = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!asignatura) {
     return [];
   }
 
@@ -205,8 +209,8 @@ export async function listarObservacionesDocente(asignaturaId: string) {
     return [];
   }
 
-  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
-  if (!isOwner) {
+  const asignatura = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!asignatura) {
     return [];
   }
 
@@ -248,47 +252,54 @@ export async function crearClaseDocenteAction(input: {
     return { ok: false, code: "invalid_input", message: "Clase inválida." };
   }
 
-  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, parsed.data.asignaturaId);
-  if (!isOwner) {
+  const asignatura = await assertDocenteOwnsAsignatura(actorResult.actor.userId, parsed.data.asignaturaId);
+  if (!asignatura) {
     return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
   }
 
-  const db = getDb();
-  const [subject] = await db
-    .select({ estado: asignaturas.estado })
-    .from(asignaturas)
-    .where(eq(asignaturas.id, parsed.data.asignaturaId))
-    .limit(1);
-
-  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+  if (asignatura.estado === "archivado" || asignatura.estado === "finalizado") {
     return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
   }
 
-  const [created] = await db
-    .insert(clases)
-    .values({
-      asignaturaId: parsed.data.asignaturaId,
-      titulo: sanitizeText(parsed.data.titulo),
-      fecha: parsed.data.fecha,
-      horaInicio: parsed.data.horaInicio,
-      numeroSesion: parsed.data.numeroSesion,
-      publicada: true,
-      createdAt: new Date(),
-    })
-    .returning({ id: clases.id });
+  const db = getDb();
 
-  await registrarAudit({
-    correlationId: actorResult.actor.correlationId,
-    userId: actorResult.actor.userId,
-    userRol: actorResult.actor.userRol,
-    accion: "crear",
-    entidad: "clases",
-    entidadId: created.id,
-    payload: { origen: "docente" },
-    exitoso: true,
-  });
+  try {
+    const [created] = await db
+      .insert(clases)
+      .values({
+        asignaturaId: parsed.data.asignaturaId,
+        titulo: sanitizeText(parsed.data.titulo),
+        fecha: parsed.data.fecha,
+        horaInicio: parsed.data.horaInicio,
+        numeroSesion: parsed.data.numeroSesion,
+        publicada: true,
+        createdAt: new Date(),
+      })
+      .returning({ id: clases.id });
 
-  return { ok: true, code: "clase_docente_created" };
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "crear",
+      entidad: "clases",
+      entidadId: created.id,
+      payload: { origen: "docente" },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "clase_docente_created" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    if (message.includes("clases_asignatura_id_numero_sesion") || message.includes("duplicate key")) {
+      return {
+        ok: false,
+        code: "clase_sesion_conflict",
+        message: "Ya existe una clase con ese número de sesión.",
+      };
+    }
+    return { ok: false, code: "clase_create_failed", message: "No se pudo crear la clase." };
+  }
 }
 
 export async function editarClaseDocenteAction(input: {
@@ -525,6 +536,31 @@ export async function registrarNotaDocenteAction(input: {
 
   const anioRegistro = fechaRegistro.getUTCFullYear();
 
+  // Bug #33: upsert to prevent duplicate notas for same matrícula+fecha
+  const [existing] = await db
+    .select({ id: notasDocente.id })
+    .from(notasDocente)
+    .where(
+      and(
+        eq(notasDocente.matriculaId, parsed.data.matriculaId),
+        eq(notasDocente.asignaturaId, parsed.data.asignaturaId),
+        eq(notasDocente.fechaRegistro, parsed.data.fechaRegistro),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(notasDocente)
+      .set({
+        nota: parsed.data.nota.toFixed(1),
+        updatedAt: new Date(),
+      })
+      .where(eq(notasDocente.id, existing.id));
+
+    return { ok: true, code: "nota_updated" };
+  }
+
   await db.insert(notasDocente).values({
     docenteId: actorResult.actor.userId,
     asignaturaId: parsed.data.asignaturaId,
@@ -599,6 +635,196 @@ export async function registrarObservacionDocenteAction(input: {
   });
 
   return { ok: true, code: "observacion_created" };
+}
+
+const editarNotaDocenteInputSchema = z.object({
+  notaId: z.string().uuid(),
+  nota: z.number().min(1).max(7),
+});
+
+// Fix #94: Allow docente to edit a nota
+export async function editarNotaDocenteAction(input: {
+  notaId: string;
+  nota: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_nota_edit", ["docente"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = editarNotaDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Nota inválida." };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: notasDocente.id, docenteId: notasDocente.docenteId })
+    .from(notasDocente)
+    .where(eq(notasDocente.id, parsed.data.notaId))
+    .limit(1);
+
+  if (!existing) return { ok: false, code: "nota_not_found", message: "Nota no encontrada." };
+  if (existing.docenteId !== actorResult.actor.userId) {
+    return { ok: false, code: "forbidden", message: "Solo puedes editar tus propias notas." };
+  }
+
+  await db
+    .update(notasDocente)
+    .set({ nota: parsed.data.nota.toFixed(1), updatedAt: new Date() })
+    .where(eq(notasDocente.id, parsed.data.notaId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "cambiar_nota",
+    entidad: "notas_docente",
+    entidadId: parsed.data.notaId,
+    payload: { nota: parsed.data.nota },
+    exitoso: true,
+  });
+
+  return { ok: true, code: "nota_updated" };
+}
+
+const eliminarNotaDocenteInputSchema = z.object({
+  notaId: z.string().uuid(),
+});
+
+// Fix #94: Allow docente to delete a nota
+export async function eliminarNotaDocenteAction(input: {
+  notaId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_nota_delete", ["docente"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = eliminarNotaDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Identificador de nota inválido." };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: notasDocente.id, docenteId: notasDocente.docenteId })
+    .from(notasDocente)
+    .where(eq(notasDocente.id, parsed.data.notaId))
+    .limit(1);
+
+  if (!existing) return { ok: false, code: "nota_not_found", message: "Nota no encontrada." };
+  if (existing.docenteId !== actorResult.actor.userId) {
+    return { ok: false, code: "forbidden", message: "Solo puedes eliminar tus propias notas." };
+  }
+
+  await db.delete(notasDocente).where(eq(notasDocente.id, parsed.data.notaId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "notas_docente",
+    entidadId: parsed.data.notaId,
+    payload: {},
+    exitoso: true,
+  });
+
+  return { ok: true, code: "nota_deleted" };
+}
+
+const editarObservacionDocenteInputSchema = z.object({
+  observacionId: z.string().uuid(),
+  observacion: z
+    .string()
+    .transform((v) => sanitizeText(v).trim())
+    .pipe(z.string().min(3).max(500))
+    .refine((v) => !/[<>]/.test(v), "Observación inválida"),
+});
+
+// Fix #95: Allow docente to edit an observacion
+export async function editarObservacionDocenteAction(input: {
+  observacionId: string;
+  observacion: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_observacion_edit", ["docente"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = editarObservacionDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Observación inválida." };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: observacionesDocente.id, docenteId: observacionesDocente.docenteId })
+    .from(observacionesDocente)
+    .where(eq(observacionesDocente.id, parsed.data.observacionId))
+    .limit(1);
+
+  if (!existing) return { ok: false, code: "observacion_not_found", message: "Observación no encontrada." };
+  if (existing.docenteId !== actorResult.actor.userId) {
+    return { ok: false, code: "forbidden", message: "Solo puedes editar tus propias observaciones." };
+  }
+
+  await db
+    .update(observacionesDocente)
+    .set({ observacion: parsed.data.observacion })
+    .where(eq(observacionesDocente.id, parsed.data.observacionId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "editar",
+    entidad: "observaciones_docente",
+    entidadId: parsed.data.observacionId,
+    payload: {},
+    exitoso: true,
+  });
+
+  return { ok: true, code: "observacion_updated" };
+}
+
+const eliminarObservacionDocenteInputSchema = z.object({
+  observacionId: z.string().uuid(),
+});
+
+// Fix #95: Allow docente to delete an observacion
+export async function eliminarObservacionDocenteAction(input: {
+  observacionId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_observacion_delete", ["docente"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = eliminarObservacionDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Identificador de observación inválido." };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: observacionesDocente.id, docenteId: observacionesDocente.docenteId })
+    .from(observacionesDocente)
+    .where(eq(observacionesDocente.id, parsed.data.observacionId))
+    .limit(1);
+
+  if (!existing) return { ok: false, code: "observacion_not_found", message: "Observación no encontrada." };
+  if (existing.docenteId !== actorResult.actor.userId) {
+    return { ok: false, code: "forbidden", message: "Solo puedes eliminar tus propias observaciones." };
+  }
+
+  await db.delete(observacionesDocente).where(eq(observacionesDocente.id, parsed.data.observacionId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "observaciones_docente",
+    entidadId: parsed.data.observacionId,
+    payload: {},
+    exitoso: true,
+  });
+
+  return { ok: true, code: "observacion_deleted" };
 }
 
 export async function crearClaseDocenteFormAction(formData: FormData): Promise<void> {
@@ -677,4 +903,55 @@ export async function registrarObservacionDocenteFormAction(formData: FormData):
 
   revalidatePath("/docente/asignaturas");
   redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+export type ResumenDocente = {
+  totalAlumnos: number;
+  proximasClases: number;
+};
+
+/**
+ * Returns aggregate counts for the dashboard: total enrolled active alumnos
+ * across all the docente's asignaturas, and number of upcoming/today classes.
+ */
+export async function obtenerResumenDocente(): Promise<ResumenDocente> {
+  const actorResult = await requireActionActor("docente_resumen", ["docente"]);
+  if (!actorResult.ok) {
+    return { totalAlumnos: 0, proximasClases: 0 };
+  }
+
+  const db = getDb();
+  const docenteId = actorResult.actor.userId;
+
+  // Today's date as YYYY-MM-DD in UTC
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [alumnosRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(matriculas)
+    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .where(
+      and(
+        eq(asignaturas.docenteId, docenteId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    );
+
+  const [clasesRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(clases)
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(
+      and(
+        eq(asignaturas.docenteId, docenteId),
+        isNull(clases.eliminadoAt),
+        gte(clases.fecha, today),
+      ),
+    );
+
+  return {
+    totalAlumnos: Number(alumnosRow?.count ?? 0),
+    proximasClases: Number(clasesRow?.count ?? 0),
+  };
 }

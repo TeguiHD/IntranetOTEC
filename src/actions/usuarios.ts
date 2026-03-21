@@ -5,17 +5,30 @@ import { randomUUID } from "node:crypto";
 import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas, material, matriculas, usuarios } from "@/db/schema";
+import {
+  asignaturas,
+  asistencia,
+  clases,
+  evaluaciones,
+  material,
+  matriculas,
+  notas,
+  observacionesDocente,
+  usuarios,
+} from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { logEvent } from "@/lib/observability/logger";
 import { formatearRut } from "@/lib/rut";
 import { sanitizeText } from "@/lib/sanitize";
+import { buildLikeTerm } from "@/lib/search";
 import {
   alumnoInputSchema,
   buscarPersonaPorRutInputSchema,
+  cambiarPasswordInputSchema,
   comboboxSearchQuerySchema,
   docenteInputSchema,
   desactivarUsuarioInputSchema,
@@ -186,7 +199,7 @@ export async function buscarAlumnosAction(query: string): Promise<AlumnoBusqueda
   const q = parsed.data;
 
   const db = getDb();
-  const term = `%${q}%`;
+  const term = buildLikeTerm(q);
 
   return db
     .select({
@@ -549,6 +562,15 @@ export async function crearDocenteAction(input: {
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
 
+    // Bug #1: handle unique constraint race condition
+    if (message.includes("unique") || message.includes("duplicate")) {
+      return {
+        ok: false,
+        code: "email_conflict",
+        message: "El RUT o correo ya está registrado. Intenta nuevamente.",
+      };
+    }
+
     logEvent({
       correlationId: actorResult.actor.correlationId,
       action: "admin_docente_mutation_failed",
@@ -739,6 +761,15 @@ export async function crearAlumnoAction(input: {
     return { ok: true, code: "alumno_created" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
+
+    // Bug #1: handle unique constraint race condition
+    if (message.includes("unique") || message.includes("duplicate")) {
+      return {
+        ok: false,
+        code: "email_conflict",
+        message: "El RUT o correo ya está registrado. Intenta nuevamente.",
+      };
+    }
 
     logEvent({
       correlationId: actorResult.actor.correlationId,
@@ -1052,7 +1083,7 @@ export async function editarDocenteAction(input: {
     return {
       ok: false,
       code: "invalid_input",
-      message: parsed.error.issues.map((i) => i.message).join(", "),
+      message: "Datos inválidos. Verifica los campos e intenta nuevamente.",
     };
   }
 
@@ -1234,4 +1265,333 @@ export async function editarAlumnoFormAction(formData: FormData): Promise<void> 
 
   revalidatePath("/admin/alumnos");
   redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+}
+
+// ─── Admin alumno detail ──────────────────────────────────────────────────────
+
+export type DetalleAlumnoMatricula = {
+  matriculaId: string;
+  asignaturaId: string;
+  asignaturaNombre: string;
+  estadoAsignatura: "borrador" | "activo" | "finalizado" | "archivado" | null;
+  estadoPago: "pendiente" | "pagado" | "mora" | "becado" | null;
+  activa: boolean | null;
+  fechaMatricula: Date | null;
+};
+
+export type DetalleAlumnoNota = {
+  notaId: string;
+  matriculaId: string;
+  asignaturaNombre: string;
+  evaluacionTitulo: string;
+  tipoEval: "formulario" | "tarea" | "examen" | "proyecto" | null;
+  nota: string | null;
+  observacion: string | null;
+  fechaNota: Date | null;
+};
+
+export type DetalleAlumnoAsistencia = {
+  asignaturaId: string;
+  asignaturaNombre: string;
+  presente: number;
+  ausente: number;
+  tardanza: number;
+  justificado: number;
+};
+
+export type DetalleAlumnoObservacion = {
+  observacionId: string;
+  asignaturaNombre: string;
+  docenteNombre: string;
+  observacion: string;
+  fechaRegistro: string;
+};
+
+export type DetalleAlumnoAdminResult =
+  | { ok: false; code: string; message: string }
+  | {
+      ok: true;
+      alumno: {
+        id: string;
+        nombre: string;
+        apellido: string;
+        rut: string | null;
+        email: string | null;
+        activo: boolean | null;
+        fechaCreacion: Date | null;
+      };
+      matriculas: DetalleAlumnoMatricula[];
+      notas: DetalleAlumnoNota[];
+      asistencias: DetalleAlumnoAsistencia[];
+      observaciones: DetalleAlumnoObservacion[];
+    };
+
+export async function obtenerDetalleAlumnoAdmin(
+  alumnoId: string,
+): Promise<DetalleAlumnoAdminResult> {
+  const actorResult = await requireActionActor("admin_alumno_detail", ["admin"]);
+
+  if (!actorResult.ok) {
+    const res = actorResult.result;
+    return {
+      ok: false,
+      code: res.code,
+      message: res.ok ? "No autorizado para esta acción." : res.message,
+    };
+  }
+
+  if (!alumnoId || typeof alumnoId !== "string") {
+    return { ok: false, code: "invalid_input", message: "ID de alumno inválido." };
+  }
+
+  const db = getDb();
+
+  // 1. Fetch the alumno
+  const [alumno] = await db
+    .select({
+      id: usuarios.id,
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      rut: usuarios.rut,
+      email: usuarios.email,
+      activo: usuarios.activo,
+      fechaCreacion: usuarios.createdAt,
+    })
+    .from(usuarios)
+    .where(and(eq(usuarios.id, alumnoId), eq(usuarios.rol, "alumno")))
+    .limit(1);
+
+  if (!alumno) {
+    return { ok: false, code: "not_found", message: "Alumno no encontrado." };
+  }
+
+  // 2. Fetch matriculas
+  const alumnoMatriculas = await db
+    .select({
+      matriculaId: matriculas.id,
+      asignaturaId: asignaturas.id,
+      asignaturaNombre: asignaturas.nombre,
+      estadoAsignatura: asignaturas.estado,
+      estadoPago: matriculas.estadoPago,
+      activa: matriculas.activa,
+      fechaMatricula: matriculas.createdAt,
+    })
+    .from(matriculas)
+    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .where(and(eq(matriculas.alumnoId, alumnoId), isNull(matriculas.eliminadoAt)))
+    .orderBy(desc(matriculas.createdAt));
+
+  // 3. Fetch notas (via evaluaciones)
+  const alumnoNotas = await db
+    .select({
+      notaId: notas.id,
+      matriculaId: notas.matriculaId,
+      asignaturaNombre: asignaturas.nombre,
+      evaluacionTitulo: evaluaciones.titulo,
+      tipoEval: evaluaciones.tipo,
+      nota: notas.nota,
+      observacion: notas.observacion,
+      fechaNota: notas.fechaNota,
+    })
+    .from(notas)
+    .innerJoin(matriculas, eq(notas.matriculaId, matriculas.id))
+    .innerJoin(evaluaciones, eq(notas.evaluacionId, evaluaciones.id))
+    .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+    .where(
+      and(
+        eq(matriculas.alumnoId, alumnoId),
+        isNull(notas.eliminadoAt),
+      ),
+    )
+    .orderBy(desc(notas.fechaNota));
+
+  // 4. Fetch asistencias aggregated per asignatura
+  const rawAsistencias = await db
+    .select({
+      asignaturaId: asignaturas.id,
+      asignaturaNombre: asignaturas.nombre,
+      estado: asistencia.estado,
+      cantidad: count(asistencia.id),
+    })
+    .from(asistencia)
+    .innerJoin(matriculas, eq(asistencia.matriculaId, matriculas.id))
+    .innerJoin(clases, eq(asistencia.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(eq(matriculas.alumnoId, alumnoId))
+    .groupBy(asignaturas.id, asignaturas.nombre, asistencia.estado)
+    .orderBy(asignaturas.nombre);
+
+  // Aggregate into per-asignatura summary
+  const asistenciasMap = new Map<
+    string,
+    DetalleAlumnoAsistencia
+  >();
+  for (const row of rawAsistencias) {
+    const key = row.asignaturaId;
+    if (!asistenciasMap.has(key)) {
+      asistenciasMap.set(key, {
+        asignaturaId: row.asignaturaId,
+        asignaturaNombre: row.asignaturaNombre,
+        presente: 0,
+        ausente: 0,
+        tardanza: 0,
+        justificado: 0,
+      });
+    }
+    const entry = asistenciasMap.get(key)!;
+    const cant = Number(row.cantidad);
+    if (row.estado === "presente") entry.presente = cant;
+    else if (row.estado === "ausente") entry.ausente = cant;
+    else if (row.estado === "tardanza") entry.tardanza = cant;
+    else if (row.estado === "justificado") entry.justificado = cant;
+  }
+
+  // 5. Fetch observaciones
+  const alumnoObservaciones = await db
+    .select({
+      observacionId: observacionesDocente.id,
+      asignaturaNombre: asignaturas.nombre,
+      docenteNombre: sql<string>`concat(${usuarios.nombre}, ' ', ${usuarios.apellido})`,
+      observacion: observacionesDocente.observacion,
+      fechaRegistro: observacionesDocente.fechaRegistro,
+    })
+    .from(observacionesDocente)
+    .innerJoin(asignaturas, eq(observacionesDocente.asignaturaId, asignaturas.id))
+    .innerJoin(usuarios, eq(observacionesDocente.docenteId, usuarios.id))
+    .innerJoin(matriculas, eq(observacionesDocente.matriculaId, matriculas.id))
+    .where(eq(matriculas.alumnoId, alumnoId))
+    .orderBy(desc(observacionesDocente.createdAt));
+
+  return {
+    ok: true,
+    alumno,
+    matriculas: alumnoMatriculas,
+    notas: alumnoNotas.map((n) => ({ ...n, nota: n.nota ?? null })),
+    asistencias: Array.from(asistenciasMap.values()),
+    observaciones: alumnoObservaciones,
+  };
+}
+
+// ── Cambiar contraseña ───────────────────────────────────────────
+
+export async function cambiarPasswordAction(input: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("staff_password_change", [
+    "admin",
+    "docente",
+  ]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = cambiarPasswordInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    const firstMessage =
+      parsed.error.issues[0]?.message ?? "Datos inválidos.";
+
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: firstMessage,
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [user] = await db
+      .select({
+        id: usuarios.id,
+        password: usuarios.password,
+      })
+      .from(usuarios)
+      .where(eq(usuarios.id, actorResult.actor.userId))
+      .limit(1);
+
+    if (!user || !user.password) {
+      return {
+        ok: false,
+        code: "user_not_found",
+        message: "No se encontró el usuario.",
+      };
+    }
+
+    const passwordMatch = await bcrypt.compare(
+      parsed.data.currentPassword,
+      user.password,
+    );
+
+    if (!passwordMatch) {
+      return {
+        ok: false,
+        code: "wrong_password",
+        message: "La contraseña actual es incorrecta.",
+      };
+    }
+
+    const newHash = await bcrypt.hash(parsed.data.newPassword, 12);
+
+    await db
+      .update(usuarios)
+      .set({
+        password: newHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(usuarios.id, user.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "cambiar_password",
+      entidad: "usuarios",
+      entidadId: user.id,
+      payload: {},
+      exitoso: true,
+    });
+
+    return {
+      ok: true,
+      code: "password_changed",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "staff_password_change_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: {
+        reason: message,
+      },
+    });
+
+    return {
+      ok: false,
+      code: "password_change_failed",
+      message: "No fue posible cambiar la contraseña.",
+    };
+  }
+}
+
+export async function cambiarPasswordFormAction(
+  formData: FormData,
+): Promise<void> {
+  const headerStore = await headers();
+  const referer = headerStore.get("referer") ?? "/";
+
+  const result = await cambiarPasswordAction({
+    currentPassword: getStringField(formData, "currentPassword"),
+    newPassword: getStringField(formData, "newPassword"),
+    confirmPassword: getStringField(formData, "confirmPassword"),
+  });
+
+  redirect(`${referer.split("?")[0]}?state=${result.ok ? result.code : result.code}`);
 }

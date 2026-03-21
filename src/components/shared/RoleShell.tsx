@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import type { AppRole } from "@/lib/authz";
 
+import { Footer } from "./Footer";
 import { MobileNavGrid } from "./MobileNavGrid";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -19,9 +20,10 @@ type RoleShellProps = {
   role: AppRole;
   userName: string;
   children: React.ReactNode;
+  pendingSolicitudes?: number;
 };
 
-export function RoleShell({ role, userName, children }: RoleShellProps) {
+export function RoleShell({ role, userName, children, pendingSolicitudes }: RoleShellProps) {
   const pathname = usePathname();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -73,6 +75,7 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
         userName={userName}
         open={isMobileSidebarOpen && navMode === "grid"}
         onClose={() => setIsMobileSidebarOpen(false)}
+        pendingSolicitudes={pendingSolicitudes}
       />
 
       {/* Desktop sidebar + Mobile sidebar (when mode is "sidebar") */}
@@ -81,16 +84,18 @@ export function RoleShell({ role, userName, children }: RoleShellProps) {
         collapsed={isSidebarCollapsed}
         mobileOpen={isMobileSidebarOpen && navMode === "sidebar"}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        pendingSolicitudes={pendingSolicitudes}
       />
 
       <div
-        className={`pt-16 transition-[margin-left] duration-300 ease-out ${
+        className={`flex min-h-[calc(100dvh-4rem)] flex-col pt-16 transition-[margin-left] duration-300 ease-out ${
           isSidebarCollapsed ? "md:ml-[4.5rem]" : "md:ml-64"
         }`}
       >
-        <main className="mx-auto min-h-[calc(100dvh-4rem)] max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-6 sm:py-6">
           {children}
         </main>
+        <Footer />
       </div>
     </div>
   );

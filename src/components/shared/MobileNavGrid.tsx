@@ -25,6 +25,7 @@ type NavItem = {
   label: string;
   Icon: LucideIcon;
   gradient: string;
+  badge?: number;
 };
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -65,11 +66,19 @@ type MobileNavGridProps = {
   userName: string;
   open: boolean;
   onClose: () => void;
+  pendingSolicitudes?: number;
 };
 
-export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridProps) {
+export function MobileNavGrid({ role, userName, open, onClose, pendingSolicitudes }: MobileNavGridProps) {
   const pathname = usePathname();
-  const items = ROLE_ITEMS[role];
+  const rawItems = ROLE_ITEMS[role];
+
+  // Inject badge into admin Solicitudes item
+  const items = rawItems.map((item) =>
+    item.href === "/admin/solicitudes" && pendingSolicitudes && pendingSolicitudes > 0
+      ? { ...item, badge: pendingSolicitudes }
+      : item,
+  );
   const homeHref = `/${role}`;
 
   const isActive = (href: string): boolean => {
@@ -120,12 +129,17 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={`group flex flex-col items-center gap-3 rounded-2xl p-5 text-center transition-all duration-200 active:scale-95 ${
+                className={`relative group flex flex-col items-center gap-3 rounded-2xl p-5 text-center transition-all duration-200 active:scale-95 ${
                   active
                     ? "bg-white shadow-lg ring-2 ring-cta/30 dark:bg-gray-800 dark:ring-cta/50"
                     : "bg-white shadow-sm hover:shadow-md dark:bg-gray-900 dark:hover:bg-gray-800"
                 }`}
               >
+                {item.badge ? (
+                  <span className="absolute right-2 top-2 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                ) : null}
                 <item.Icon
                   className="h-12 w-12 transition-transform duration-200 group-hover:scale-110"
                   stroke={`url(#${item.gradient})`}

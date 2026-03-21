@@ -1,9 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
+import { lookup } from "mime-types";
 import { NextRequest, NextResponse } from "next/server";
+import { Readable } from "node:stream";
 
 import { getDb } from "@/db";
-import { material } from "@/db/schema";
-import { autorizarOwnership } from "@/lib/authz";
+import { asignaturas, clases, material, matriculas } from "@/db/schema";
 import {
   attachCorrelationId,
   resolveCorrelationId,
@@ -11,95 +12,12 @@ import {
 import { logEvent } from "@/lib/observability/logger";
 import { recordHttpMetric } from "@/lib/observability/metrics";
 import { getRequestAuthContext } from "@/lib/requestAuth";
-import { sanitizePath } from "@/lib/sanitizePath";
-import { getPresignedUrl } from "@/lib/storage";
+import { getFileSize, getFileStream } from "@/lib/storage";
 
-const ALLOWED_BUCKETS = new Set(["material", "entregas"]);
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const parseStoragePath = (
-  rawPath: string,
-):
-  | { ok: true; bucket: string; ownerId: string; objectPath: string; fullPath: string }
-  | { ok: false; response: NextResponse } => {
-  let safePath: string;
-
-  try {
-    safePath = sanitizePath(rawPath);
-  } catch {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "invalid_path" }, { status: 400 }),
-    };
-  }
-
-  const [bucket, ownerId, ...rest] = safePath.split("/");
-
-  if (!bucket || !ownerId || rest.length === 0) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "invalid_path_structure" }, { status: 400 }),
-    };
-  }
-
-  if (!UUID_REGEX.test(ownerId)) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "invalid_owner_id" }, { status: 400 }),
-    };
-  }
-
-  if (!ALLOWED_BUCKETS.has(bucket)) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "forbidden_bucket" }, { status: 403 }),
-    };
-  }
-
-  return {
-    ok: true,
-    bucket,
-    ownerId,
-    objectPath: [ownerId, ...rest].join("/"),
-    fullPath: safePath,
-  };
-};
-
-const verificarAccesoArchivo = async (
-  userId: string,
-  userRol: "admin" | "docente" | "alumno",
-  bucket: string,
-  ownerId: string,
-  fullPath: string,
-): Promise<boolean> => {
-  const ownership = autorizarOwnership(
-    { userId, userRol },
-    ownerId,
-    { adminOverride: true },
-  );
-
-  if (!ownership.permitido) {
-    return false;
-  }
-
-  if (bucket === "entregas" || userRol === "admin") {
-    return true;
-  }
-
-  const db = getDb();
-
-  const [record] = await db
-    .select({ id: material.id })
-    .from(material)
-    .where(
-      and(eq(material.storagePath, fullPath), eq(material.subidoPor, userId), isNull(material.eliminadoAt)),
-    )
-    .limit(1);
-
-  return Boolean(record);
-};
-
+/**
+ * GET /api/files/download/{materialId}
+ * Streams file from local storage with auth + enrollment check.
+ */
 export async function GET(
   request: NextRequest,
   context: { params: { path: string[] } },
@@ -109,7 +27,7 @@ export async function GET(
   const endpoint = request.nextUrl.pathname;
 
   const finalize = (
-    response: NextResponse,
+    response: NextResponse | Response,
     result: "success" | "error" | "denied",
     action: string,
     details?: Record<string, string | number | boolean | null>,
@@ -138,7 +56,11 @@ export async function GET(
       details,
     });
 
-    return attachCorrelationId(response, correlationId);
+    if (response instanceof NextResponse) {
+      return attachCorrelationId(response, correlationId);
+    }
+
+    return response;
   };
 
   const authContext = await getRequestAuthContext(request);
@@ -151,12 +73,12 @@ export async function GET(
     );
   }
 
-  const rawPath = context.params.path.join("/");
-  const parsedPath = parseStoragePath(rawPath);
+  const segments = context.params.path;
 
-  if (!parsedPath.ok) {
+  // Route: /api/files/download/{materialId}
+  if (segments[0] !== "download" || !segments[1]) {
     return finalize(
-      parsedPath.response,
+      NextResponse.json({ error: "invalid_path" }, { status: 400 }),
       "denied",
       "files_path_invalid",
       undefined,
@@ -165,32 +87,123 @@ export async function GET(
     );
   }
 
-  const accesoPermitido = await verificarAccesoArchivo(
-    authContext.userId,
-    authContext.userRol,
-    parsedPath.bucket,
-    parsedPath.ownerId,
-    parsedPath.fullPath,
-  );
+  const materialId = segments[1];
+  const db = getDb();
 
-  if (!accesoPermitido) {
+  // Fetch material + related info in one query
+  const [record] = await db
+    .select({
+      id: material.id,
+      nombre: material.nombre,
+      storagePath: material.storagePath,
+      tamanioBytes: material.tamanioBytes,
+      subidoPor: material.subidoPor,
+      docenteId: asignaturas.docenteId,
+      asignaturaId: clases.asignaturaId,
+    })
+    .from(material)
+    .innerJoin(clases, eq(material.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(and(eq(material.id, materialId), isNull(material.eliminadoAt)))
+    .limit(1);
+
+  if (!record) {
     return finalize(
-      NextResponse.json({ error: "forbidden" }, { status: 403 }),
+      NextResponse.json({ error: "not_found" }, { status: 404 }),
       "denied",
-      "files_access_denied",
-      { bucket: parsedPath.bucket },
+      "files_not_found",
+      undefined,
       authContext.userRol,
       authContext.userId,
     );
   }
 
-  const signedUrl = await getPresignedUrl(parsedPath.bucket, parsedPath.objectPath);
+  // Authorization
+  let allowed = false;
+
+  if (authContext.userRol === "admin") {
+    allowed = true;
+  } else if (authContext.userRol === "docente") {
+    allowed = record.docenteId === authContext.userId;
+  } else if (authContext.userRol === "alumno") {
+    // Check enrollment
+    const [enrollment] = await db
+      .select({ id: matriculas.id })
+      .from(matriculas)
+      .where(
+        and(
+          eq(matriculas.asignaturaId, record.asignaturaId),
+          eq(matriculas.alumnoId, authContext.userId),
+          eq(matriculas.activa, true),
+          isNull(matriculas.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    allowed = Boolean(enrollment);
+  }
+
+  if (!allowed) {
+    return finalize(
+      NextResponse.json({ error: "forbidden" }, { status: 403 }),
+      "denied",
+      "files_access_denied",
+      { materialId },
+      authContext.userRol,
+      authContext.userId,
+    );
+  }
+
+  // Resolve storage path: "material/userId/claseId-filename"
+  const [bucket, ...pathParts] = record.storagePath.split("/");
+
+  if (!bucket || pathParts.length === 0) {
+    return finalize(
+      NextResponse.json({ error: "storage_error" }, { status: 500 }),
+      "error",
+      "files_storage_path_invalid",
+      { storagePath: record.storagePath },
+      authContext.userRol,
+      authContext.userId,
+    );
+  }
+
+  const objectPath = pathParts.join("/");
+  const fileResult = getFileStream(bucket, objectPath);
+
+  if (!fileResult) {
+    return finalize(
+      NextResponse.json({ error: "file_missing" }, { status: 404 }),
+      "error",
+      "files_physical_missing",
+      { storagePath: record.storagePath },
+      authContext.userRol,
+      authContext.userId,
+    );
+  }
+
+  const contentType = lookup(record.nombre) || "application/octet-stream";
+  const fileSize = record.tamanioBytes ?? (await getFileSize(bucket, objectPath)) ?? 0;
+
+  // Convert Node.js ReadStream to Web ReadableStream
+  const webStream = Readable.toWeb(fileResult.stream) as ReadableStream;
+
+  const response = new Response(webStream, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(record.nombre)}"`,
+      "Content-Length": String(fileSize),
+      "Cache-Control": "private, max-age=3600",
+      "X-Correlation-Id": correlationId,
+    },
+  });
 
   return finalize(
-    NextResponse.redirect(signedUrl),
+    response,
     "success",
-    "files_signed_url_issued",
-    { bucket: parsedPath.bucket },
+    "files_download",
+    { materialId, bucket, size: fileSize },
     authContext.userRol,
     authContext.userId,
   );

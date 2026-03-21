@@ -13,17 +13,18 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type AdminSolicitudesPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
-  };
+  }>;
 };
 
 export default async function AdminSolicitudesPage({ searchParams }: AdminSolicitudesPageProps) {
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string }));
   const solicitudes = await listarSolicitudesDocumentosAdmin();
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params?.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">

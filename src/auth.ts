@@ -83,8 +83,8 @@ const verifyEmergencyPassword = async (password: string): Promise<boolean> => {
     }
   }
 
-  const plain = process.env.EMERGENCY_AUTH_PASSWORD;
-  return Boolean(plain && password === plain);
+  // Security #17: removed plain text password fallback - always require hash
+  return false;
 };
 
 const resolveEmergencyStaffUser = async (
@@ -226,8 +226,8 @@ const nextAuth = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60,
-    updateAge: 15 * 60,
+    maxAge: 8 * 60 * 60,
+    updateAge: 30 * 60,
   },
   cookies: {
     sessionToken: {

@@ -19,18 +19,19 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type AdminClasesPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     asignaturaId?: string;
     page?: string;
     q?: string;
-  };
+  }>;
 };
 
 export default async function AdminClasesPage({ searchParams }: AdminClasesPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string; page?: string; q?: string }));
+  const currentPage = Math.max(1, Number(params?.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
-  const q = typeof searchParams?.q === "string" ? searchParams.q.trim() : "";
+  const q = typeof params?.q === "string" ? params.q.trim() : "";
 
   const asignaturas = await listarAsignaturasAdmin(
     { limit: 100, offset: 0 },
@@ -38,7 +39,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
   );
 
   const selectedAsignaturaIdRaw =
-    typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
+    typeof params?.asignaturaId === "string" ? params.asignaturaId : undefined;
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
@@ -66,7 +67,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params?.state} map={STATUS_MAP} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>

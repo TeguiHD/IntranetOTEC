@@ -34,7 +34,9 @@ const nextConfig = {
 		return [
 			{
 				source: '/:path*',
-				headers: securityHeaders,
+				headers: process.env.NODE_ENV === 'development' 
+					? securityHeaders.filter(h => h.key !== 'Strict-Transport-Security')
+					: securityHeaders,
 			},
 			{
 				source: '/:path*.(svg|png|jpg|jpeg|gif|ico|webp|woff2|ttf)',

@@ -106,6 +106,19 @@ export async function middleware(request: NextRequest) {
     correlationId,
   );
 
+  // Fallback for misconfigured reverse proxies (e.g. Apache without ProxyPreserveHost)
+  // Ensure NextAuth reads the correct original host
+  const authUrl = process.env.AUTH_URL?.trim();
+  if (authUrl) {
+    try {
+      const parsedUrl = new URL(authUrl);
+      if (!forwardedHeaders.has("x-forwarded-host") || forwardedHeaders.get("host")?.includes("0.0.0.0")) {
+        forwardedHeaders.set("x-forwarded-host", parsedUrl.host);
+        forwardedHeaders.set("x-forwarded-proto", parsedUrl.protocol.replace(":", ""));
+      }
+    } catch {}
+  }
+
   const finalize = (
     response: NextResponse,
     result: "success" | "error" | "denied",

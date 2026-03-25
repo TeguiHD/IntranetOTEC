@@ -39,6 +39,14 @@ export function GradientDefs() {
           <stop offset="0%" stopColor="#F5A623" />
           <stop offset="100%" stopColor="#C68A1A" />
         </linearGradient>
+        <linearGradient id="grad-indigo" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#6366F1" />
+          <stop offset="100%" stopColor="#4F46E5" />
+        </linearGradient>
+        <linearGradient id="grad-slate" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#64748B" />
+          <stop offset="100%" stopColor="#475569" />
+        </linearGradient>
       </defs>
     </svg>
   );

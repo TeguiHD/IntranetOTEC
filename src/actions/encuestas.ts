@@ -14,13 +14,6 @@ import {
   usuarios,
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
-import {
-  PREGUNTAS_AUDITIVO,
-  PREGUNTAS_DOCENTE,
-  PREGUNTAS_KINESTESICO,
-  PREGUNTAS_OTEC,
-  PREGUNTAS_VISUAL,
-} from "@/lib/encuestaConstants";
 import { logEvent } from "@/lib/observability/logger";
 
 import { requireActionActor, type MutationResult } from "./_security";

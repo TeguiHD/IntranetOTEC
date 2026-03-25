@@ -43,7 +43,7 @@ const MODULE_CARDS: { href: string; title: string; description: string; gradient
 ];
 
 type AdminDashboardPageProps = {
-  searchParams?: { rut?: string };
+  searchParams?: Promise<{ rut?: string }>;
 };
 
 const formatDate = (value: Date | null): string => {
@@ -68,7 +68,8 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
-  const rutConsulta = typeof searchParams?.rut === "string" ? searchParams.rut.trim() : "";
+  const params = await (searchParams ?? Promise.resolve({} as { rut?: string }));
+  const rutConsulta = typeof params.rut === "string" ? params.rut.trim() : "";
 
   const [resultadoBusqueda, resumenDocentes, metricas, asigMetricas] = await Promise.all([
     rutConsulta ? buscarPersonaPorRutAdmin({ rut: rutConsulta }) : null,

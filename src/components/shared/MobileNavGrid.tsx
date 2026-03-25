@@ -39,6 +39,19 @@ type NavItem = {
   gradient: string;
 };
 
+const GRADIENT_COLORS: Record<string, string> = {
+  "grad-purple":  "#8B3A9E",
+  "grad-blue":    "#3B82F6",
+  "grad-cyan":    "#06B6D4",
+  "grad-amber":   "#F5A623",
+  "grad-emerald": "#10B981",
+  "grad-pink":    "#EC4899",
+  "grad-violet":  "#8B5CF6",
+  "grad-gold":    "#F5A623",
+  "grad-slate":   "#64748B",
+  "grad-indigo":  "#6366F1",
+};
+
 const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Administrador",
   docente: "Docente",
@@ -162,8 +175,8 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
               >
                 <item.Icon
                   className="h-12 w-12 transition-transform duration-200 group-hover:scale-110"
-                  stroke={`url(#${item.gradient})`}
                   strokeWidth={1.5}
+                  style={{ color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
                 />
                 <span
                   className={`text-sm font-bold leading-tight ${

@@ -1,8 +1,10 @@
-import { ClipboardList, Plus, Users, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, FileText, Plus, Rocket, Users, XCircle, Zap } from "lucide-react";
 import Link from "next/link";
 
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { crearEncuestaFormAction, listarEncuestasAdmin } from "@/actions/encuestas-unificadas";
+import { DonutChart } from "@/components/charts/DonutChart";
+import { StatCard } from "@/components/charts/StatCard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const UUID_REGEX =
@@ -46,6 +48,15 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
     selectedIdRaw && UUID_REGEX.test(selectedIdRaw) ? selectedIdRaw : asignaturas[0]?.id;
 
   const encuestas = selectedId ? await listarEncuestasAdmin(selectedId) : [];
+
+  // Aggregate metrics
+  const totalEncuestas = encuestas.length;
+  const activas = encuestas.filter((e) => e.estadoEncuesta === "activa").length;
+  const borradores = encuestas.filter((e) => e.estadoEncuesta === "borrador").length;
+  const cerradas = encuestas.filter((e) => e.estadoEncuesta === "cerrada").length;
+  const totalAsignados = encuestas.reduce((s, e) => s + (e.totalAsignados ?? 0), 0);
+  const totalCompletados = encuestas.reduce((s, e) => s + (e.totalCompletados ?? 0), 0);
+  const totalPendientes = totalAsignados - totalCompletados;
 
   return (
     <section className="space-y-6">
@@ -96,6 +107,86 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
 
       {selectedId && (
         <>
+          {/* Metrics dashboard */}
+          {totalEncuestas > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label="Total encuestas"
+                value={totalEncuestas}
+                sublabel={`${activas} activa${activas !== 1 ? "s" : ""}, ${borradores} borrador${borradores !== 1 ? "es" : ""}`}
+                Icon={FileText}
+                iconColor="text-primary"
+                iconBg="bg-primary/10"
+              />
+              <StatCard
+                label="En curso"
+                value={activas}
+                sublabel={activas > 0 ? "Recibiendo respuestas" : "Ninguna activa"}
+                Icon={Rocket}
+                iconColor="text-emerald-600 dark:text-emerald-400"
+                iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+              />
+              <StatCard
+                label="Completadas"
+                value={totalCompletados}
+                sublabel={totalAsignados > 0 ? `${Math.round((totalCompletados / totalAsignados) * 100)}% de ${totalAsignados} asignados` : "Sin asignaciones"}
+                Icon={CheckCircle2}
+                iconColor="text-violet-600 dark:text-violet-400"
+                iconBg="bg-violet-100 dark:bg-violet-900/30"
+              />
+              <StatCard
+                label="Pendientes"
+                value={totalPendientes}
+                sublabel={totalPendientes === 0 ? "Todo al día" : `${totalPendientes} sin responder`}
+                Icon={Clock}
+                iconColor="text-amber-600 dark:text-amber-400"
+                iconBg="bg-amber-100 dark:bg-amber-900/30"
+              />
+            </div>
+          )}
+
+          {/* Participation donut (when there are active surveys) */}
+          {totalAsignados > 0 && (
+            <div className="grid gap-5 sm:grid-cols-[auto_1fr]">
+              <div className="flex items-center justify-center rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <DonutChart
+                  segments={[
+                    { label: "Completadas", value: totalCompletados, color: "fill-emerald-500", strokeColor: "#10B981" },
+                    { label: "Pendientes", value: totalPendientes, color: "fill-amber-500", strokeColor: "#F59E0B" },
+                    { label: "Cerradas", value: cerradas, color: "fill-rose-500", strokeColor: "#F43F5E" },
+                  ]}
+                  size={120}
+                  strokeWidth={16}
+                  centerValue={`${totalAsignados > 0 ? Math.round((totalCompletados / totalAsignados) * 100) : 0}%`}
+                  centerLabel="Participación"
+                />
+              </div>
+              <div className="flex flex-col justify-center rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <h3 className="mb-3 text-sm font-semibold text-text-primary dark:text-white">Participación global</h3>
+                <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700 ease-out"
+                    style={{ width: `${totalAsignados > 0 ? Math.round((totalCompletados / totalAsignados) * 100) : 0}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-text-secondary dark:text-gray-400">
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{totalCompletados}</span> de {totalAsignados} respuestas recibidas
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-text-muted dark:text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Activas: {activas}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-gray-400" /> Borradores: {borradores}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-rose-500" /> Cerradas: {cerradas}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Create survey form */}
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
@@ -171,59 +262,76 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
               </div>
             ) : (
               <div className="space-y-3">
-                {encuestas.map((enc) => (
-                  <div
-                    key={enc.id}
-                    className="flex flex-col gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0 flex-1">
+                {encuestas.map((enc) => {
+                  const pctComplete = (enc.totalAsignados ?? 0) > 0
+                    ? Math.round(((enc.totalCompletados ?? 0) / (enc.totalAsignados ?? 1)) * 100)
+                    : 0;
+
+                  return (
+                    <div
+                      key={enc.id}
+                      className="flex flex-col gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-semibold text-text-primary dark:text-gray-100">
+                            {enc.titulo}
+                          </p>
+                          {enc.obligatoria && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                              <Zap className="h-2.5 w-2.5" />
+                              Obligatoria
+                            </span>
+                          )}
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${ESTADO_COLORS[enc.estadoEncuesta ?? "borrador"]}`}>
+                            {ESTADO_LABELS[enc.estadoEncuesta ?? "borrador"]}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-text-secondary dark:text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {AUDIENCIA_LABELS[enc.audiencia ?? "alumnos"]}
+                          </span>
+                          <span>{enc.totalPreguntas} pregunta{enc.totalPreguntas !== 1 ? "s" : ""}</span>
+                          {enc.estadoEncuesta === "activa" && (
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              {enc.totalCompletados}/{enc.totalAsignados} ({pctComplete}%)
+                            </span>
+                          )}
+                        </div>
+                        {/* Mini progress bar for active surveys */}
+                        {enc.estadoEncuesta === "activa" && (enc.totalAsignados ?? 0) > 0 && (
+                          <div className="mt-2 h-1.5 w-full max-w-[200px] overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                              style={{ width: `${pctComplete}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate font-semibold text-text-primary dark:text-gray-100">
-                          {enc.titulo}
-                        </p>
-                        {enc.obligatoria && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                            <Zap className="h-2.5 w-2.5" />
-                            Obligatoria
+                        {enc.estadoEncuesta === "activa" && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                            En curso
                           </span>
                         )}
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${ESTADO_COLORS[enc.estadoEncuesta ?? "borrador"]}`}>
-                          {ESTADO_LABELS[enc.estadoEncuesta ?? "borrador"]}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-text-secondary dark:text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {AUDIENCIA_LABELS[enc.audiencia ?? "alumnos"]}
-                        </span>
-                        <span>{enc.totalPreguntas} pregunta{enc.totalPreguntas !== 1 ? "s" : ""}</span>
-                        {enc.estadoEncuesta === "activa" && (
-                          <span>{enc.totalCompletados}/{enc.totalAsignados} completadas</span>
+                        {enc.estadoEncuesta === "cerrada" && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-red-500 dark:text-red-400">
+                            <XCircle className="h-3 w-3" />
+                            Cerrada
+                          </span>
                         )}
+                        <Link
+                          href={`/admin/encuestas-builder/${enc.id}`}
+                          className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                        >
+                          {enc.estadoEncuesta === "borrador" ? "Editar / Lanzar" : "Ver detalle"}
+                        </Link>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {enc.estadoEncuesta === "activa" && (
-                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                          En curso
-                        </span>
-                      )}
-                      {enc.estadoEncuesta === "cerrada" && (
-                        <span className="flex items-center gap-1 text-xs font-medium text-red-500 dark:text-red-400">
-                          <XCircle className="h-3 w-3" />
-                          Cerrada
-                        </span>
-                      )}
-                      <Link
-                        href={`/admin/encuestas-builder/${enc.id}`}
-                        className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-                      >
-                        {enc.estadoEncuesta === "borrador" ? "Editar / Lanzar" : "Ver detalle"}
-                      </Link>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </article>

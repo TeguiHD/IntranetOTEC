@@ -6,6 +6,10 @@ import {
   obtenerPromediosGlobalesEncuesta,
   toggleEncuestaDocenteFormAction,
 } from "@/actions/encuestas";
+import { DonutChart } from "@/components/charts/DonutChart";
+import { HorizontalBar } from "@/components/charts/HorizontalBar";
+import { ProgressRing } from "@/components/charts/ProgressRing";
+import { StatCard } from "@/components/charts/StatCard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearRut } from "@/lib/rut";
 
@@ -48,6 +52,29 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
   const selectedAsig = asignaturas.find((a) => a.id === selectedId);
   const totalRespuestas = promedios ? Number(promedios.totalRespuestas) : 0;
 
+  // Score distribution for docente/otec
+  const docenteScores = resultados.filter((r) => r.promedioDocente).map((r) => Number(r.promedioDocente));
+  const otecScores = resultados.filter((r) => r.promedioOtec).map((r) => Number(r.promedioOtec));
+
+  // Distribution buckets for score ranges
+  const buildDistribution = (scores: number[]) => {
+    const buckets = [
+      { label: "1.0 - 2.9", min: 1, max: 2.9, count: 0, color: "bg-red-500" },
+      { label: "3.0 - 3.9", min: 3, max: 3.9, count: 0, color: "bg-orange-500" },
+      { label: "4.0 - 4.9", min: 4, max: 4.9, count: 0, color: "bg-amber-500" },
+      { label: "5.0 - 5.9", min: 5, max: 5.9, count: 0, color: "bg-lime-500" },
+      { label: "6.0 - 7.0", min: 6, max: 7, count: 0, color: "bg-emerald-500" },
+    ];
+    for (const s of scores) {
+      const bucket = buckets.find((b) => s >= b.min && s <= b.max);
+      if (bucket) bucket.count++;
+    }
+    return buckets.filter((b) => b.count > 0);
+  };
+
+  const docenteDistribution = buildDistribution(docenteScores);
+  const otecDistribution = buildDistribution(otecScores);
+
   return (
     <section className="space-y-6">
       <RouteStateToast state={params?.state} map={STATUS_MAP} />
@@ -66,6 +93,44 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
           </p>
         </div>
       </header>
+
+      {/* Metrics row */}
+      {totalRespuestas > 0 && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StatCard
+            label="Total respuestas"
+            value={totalRespuestas}
+            sublabel={`De ${resultados.length} alumno${resultados.length !== 1 ? "s" : ""}`}
+            Icon={Users}
+            iconColor="text-primary"
+            iconBg="bg-primary/10"
+          />
+          <StatCard
+            label="Promedio Docente"
+            value={promedios?.promedioDocente ? Number(promedios.promedioDocente).toFixed(1) : "-"}
+            sublabel="Escala 1-7"
+            Icon={Star}
+            iconColor="text-emerald-600 dark:text-emerald-400"
+            iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+            trend={promedios?.promedioDocente ? {
+              value: Number(promedios.promedioDocente) >= 5 ? "Bueno" : Number(promedios.promedioDocente) >= 4 ? "Regular" : "Bajo",
+              positive: Number(promedios.promedioDocente) >= 5,
+            } : undefined}
+          />
+          <StatCard
+            label="Promedio OTEC"
+            value={promedios?.promedioOtec ? Number(promedios.promedioOtec).toFixed(1) : "-"}
+            sublabel="Escala 1-7"
+            Icon={BarChart3}
+            iconColor="text-amber-600 dark:text-amber-400"
+            iconBg="bg-amber-100 dark:bg-amber-900/30"
+            trend={promedios?.promedioOtec ? {
+              value: Number(promedios.promedioOtec) >= 5 ? "Bueno" : Number(promedios.promedioOtec) >= 4 ? "Regular" : "Bajo",
+              positive: Number(promedios.promedioOtec) >= 5,
+            } : undefined}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Left: main content */}
@@ -141,6 +206,40 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
               </div>
             )}
           </article>
+
+          {/* Score distribution charts */}
+          {totalRespuestas > 0 && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              {docenteDistribution.length > 0 && (
+                <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                  <h3 className="mb-3 text-sm font-semibold text-text-primary dark:text-white">
+                    Distribución Nota Docente
+                  </h3>
+                  <HorizontalBar
+                    items={docenteDistribution.map((b) => ({ label: b.label, value: b.count, color: b.color }))}
+                    mode="percent"
+                  />
+                  <p className="mt-2 text-[10px] text-text-muted dark:text-gray-500">
+                    {docenteScores.length} evaluación{docenteScores.length !== 1 ? "es" : ""}
+                  </p>
+                </article>
+              )}
+              {otecDistribution.length > 0 && (
+                <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                  <h3 className="mb-3 text-sm font-semibold text-text-primary dark:text-white">
+                    Distribución Nota OTEC
+                  </h3>
+                  <HorizontalBar
+                    items={otecDistribution.map((b) => ({ label: b.label, value: b.count, color: b.color }))}
+                    mode="percent"
+                  />
+                  <p className="mt-2 text-[10px] text-text-muted dark:text-gray-500">
+                    {otecScores.length} evaluación{otecScores.length !== 1 ? "es" : ""}
+                  </p>
+                </article>
+              )}
+            </div>
+          )}
 
           {/* Results table */}
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
@@ -221,6 +320,31 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
 
         {/* Right: stats sidebar */}
         <aside className="space-y-4">
+          {/* Visual donuts */}
+          {totalRespuestas > 0 && promedios && (
+            <div className="flex flex-col items-center gap-4 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <h3 className="text-sm font-semibold text-text-primary dark:text-white">Comparativa</h3>
+              <div className="flex gap-4">
+                <ProgressRing
+                  value={promedios.promedioDocente ? Math.round(Number(promedios.promedioDocente) * 10) : 0}
+                  max={70}
+                  size={72}
+                  strokeWidth={7}
+                  color="#10B981"
+                  label="Docente"
+                />
+                <ProgressRing
+                  value={promedios.promedioOtec ? Math.round(Number(promedios.promedioOtec) * 10) : 0}
+                  max={70}
+                  size={72}
+                  strokeWidth={7}
+                  color="#F59E0B"
+                  label="OTEC"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Stat cards */}
           <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div className="mb-3 flex items-center gap-2">
@@ -258,6 +382,34 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Satisfaction donut */}
+          {totalRespuestas > 0 && (
+            <div className="flex flex-col items-center rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <DonutChart
+                segments={[
+                  { label: "Excelente (6-7)", value: docenteScores.filter((s) => s >= 6).length, color: "fill-emerald-500" },
+                  { label: "Bueno (4-5.9)", value: docenteScores.filter((s) => s >= 4 && s < 6).length, color: "fill-amber-500" },
+                  { label: "Bajo (<4)", value: docenteScores.filter((s) => s < 4).length, color: "fill-rose-500" },
+                ]}
+                size={110}
+                strokeWidth={14}
+                centerValue={`${docenteScores.length}`}
+                centerLabel="Evaluaciones"
+              />
+              <div className="mt-3 space-y-1 text-[10px]">
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Excelente (6-7)
+                </div>
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Bueno (4-5.9)
+                </div>
+                <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-rose-500" /> Bajo (&lt;4)
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Info card */}
           <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 dark:border-primary/20 dark:bg-primary/10">

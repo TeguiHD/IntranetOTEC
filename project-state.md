@@ -9,7 +9,7 @@
 
 ## Stack
 
-- Next.js 14 (App Router) + TypeScript (strict)
+- Next.js 15.5.14 (App Router) + TypeScript (strict)
 - PostgreSQL 16
 - Drizzle ORM + Drizzle Kit
 - Auth.js v5 beta (`next-auth`)
@@ -17,7 +17,8 @@
 
 ## Fixed versions
 
-- Next.js: `14.2.35`
+- Next.js: `15.5.14`
+- eslint-config-next: `15.5.14`
 - Auth.js (`next-auth`): `5.0.0-beta.30`
 - Tailwind CSS: `4.2.1`
 - `@tailwindcss/postcss`: `4.2.1`
@@ -46,7 +47,8 @@
 
 ## Active dependencies
 
-- Runtime: `next`, `react`, `react-dom`, `next-auth`, `drizzle-orm`, `pg`, `bcryptjs`, `isomorphic-dompurify`, `validator`, `next-themes`, `react-hook-form`, `@hookform/resolvers`, `zod`, `swr`, `@radix-ui/react-slot`, `class-variance-authority`, `clsx`, `tailwind-merge`, `sonner`
+- Runtime (root): `next`, `react`, `react-dom`, `next-auth`, `drizzle-orm`, `pg`, `bcryptjs`, `isomorphic-dompurify`, `validator`, `next-themes`, `react-hook-form`, `@hookform/resolvers`, `zod`, `swr`, `@radix-ui/react-slot`, `class-variance-authority`, `clsx`, `tailwind-merge`, `sonner`, `exceljs@4.4.0`
+- Runtime (otec/): `next`, `react`, `react-dom`, `next-auth`, `drizzle-orm`, `pg`, `bcryptjs`, `isomorphic-dompurify`, `validator`, `next-themes`, `react-hook-form`, `@hookform/resolvers`, `zod`, `swr`, `@radix-ui/react-slot`, `class-variance-authority`, `clsx`, `tailwind-merge`, `sonner`, `@react-pdf/renderer@4.3.2`
 - Dev: `typescript`, `eslint`, `eslint-config-next`, `drizzle-kit`, `tailwindcss`, `@tailwindcss/postcss`, `postcss`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/pg`, `@types/bcryptjs`, `@types/validator`
 
 ## Completed parts
@@ -73,13 +75,16 @@
 20. [Iteración 20] Certificados alumno implementados end-to-end en baseline actual: emisión segura por matrícula/tipo, snapshot con firmas, plantilla visual imprimible (PDF vía impresión del navegador), QR de verificación (data URL), ruta pública `/verificar/[codigo]`, correo transaccional opcional por API y navegación dedicada en `/alumno/certificados`.
 21. [Iteración 21] Escalabilidad admin aplicada: paginación server-side (20 por página) en alumnos/docentes/asignaturas/matrículas/clases, combobox de búsqueda para matrícula (alumno + asignatura), edición de clases en modal centrado con botón lápiz por fila y refuerzo de contraste WCAG en badges de estado.
 22. [Iteración 22] Cierre de calidad y testability local: `quality:gate`, `lint`, `tsc`, `security:test` y `build` en verde; aislamiento de ESLint local (`root: true`) y corrección de runtime de tests de seguridad para alias `@/lib/*`; endurecimiento de `rutValue` para rechazar payloads HTML antes de normalización.
+23. [Iteración 23] Cierre de brechas operativas solicitadas: eliminación docente de notas/observaciones con ownership check y auditoría, botones de borrado en tablas históricas de docente, unificación de logo móvil con login/sidebar, y ajuste de campo de búsqueda admin para credenciales extranjeras (`EXT-*`).
+24. [Iteración 24] Plantillas de encuestas requeridas implementadas: creación rápida en admin de “Evaluacion Docente y OTEC” (escala 1-7) y “Test de Estilos de Aprendizaje” (escala 1-5), render de respuesta con cuadrados numéricos en alumno, cálculo de nota/promedio para respuestas Likert y pruebas de seguridad dedicadas para parser de escala.
+25. [Iteración 25] Ciclo obligatorio automatizado: generación automática de encuestas obligatorias al pasar asignaturas a estado `finalizado`, toggle admin para habilitar/deshabilitar publicación de encuestas, enforcement de intentos máximos por RUT en encuestas obligatorias y pruebas de seguridad de whitelist para títulos de encuestas en ciclo de vida.
+26. [Iteración 26] Cierre de auditoría de eliminación en admin/docente: cobertura UI de eliminación para clases en admin (móvil/escritorio), `formAction` con estado de retorno y filtrado de soft-delete (`activo(clases)`) en listados y conteos para evitar persistencia visual de clases eliminadas.
+27. [Iteración 27] Certificados PDF programáticos: migración en `otec/` a `@react-pdf/renderer` con endpoint seguro de descarga (`/api/certificados/[codigo]/pdf`) restringido a `admin`, validación estricta de código de certificado, sanitización de snapshot JSON y botón de descarga PDF en la gestión admin de certificados.
+28. [Iteración 28] Cierre de deuda supply-chain en root+otec: actualización de `next`/`eslint-config-next` a `15.5.14`, reemplazo de `xlsx` por `exceljs@4.4.0` en importaciones de alumnos/notas, parser seguro central de planillas (`src/lib/spreadsheet.ts`) con mitigación de prototype pollution y test de seguridad dedicado.
 
 ## Pending parts
 
-1. Implementar módulo docente completo (`asignaturas/[id]`, clases, asistencia batch, evaluaciones y calificaciones).
-2. Implementar módulo alumno completo (`asignaturas/[id]`, entregas, notas semaforizadas y repasador).
-3. Opcional de producto: migrar plantilla de certificado a `@react-pdf/renderer` si se requiere exportación PDF programática (hoy se cubre por plantilla imprimible).
-4. Extender suite de pruebas de seguridad por vector para CRUDs, uploads, certificados, correo e integración de ownership.
+- Sin pendientes activos de seguridad conocidos en auditoría local al cierre de esta iteración.
 
 ## Mitigated vulnerabilities
 
@@ -102,6 +107,18 @@
 - Riesgo de degradación por listados masivos en admin: mitigado con paginación server-side fija (`PAGE_SIZE=20`) y conteos dedicados por módulo.
 - Bypass por payload HTML en entrada de RUT (normalización permisiva): mitigado con rechazo explícito de `<`/`>` antes de `normalizarRut` en `rutValue`.
 - Inestabilidad de ejecución en suite de seguridad por alias `@/lib/*` en build CommonJS temporal: mitigada con resolución controlada del alias en script `security:test`.
+- Inconsistencia de credenciales extranjeras en búsqueda/login y visualización: mitigada con aceptación de formato `EXT-*`, normalización defensiva y render seguro de identificadores extranjeros.
+- Manipulación de payload de escala y respuestas fuera de rango en encuestas: mitigada con parser estricto de opciones Likert, validación de rangos y test de seguridad dedicado (`security-tests/evaluaciones.security.test.ts`).
+- Abuso de intentos en encuestas obligatorias: mitigado con enforcement por identidad RUT (no solo matrícula) para cálculo de intentos máximos.
+- Manipulación de estado de publicación en encuestas: mitigada con toggle de publicación restringido a rol `admin` y auditoría de cambios de estado.
+- Persistencia visual de entidades soft-delete en clases admin: mitigada con filtro `activo(clases)` en listados/conteos y cobertura UI de eliminación con `eliminarClaseFormAction`.
+- Descarga no autorizada de certificados PDF: mitigada con control backend por sesión (`admin` obligatorio) en endpoint de descarga.
+- Inyección/manipulación de parámetro de código de certificado: mitigada con validación estricta UUID + sanitización defensiva (`sanitizeCertificadoText`) antes de consulta.
+- Prototype pollution / JSON abuse en `datosSnapshot` de certificados: mitigada con coerción a objeto plano y extracción sanitizada de campos (`coerceCertificadoSnapshot`).
+- CVEs conocidos en `next@14.2.35` (`GHSA-h25m-26qc-wcjf`, `GHSA-9g9p-9gw9-jx7f`, `GHSA-ggv3-7p47-pfv8`, `GHSA-3x4c-7xq6-9pq8`): mitigados mediante upgrade a `next@15.5.14` + `eslint-config-next@15.5.14`.
+- Supply-chain risk por `xlsx` sin fix de severidad alta: mitigado con remoción de dependencia y migración a `exceljs@4.4.0`.
+- Prototype pollution en carga de planillas (headers maliciosos): mitigado con saneamiento estricto de encabezados (`__proto__`, `constructor`, `prototype`) y objetos `Object.create(null)` en parser de planillas.
+- Input abuse por tipo de archivo no permitido en importaciones internas: mitigado con rechazo explícito de extensiones no soportadas en parser central (`.csv`/`.xlsx` únicamente).
 
 ## Non-negotiable decisions
 
@@ -122,5 +139,6 @@
 
 ## SBOM summary
 
-- Lockfile presente: `otec/pnpm-lock.yaml`.
+- Lockfiles presentes: `pnpm-lock.yaml` (root) y `otec/pnpm-lock.yaml`.
 - SBOM formal pendiente de exportación dedicada; estado de dependencias validado vía CI/workflow de auditoría y `pnpm audit` en pipeline.
+- Auditoría local (2026-03-25): sin vulnerabilidades conocidas en root y `otec/` (`pnpm audit --prod`).

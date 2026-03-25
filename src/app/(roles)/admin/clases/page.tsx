@@ -91,7 +91,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
       </div>
 
       {/* Métricas */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">Total clases</p>
           <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">{totalCount}</p>

@@ -96,7 +96,7 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
 
       {/* Metrics row */}
       {totalRespuestas > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-3">
           <StatCard
             label="Total respuestas"
             value={totalRespuestas}

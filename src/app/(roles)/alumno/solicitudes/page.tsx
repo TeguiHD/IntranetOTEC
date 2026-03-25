@@ -49,7 +49,7 @@ export default async function AlumnoSolicitudesPage() {
       </header>
 
       {/* Navigation cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {SOLICITUD_CARDS.map(({ href, Icon, title, description, iconBg }) => (
           <Link
             key={href}

@@ -75,7 +75,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
       </header>
 
       {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-4">
         <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <p className="text-xs font-medium uppercase tracking-wide text-text-muted dark:text-gray-500">Total Ingresos</p>
           <p className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">

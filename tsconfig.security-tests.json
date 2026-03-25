@@ -15,6 +15,7 @@
     "security-tests/**/*.ts",
     "src/lib/authz.ts",
     "src/lib/rut.ts",
+    "src/lib/spreadsheet.ts",
     "src/lib/sanitizePath.ts",
     "src/lib/observability/logger.ts",
     "src/lib/validations/admin.ts"

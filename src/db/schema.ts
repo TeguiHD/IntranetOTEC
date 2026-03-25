@@ -535,6 +535,43 @@ export const auditLogs = pgTable(
   }),
 );
 
+// --- QR tokens para registro de asistencia ---
+// El docente genera un token por clase (válido 30 min).
+// El alumno escanea el QR → visita la URL → se registra automáticamente.
+export const qrAsistenciaTokens = pgTable(
+  "qr_asistencia_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    claseId: uuid("clase_id").notNull().references(() => clases.id),
+    token: text("token").notNull().unique(),
+    createdBy: uuid("created_by").notNull().references(() => usuarios.id),
+    expiresAt: tstz("expires_at").notNull(),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    tokenIdx: index("qr_asistencia_token_idx").on(t.token),
+    claseIdx: index("qr_asistencia_clase_idx").on(t.claseId),
+  }),
+);
+
+// --- Mensajería interna por asignatura ---
+// Canal de comunicación docente ↔ alumno dentro de cada asignatura.
+export const mensajes = pgTable(
+  "mensajes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    asignaturaId: uuid("asignatura_id").notNull().references(() => asignaturas.id),
+    emisorId: uuid("emisor_id").notNull().references(() => usuarios.id),
+    contenido: text("contenido").notNull(),
+    creadoAt: tstz("creado_at").defaultNow(),
+    eliminadoAt: tstz("eliminado_at"),
+  },
+  (t) => ({
+    asignaturaIdx: index("mensajes_asignatura_idx").on(t.asignaturaId),
+    creadoAtIdx: index("mensajes_creado_at_idx").on(t.creadoAt),
+  }),
+);
+
 export const rateLimitLog = pgTable(
   "rate_limit_log",
   {

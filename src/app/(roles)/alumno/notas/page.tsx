@@ -1,4 +1,5 @@
 import { listarNotasAlumno } from "@/actions/alumno-notas";
+import { NotasChart } from "@/components/charts/NotasChart";
 
 const NOTA_COLOR = (nota: string) =>
   Number(nota) >= 4.0 ? "text-success" : "text-danger";
@@ -88,6 +89,13 @@ export default async function AlumnoNotasPage() {
                   </div>
                 )}
               </div>
+
+              {/* Gráfico de historial */}
+              {group.items.length > 1 && (
+                <div className="mt-4">
+                  <NotasChart items={group.items.map((n) => ({ nota: n.nota, fechaRegistro: n.fechaRegistro }))} />
+                </div>
+              )}
 
               <div className="mt-4 space-y-2">
                 {group.items.map((n) => (

@@ -19,7 +19,9 @@ import {
   listarMaterialPorAsignatura,
   subirMaterialFormAction,
 } from "@/actions/material";
+import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 import { formatearRut } from "@/lib/rut";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
@@ -324,6 +326,26 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
             )}
           </article>
 
+          {/* QR por clase */}
+          {clases.length > 0 && (
+            <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <h2 className="mb-3 text-lg font-semibold text-text-primary dark:text-gray-100">QR de Asistencia</h2>
+              <p className="mb-4 text-sm text-text-secondary dark:text-gray-400">
+                Genera un código QR por clase. Los alumnos lo escanean con su celular para registrar asistencia automáticamente (válido 30 min).
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {clases.map((clase) => (
+                  <div key={clase.id} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50">
+                    <span className="text-xs font-medium text-text-secondary dark:text-gray-400">
+                      S{clase.numeroSesion} · {clase.titulo}
+                    </span>
+                    <QrAsistenciaButton claseId={clase.id} claseNombre={`Sesión ${clase.numeroSesion} – ${clase.titulo}`} />
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
+
           <article id="asistencia" className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar asistencia</h2>
             <form action={registrarAsistenciaDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
@@ -544,6 +566,14 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
               </div>
             </div>
           </article>
+
+          {/* Chat del curso */}
+          {selectedAsignaturaId && (
+            <ChatAsignatura
+              asignaturaId={selectedAsignaturaId}
+              asignaturaNombre={asignaturas.find((a) => a.id === selectedAsignaturaId)?.nombre ?? "Asignatura"}
+            />
+          )}
         </>
       ) : (
         <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">

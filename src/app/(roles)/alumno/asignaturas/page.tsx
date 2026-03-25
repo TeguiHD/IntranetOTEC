@@ -1,5 +1,6 @@
 import { obtenerResumenAsistenciaAlumno } from "@/actions/asistencia";
 import { listarMaterialPorAsignatura } from "@/actions/material";
+import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
 import { PieChart } from "@/components/shared/PieChart";
 
 const COLORS = {
@@ -115,6 +116,14 @@ export default async function AlumnoAsignaturasPage() {
                   </div>
                 );
               })()}
+
+              {/* Chat de la asignatura */}
+              <div className="mt-4">
+                <ChatAsignatura
+                  asignaturaId={asig.asignaturaId}
+                  asignaturaNombre={asig.asignaturaNombre}
+                />
+              </div>
             </article>
           ))}
         </div>

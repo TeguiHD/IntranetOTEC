@@ -29,10 +29,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type AdminAdministradoresPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     page?: string;
-  };
+  }>;
 };
 
 export const metadata = {
@@ -42,7 +42,8 @@ export const metadata = {
 export default async function AdminAdministradoresPage({
   searchParams,
 }: AdminAdministradoresPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string }));
+  const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   const [administradores, totalCount] = await Promise.all([
@@ -59,7 +60,7 @@ export default async function AdminAdministradoresPage({
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>

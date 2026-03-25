@@ -16,12 +16,12 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 const PAGE_SIZE = 25;
 
 type AdminFinanzasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     page?: string;
     tipo?: string;
     q?: string;
-  };
+  }>;
 };
 
 function formatMonto(value: string | null): string {
@@ -41,13 +41,14 @@ export const metadata = {
 };
 
 export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string; tipo?: string; q?: string }));
+  const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
   const tipoFilter =
-    searchParams?.tipo === "ingreso" || searchParams?.tipo === "gasto"
-      ? searchParams.tipo
+    params.tipo === "ingreso" || params.tipo === "gasto"
+      ? params.tipo
       : undefined;
-  const q = typeof searchParams?.q === "string" ? searchParams.q.trim() : undefined;
+  const q = typeof params.q === "string" ? params.q.trim() : undefined;
 
   const [transacciones, resumen] = await Promise.all([
     listarFinanzasAction(
@@ -62,7 +63,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-gray-100 sm:text-2xl">

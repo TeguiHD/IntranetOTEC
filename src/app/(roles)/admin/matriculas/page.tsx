@@ -27,11 +27,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type AdminMatriculasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     asignaturaId?: string;
     page?: string;
-  };
+  }>;
 };
 
 const estaPagado = (estadoPago: string | null | undefined): boolean =>
@@ -52,7 +52,8 @@ export const metadata = {
 };
 
 export default async function AdminMatriculasPage({ searchParams }: AdminMatriculasPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string; page?: string }));
+  const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   const asignaturas = await listarAsignaturasAdmin(
@@ -61,7 +62,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
   );
 
   const selectedAsignaturaIdRaw =
-    typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
+    typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
@@ -97,15 +98,15 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   function buildHref(page: number) {
-    const params = new URLSearchParams();
-    if (selectedAsignaturaId) params.set("asignaturaId", selectedAsignaturaId);
-    params.set("page", String(page));
-    return `/admin/matriculas?${params.toString()}`;
+    const urlParams = new URLSearchParams();
+    if (selectedAsignaturaId) urlParams.set("asignaturaId", selectedAsignaturaId);
+    urlParams.set("page", String(page));
+    return `/admin/matriculas?${urlParams.toString()}`;
   }
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">

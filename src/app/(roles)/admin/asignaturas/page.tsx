@@ -30,12 +30,12 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> =
 const ESTADO_OPTIONS = ["", "activo", "borrador", "finalizado", "archivado"] as const;
 
 type AdminAsignaturasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     page?: string;
     q?: string;
     estado?: string;
-  };
+  }>;
 };
 
 export const metadata = {
@@ -45,11 +45,12 @@ export const metadata = {
 export default async function AdminAsignaturasPage({
   searchParams,
 }: AdminAsignaturasPageProps) {
-  const currentPage = Math.max(1, Number(searchParams?.page ?? "1") || 1);
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string; q?: string; estado?: string }));
+  const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
-  const q = typeof searchParams?.q === "string" ? searchParams.q.trim() : "";
-  const estadoFilter = typeof searchParams?.estado === "string" && searchParams.estado.length > 0
-    ? (searchParams.estado as "activo" | "borrador" | "finalizado" | "archivado")
+  const q = typeof params.q === "string" ? params.q.trim() : "";
+  const estadoFilter = typeof params.estado === "string" && params.estado.length > 0
+    ? (params.estado as "activo" | "borrador" | "finalizado" | "archivado")
     : undefined;
 
   const filterOpts = { incluirArchivadas: true, q: q || undefined, estado: estadoFilter };
@@ -94,7 +95,7 @@ export default async function AdminAsignaturasPage({
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-gray-100 sm:text-2xl">

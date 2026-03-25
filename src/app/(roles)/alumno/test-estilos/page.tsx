@@ -3,10 +3,8 @@ import { Brain, CheckCircle } from "lucide-react";
 import {
   enviarTestEstilosFormAction,
   obtenerIntentosTestEstilos,
-  PREGUNTAS_AUDITIVO,
-  PREGUNTAS_KINESTESICO,
-  PREGUNTAS_VISUAL,
 } from "@/actions/encuestas";
+import { PREGUNTAS_AUDITIVO, PREGUNTAS_KINESTESICO, PREGUNTAS_VISUAL } from "@/lib/encuestaConstants";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {

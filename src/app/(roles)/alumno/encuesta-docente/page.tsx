@@ -3,9 +3,8 @@ import { CheckCircle, Star } from "lucide-react";
 import {
   enviarEncuestaDocenteFormAction,
   listarEncuestasDisponiblesAlumno,
-  PREGUNTAS_DOCENTE,
-  PREGUNTAS_OTEC,
 } from "@/actions/encuestas";
+import { PREGUNTAS_DOCENTE, PREGUNTAS_OTEC } from "@/lib/encuestaConstants";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {

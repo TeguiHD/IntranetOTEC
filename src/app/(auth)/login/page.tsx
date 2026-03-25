@@ -1,11 +1,10 @@
 import { LoginView } from "./LoginView";
 
 type LoginPageProps = {
-  searchParams: {
-    error?: string;
-  };
+  searchParams: Promise<{ error?: string }>;
 };
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
-  return <LoginView authError={searchParams.error} />;
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  return <LoginView authError={params.error} />;
 }

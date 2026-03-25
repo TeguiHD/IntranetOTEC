@@ -19,11 +19,6 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const ESTILO_LABEL: Record<string, string> = {
-  visual: "Visual",
-  auditivo: "Auditivo",
-  kinestesico: "Kinestésico",
-};
 
 type Props = {
   searchParams?: Promise<{ state?: string; asignaturaId?: string }>;

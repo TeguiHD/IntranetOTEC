@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-import { CreditCard, User } from "lucide-react";
+import { User } from "lucide-react";
 
 import { esRutExtranjero, formatearRut, normalizarRut, validarRut } from "@/lib/rut";
 
@@ -29,7 +30,6 @@ export function TarjetaBeneficio({
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync props → state when parent changes (e.g. server pre-fill)
   useEffect(() => {
     if (rutProp) setRutInput(rutProp);
     if (nombreProp) setNombre(nombreProp);
@@ -65,28 +65,37 @@ export function TarjetaBeneficio({
   const displayNombre = [nombre, apellido].filter(Boolean).join(" ") || "-";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#7B2FBE] to-[#5B1F8E] p-5 text-white shadow-xl shadow-purple-900/30">
-      {/* Decorative circles */}
-      <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-[#F5A623]/10" />
-
-      <div className="relative z-10 flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">
-            Club de Beneficios
-          </p>
-          <p className="mt-0.5 text-sm font-bold tracking-wide text-[#F5A623]">
-            Impulsate &amp; Emprende
-          </p>
+    <div className="space-y-4">
+      {/* Tarjeta principal — imagen morada */}
+      <div className="relative overflow-hidden rounded-2xl shadow-xl shadow-purple-900/30">
+        <Image
+          src="/beneficio-morado.jpg"
+          alt="Club de Beneficios Impulsate"
+          width={1275}
+          height={810}
+          className="h-auto w-full object-cover"
+          priority
+        />
+        {/* Overlay con datos del titular */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-5 pb-4 pt-8">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/70">Titular</p>
+              <p className="mt-0.5 text-base font-bold text-white drop-shadow">{displayNombre}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/70">RUT</p>
+              <p className="mt-0.5 font-mono text-sm font-bold text-[#F5A623] drop-shadow">{displayRut}</p>
+            </div>
+          </div>
         </div>
-        <CreditCard className="h-8 w-8 text-white/40" />
       </div>
 
-      {/* RUT field */}
-      <div className="relative z-10 mt-5">
-        {editable ? (
+      {/* Formulario editable */}
+      {editable && (
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-widest text-white/60">
+            <label className="text-xs font-semibold uppercase tracking-widest text-text-secondary dark:text-gray-400">
               RUT / Credencial
             </label>
             <input
@@ -94,40 +103,29 @@ export function TarjetaBeneficio({
               value={rutInput}
               onChange={(e) => handleRutChange(e.target.value)}
               placeholder="12.345.678-5"
-              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-mono text-white placeholder:text-white/40 focus:border-[#F5A623] focus:outline-none focus:ring-2 focus:ring-[#F5A623]/30"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
-        ) : (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/60">RUT</p>
-            <p className="mt-0.5 font-mono text-lg font-bold tracking-wider text-white">
-              {displayRut}
-            </p>
+          <div className="flex items-center gap-2 text-sm text-text-secondary dark:text-gray-400">
+            <User className="h-4 w-4 flex-shrink-0" />
+            {loading ? (
+              <span className="animate-pulse">Buscando…</span>
+            ) : (
+              <span className="font-medium text-text-primary dark:text-white">{displayNombre}</span>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Nombre */}
-      <div className="relative z-10 mt-4 flex items-end justify-between">
-        <div>
-          {editable && loading ? (
-            <p className="text-xs text-white/60 animate-pulse">Buscando…</p>
-          ) : null}
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">Titular</p>
-          {editable ? (
-            <div className="mt-0.5 flex items-center gap-2">
-              <User className="h-4 w-4 text-white/40" />
-              <p className="text-sm font-semibold text-white">
-                {displayNombre}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-0.5 text-sm font-semibold text-white">{displayNombre}</p>
-          )}
-        </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F5A623]/20">
-          <div className="h-4 w-4 rounded-full bg-[#F5A623]/60" />
-        </div>
+      {/* Tarjeta secundaria — imagen amarilla */}
+      <div className="overflow-hidden rounded-2xl shadow-lg shadow-yellow-500/20">
+        <Image
+          src="/beneficio-amarillo.jpg"
+          alt="Club de Beneficios Impulsate — variante dorada"
+          width={1275}
+          height={810}
+          className="h-auto w-full object-cover"
+        />
       </div>
 
       {/* Hidden inputs for form submission */}

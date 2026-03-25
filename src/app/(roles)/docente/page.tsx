@@ -1,10 +1,22 @@
 import Link from "next/link";
 
 import { and, count, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { BookOpen, MessageSquare, User, type LucideIcon } from "lucide-react";
 
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { asignaturas, clases, matriculas } from "@/db/schema";
+
+const GRADIENT_COLORS: Record<string, string> = {
+  "grad-blue":   "#3B82F6",
+  "grad-indigo": "#6366F1",
+};
+
+const DOCENTE_NAV: { href: string; title: string; gradient: string; Icon: LucideIcon }[] = [
+  { href: "/docente/asignaturas", title: "Mis Asignaturas", gradient: "grad-blue",   Icon: BookOpen },
+  { href: "/encuestas",           title: "Mis Encuestas",   gradient: "grad-indigo", Icon: MessageSquare },
+  { href: "/docente/perfil",      title: "Mi Perfil",       gradient: "grad-blue",   Icon: User },
+];
 
 export const metadata = {
   title: "Dashboard",
@@ -136,31 +148,21 @@ export default async function DocenteDashboardPage() {
       </div>
 
       {/* Navigation */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Link
-          href="/docente/asignaturas"
-          className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
-        >
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14">
-            <path strokeLinecap="round" strokeLinejoin="round" stroke="url(#grad-blue)" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-          </svg>
-          <div>
-            <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">Mis Asignaturas</h2>
-            <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">Gestiona tus cursos, clases y materiales.</p>
-          </div>
-        </Link>
-        <Link
-          href="/docente/asignaturas#asistencia"
-          className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
-        >
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14">
-            <path strokeLinecap="round" strokeLinejoin="round" stroke="url(#grad-emerald)" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2Z" />
-          </svg>
-          <div>
-            <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">Crear Asistencia</h2>
-            <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">Registra asistencia y carga notas por archivo.</p>
-          </div>
-        </Link>
+      <div className="grid grid-cols-3 gap-3">
+        {DOCENTE_NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-4 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
+          >
+            <item.Icon
+              className="h-10 w-10 transition-transform duration-200 group-hover:scale-110"
+              strokeWidth={1.5}
+              style={{ color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
+            />
+            <p className="text-xs font-semibold leading-tight text-text-primary dark:text-white">{item.title}</p>
+          </Link>
+        ))}
       </div>
 
       {/* Upcoming classes */}

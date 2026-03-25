@@ -2,14 +2,20 @@ import Link from "next/link";
 
 import {
   BookOpen,
+  Brain,
   CalendarDays,
+  ClipboardCheck,
+  ClipboardList,
   FileText,
   type LucideIcon,
+  MessageSquare,
   Shield,
+  Star,
+  TrendingUp,
+  Upload,
   UserCog,
   Users,
   Wallet,
-  ClipboardList,
 } from "lucide-react";
 
 import { obtenerMetricasGlobales, obtenerMetricasPorAsignatura } from "@/actions/admin-metricas";
@@ -27,19 +33,28 @@ const GRADIENT_COLORS: Record<string, string> = {
   "grad-emerald": "#10B981",
   "grad-pink": "#EC4899",
   "grad-violet": "#8B5CF6",
+  "grad-gold": "#F5A623",
+  "grad-slate": "#64748B",
+  "grad-indigo": "#6366F1",
 };
 
 const MODULE_CARDS: { href: string; title: string; description: string; gradient: string; Icon: LucideIcon }[] = [
-  { href: "/admin/administradores", title: "Administradores", description: "Gestionar cuentas con acceso total al panel.", gradient: "grad-purple", Icon: Shield },
-  { href: "/admin/docentes",     title: "Docentes",     description: "Crear y desactivar cuentas docentes.", gradient: "grad-amber", Icon: UserCog },
-  { href: "/admin/alumnos",      title: "Alumnos",      description: "Registrar alumnos y controlar su acceso.", gradient: "grad-emerald", Icon: Users },
-  { href: "/admin/asignaturas",  title: "Asignaturas",  description: "Crear asignaturas y asignar docentes.", gradient: "grad-blue", Icon: BookOpen },
-  { href: "/admin/evaluaciones", title: "Evaluaciones", description: "Administrar formularios y revisar resultados.", gradient: "grad-violet", Icon: ClipboardList },
-  { href: "/admin/encuestas", title: "Encuestas Docente", description: "Habilitar encuestas de evaluación y ver resultados.", gradient: "grad-amber", Icon: ClipboardList },
-  { href: "/admin/test-estilos", title: "Test Estilos", description: "Ver resultados de test de estilos de aprendizaje.", gradient: "grad-cyan", Icon: ClipboardList },
-  { href: "/admin/matriculas",   title: "Matriculas",   description: "Vincular alumnos a asignaturas.", gradient: "grad-pink", Icon: Wallet },
-  { href: "/admin/clases",       title: "Clases",       description: "Programar sesiones y publicar contenido.", gradient: "grad-cyan", Icon: CalendarDays },
-  { href: "/admin/solicitudes",  title: "Solicitudes",  description: "Gestionar solicitudes de documentos.", gradient: "grad-violet", Icon: FileText },
+  { href: "/admin/asignaturas",      title: "Asignaturas",           description: "Crear asignaturas y asignar docentes.",               gradient: "grad-blue",    Icon: BookOpen },
+  { href: "/admin/clases",           title: "Clases",                description: "Programar sesiones y publicar contenido.",             gradient: "grad-cyan",    Icon: CalendarDays },
+  { href: "/admin/evaluaciones",     title: "Evaluaciones",          description: "Administrar formularios y revisar resultados.",         gradient: "grad-violet",  Icon: ClipboardList },
+  { href: "/admin/notas",            title: "Notas",                 description: "Revisar y gestionar calificaciones.",                  gradient: "grad-gold",    Icon: ClipboardList },
+  { href: "/admin/asistencias",      title: "Asistencias",           description: "Revisar registros de asistencia.",                    gradient: "grad-emerald", Icon: ClipboardCheck },
+  { href: "/admin/encuestas",        title: "Encuestas Docente",     description: "Habilitar encuestas de evaluación y ver resultados.", gradient: "grad-amber",   Icon: Star },
+  { href: "/admin/test-estilos",     title: "Test Estilos",          description: "Ver resultados de test de estilos de aprendizaje.",   gradient: "grad-violet",  Icon: Brain },
+  { href: "/admin/encuestas-builder", title: "Constructor Encuestas", description: "Diseñar encuestas personalizadas.",                   gradient: "grad-indigo",  Icon: MessageSquare },
+  { href: "/admin/administradores",  title: "Administradores",       description: "Gestionar cuentas con acceso total al panel.",         gradient: "grad-purple",  Icon: Shield },
+  { href: "/admin/docentes",         title: "Docentes",              description: "Crear y desactivar cuentas docentes.",                 gradient: "grad-amber",   Icon: UserCog },
+  { href: "/admin/alumnos",          title: "Alumnos",               description: "Registrar alumnos y controlar su acceso.",             gradient: "grad-emerald", Icon: Users },
+  { href: "/admin/matriculas",       title: "Matrículas",            description: "Vincular alumnos a asignaturas.",                     gradient: "grad-pink",    Icon: Wallet },
+  { href: "/admin/solicitudes",      title: "Solicitudes",           description: "Gestionar solicitudes de documentos.",                gradient: "grad-violet",  Icon: FileText },
+  { href: "/admin/importar",         title: "Importar Alumnos",      description: "Carga masiva de alumnos desde archivo.",              gradient: "grad-emerald", Icon: Upload },
+  { href: "/admin/finanzas",         title: "Finanzas",              description: "Registros de ingresos y gastos del OTEC.",            gradient: "grad-emerald", Icon: TrendingUp },
+  { href: "/admin/auditoria",        title: "Auditoría",             description: "Revisión de acciones y eventos del sistema.",         gradient: "grad-slate",   Icon: ClipboardList },
 ];
 
 type AdminDashboardPageProps = {
@@ -115,22 +130,19 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
       )}
 
       {/* Module cards - vivoDuoc style grid */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
         {MODULE_CARDS.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
+            className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-4 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
           >
             <card.Icon
-              className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14"
+              className="h-10 w-10 transition-transform duration-200 group-hover:scale-110"
               style={{ color: GRADIENT_COLORS[card.gradient] ?? "#8B3A9E" }}
               strokeWidth={1.5}
             />
-            <div>
-              <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">{card.title}</h2>
-              <p className="mt-1 hidden text-xs text-text-secondary dark:text-gray-400 sm:block">{card.description}</p>
-            </div>
+            <p className="text-xs font-semibold leading-tight text-text-primary dark:text-white">{card.title}</p>
           </Link>
         ))}
       </div>

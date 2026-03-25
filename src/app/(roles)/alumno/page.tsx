@@ -1,7 +1,49 @@
 import Link from "next/link";
 
+import {
+  Brain,
+  CalendarDays,
+  ClipboardCheck,
+  ClipboardList,
+  CreditCard,
+  FileCheck,
+  GraduationCap,
+  IdCard,
+  type LucideIcon,
+  MessageSquare,
+  Star,
+  User,
+} from "lucide-react";
+
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
 import { listarObservacionesAlumno } from "@/actions/docente";
+
+const GRADIENT_COLORS: Record<string, string> = {
+  "grad-purple": "#8B3A9E",
+  "grad-blue": "#3B82F6",
+  "grad-cyan": "#06B6D4",
+  "grad-amber": "#F5A623",
+  "grad-emerald": "#10B981",
+  "grad-pink": "#EC4899",
+  "grad-violet": "#8B5CF6",
+  "grad-gold": "#F5A623",
+  "grad-indigo": "#6366F1",
+};
+
+const ALUMNO_NAV: { href: string; title: string; gradient: string; Icon: LucideIcon }[] = [
+  { href: "/alumno/asignaturas",              title: "Mis Cursos",           gradient: "grad-blue",    Icon: GraduationCap },
+  { href: "/alumno/clases",                   title: "Clases",               gradient: "grad-cyan",    Icon: CalendarDays },
+  { href: "/alumno/evaluaciones",             title: "Evaluaciones",         gradient: "grad-violet",  Icon: ClipboardList },
+  { href: "/alumno/notas",                    title: "Mis Notas",            gradient: "grad-gold",    Icon: ClipboardList },
+  { href: "/alumno/asistencias",              title: "Mi Asistencia",        gradient: "grad-emerald", Icon: ClipboardCheck },
+  { href: "/alumno/encuesta-docente",         title: "Evaluar Docente",      gradient: "grad-amber",   Icon: Star },
+  { href: "/alumno/test-estilos",             title: "Test Estilos",         gradient: "grad-violet",  Icon: Brain },
+  { href: "/encuestas",                       title: "Mis Encuestas",        gradient: "grad-indigo",  Icon: MessageSquare },
+  { href: "/alumno/solicitudes/credencial",   title: "Credencial",           gradient: "grad-violet",  Icon: IdCard },
+  { href: "/alumno/solicitudes/alumno-regular", title: "Cert. Alumno Regular", gradient: "grad-blue", Icon: FileCheck },
+  { href: "/alumno/solicitudes/tarjeta-beneficio", title: "Tarjeta de Beneficio", gradient: "grad-pink", Icon: CreditCard },
+  { href: "/alumno/perfil",                   title: "Mi Perfil",            gradient: "grad-blue",    Icon: User },
+];
 
 const TIPO_EVAL_LABELS: Record<string, string> = {
   formulario: "Formulario",
@@ -132,32 +174,22 @@ export default async function AlumnoDashboardPage() {
         </div>
       </div>
 
-      {/* Quick nav - vivoDuoc style */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Link
-          href="/alumno/asignaturas"
-          className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
-        >
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14">
-            <path strokeLinecap="round" strokeLinejoin="round" stroke="url(#grad-blue)" d="M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" />
-          </svg>
-          <div>
-            <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">Mis Cursos</h2>
-            <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">Asistencia y detalle</p>
-          </div>
-        </Link>
-        <Link
-          href="/alumno/solicitudes"
-          className="group flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 sm:p-6"
-        >
-          <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" className="h-12 w-12 transition-transform duration-200 group-hover:scale-110 sm:h-14 sm:w-14">
-            <path strokeLinecap="round" strokeLinejoin="round" stroke="url(#grad-violet)" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6ZM14 2v6h6" />
-          </svg>
-          <div>
-            <h2 className="text-sm font-bold text-text-primary dark:text-white sm:text-base">Solicitudes</h2>
-            <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">Certificados y docs</p>
-          </div>
-        </Link>
+      {/* Quick nav */}
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+        {ALUMNO_NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-4 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
+          >
+            <item.Icon
+              className="h-10 w-10 transition-transform duration-200 group-hover:scale-110"
+              strokeWidth={1.5}
+              style={{ color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
+            />
+            <p className="text-xs font-semibold leading-tight text-text-primary dark:text-white">{item.title}</p>
+          </Link>
+        ))}
       </div>
 
       {/* Upcoming classes */}

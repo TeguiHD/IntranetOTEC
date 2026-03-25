@@ -125,7 +125,7 @@ export async function listarClasesAdmin(
   })();
 
   if (options?.asignaturaId && options?.incluirArchivadas) {
-    const base = eq(clases.asignaturaId, options.asignaturaId);
+    const base = and(eq(clases.asignaturaId, options.asignaturaId), activo(clases));
     return baseQuery.where(qFilter ? and(base, qFilter) : base);
   }
 
@@ -133,15 +133,16 @@ export async function listarClasesAdmin(
     const base = and(
       eq(clases.asignaturaId, options.asignaturaId),
       ne(asignaturas.estado, "archivado"),
+      activo(clases),
     );
     return baseQuery.where(qFilter ? and(base, qFilter) : base);
   }
 
   if (options?.incluirArchivadas) {
-    return baseQuery.where(qFilter ?? undefined);
+    return baseQuery.where(qFilter ? and(activo(clases), qFilter) : activo(clases));
   }
 
-  const base = ne(asignaturas.estado, "archivado");
+  const base = and(ne(asignaturas.estado, "archivado"), activo(clases));
   return baseQuery.where(qFilter ? and(base, qFilter) : base);
 }
 
@@ -178,15 +179,19 @@ export async function countClasesAdmin(
   let result;
 
   if (options?.asignaturaId && options?.incluirArchivadas) {
-    const base = eq(clases.asignaturaId, options.asignaturaId);
+    const base = and(eq(clases.asignaturaId, options.asignaturaId), activo(clases));
     result = await baseQuery.where(qFilter ? and(base, qFilter) : base);
   } else if (options?.asignaturaId) {
-    const base = and(eq(clases.asignaturaId, options.asignaturaId), ne(asignaturas.estado, "archivado"));
+    const base = and(
+      eq(clases.asignaturaId, options.asignaturaId),
+      ne(asignaturas.estado, "archivado"),
+      activo(clases),
+    );
     result = await baseQuery.where(qFilter ? and(base, qFilter) : base);
   } else if (options?.incluirArchivadas) {
-    result = await baseQuery.where(qFilter ?? undefined);
+    result = await baseQuery.where(qFilter ? and(activo(clases), qFilter) : activo(clases));
   } else {
-    const base = ne(asignaturas.estado, "archivado");
+    const base = and(ne(asignaturas.estado, "archivado"), activo(clases));
     result = await baseQuery.where(qFilter ? and(base, qFilter) : base);
   }
 
@@ -430,13 +435,17 @@ export async function eliminarClaseAction(id: string): Promise<MutationResult> {
 
   try {
     const [existing] = await db
-      .select({ id: clases.id })
+      .select({ id: clases.id, eliminadoAt: clases.eliminadoAt })
       .from(clases)
       .where(eq(clases.id, id))
       .limit(1);
 
     if (!existing) {
       return { ok: false, code: "clase_not_found", message: "Clase no encontrada." };
+    }
+
+    if (existing.eliminadoAt) {
+      return { ok: true, code: "already_deleted" };
     }
 
     await db
@@ -468,6 +477,19 @@ export async function eliminarClaseAction(id: string): Promise<MutationResult> {
     });
     return { ok: false, code: "clase_delete_failed", message: "No fue posible eliminar la clase." };
   }
+}
+
+export async function eliminarClaseFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
+  const result = await eliminarClaseAction(getStringField(formData, "id"));
+
+  revalidatePath("/admin/clases");
+  const filterQuery = asignaturaId
+    ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
+    : "";
+  const pageQuery = page ? `&page=${page}` : "";
+  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }
 
 export async function crearClaseFormAction(formData: FormData): Promise<void> {

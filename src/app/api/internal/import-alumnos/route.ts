@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { and, eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import * as XLSX from "xlsx";
 
 import { auth } from "@/auth";
 import { getDb } from "@/db";
@@ -11,6 +10,7 @@ import { usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { parseAppRole } from "@/lib/authz";
 import { formatearRut, normalizarRut, validarRut } from "@/lib/rut";
+import { parseSpreadsheetRowsFromBuffer } from "@/lib/spreadsheet";
 
 const sanitizeName = (value: string): string =>
   value.replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
 
-    if (!file || !(file instanceof Blob)) {
+    if (!file || !(file instanceof File)) {
       return NextResponse.json(
         { message: "No se proporcionó un archivo válido." },
         { status: 400 },
@@ -44,22 +44,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read file
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
+    const fileName = file.name.trim();
 
-    if (!sheetName) {
+    if (!/\.(csv|xlsx)$/i.test(fileName)) {
       return NextResponse.json(
-        { message: "El archivo no contiene hojas de datos." },
+        { message: "Solo se permiten archivos .csv o .xlsx." },
         { status: 400 },
       );
     }
 
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-      defval: "",
-    });
+    // Read file
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const rows = await parseSpreadsheetRowsFromBuffer(buffer, fileName);
 
     if (rows.length === 0) {
       return NextResponse.json(

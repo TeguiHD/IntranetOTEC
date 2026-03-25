@@ -15,6 +15,8 @@ const UUID_REGEX =
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   clase_created: { tone: "success", text: "Clase creada correctamente." },
   clase_updated: { tone: "success", text: "Clase actualizada correctamente." },
+  clase_deleted: { tone: "success", text: "Clase eliminada correctamente." },
+  already_deleted: { tone: "success", text: "La clase ya estaba eliminada." },
   error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
 };
 

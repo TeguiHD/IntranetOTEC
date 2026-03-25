@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
-import { CalendarDays, ExternalLink, Pencil } from "lucide-react";
+import { CalendarDays, ExternalLink, Pencil, Trash2 } from "lucide-react";
 
-import { editarClaseFormAction } from "@/actions/clases";
+import { editarClaseFormAction, eliminarClaseFormAction } from "@/actions/clases";
 import { Modal } from "@/components/shared/Modal";
 
 type Clase = {
@@ -88,6 +88,23 @@ export function ClasesTable({
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
+                <form action={eliminarClaseFormAction} className="inline">
+                  <input type="hidden" name="id" value={clase.id} />
+                  <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                  <input type="hidden" name="page" value={String(currentPage)} />
+                  <button
+                    type="submit"
+                    onClick={(event) => {
+                      if (!confirm("¿Eliminar esta clase?")) {
+                        event.preventDefault();
+                      }
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-600 transition-colors hover:border-rose-300 hover:bg-rose-50 dark:border-rose-900/80 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                    aria-label={`Eliminar sesión ${clase.numeroSesion}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </form>
               </div>
             </div>
             {clase.urlGrabacion && (
@@ -116,7 +133,7 @@ export function ClasesTable({
               <th className="px-3 py-2.5">Fecha</th>
               <th className="px-3 py-2.5">Grabación</th>
               <th className="px-3 py-2.5">Estado</th>
-              <th className="px-3 py-2.5 text-right">Editar</th>
+              <th className="px-3 py-2.5 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -159,16 +176,35 @@ export function ClasesTable({
                   </span>
                 </td>
                 <td className="px-3 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => setEditingClase(clase)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-text-secondary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-primary-light dark:hover:text-primary-light"
-                    aria-label={`Editar sesión ${clase.numeroSesion}`}
-                  >
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                      <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
-                    </svg>
-                  </button>
+                  <div className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingClase(clase)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-text-secondary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-primary-light dark:hover:text-primary-light"
+                      aria-label={`Editar sesión ${clase.numeroSesion}`}
+                    >
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                        <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+                      </svg>
+                    </button>
+                    <form action={eliminarClaseFormAction} className="inline">
+                      <input type="hidden" name="id" value={clase.id} />
+                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                      <input type="hidden" name="page" value={String(currentPage)} />
+                      <button
+                        type="submit"
+                        onClick={(event) => {
+                          if (!confirm("¿Eliminar esta clase?")) {
+                            event.preventDefault();
+                          }
+                        }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 transition-colors hover:border-rose-300 hover:bg-rose-50 dark:border-rose-900/80 dark:bg-gray-900 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                        aria-label={`Eliminar sesión ${clase.numeroSesion}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}

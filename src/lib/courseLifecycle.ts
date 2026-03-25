@@ -2,6 +2,8 @@ import { and, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
+import { logEvent } from "@/lib/observability/logger";
+import { generarEncuestasObligatoriasAlFinalizar } from "@/lib/surveyLifecycle";
 
 // #51: In-memory throttle — run at most once per minute
 let lastRun = 0;
@@ -57,14 +59,40 @@ export async function finalizarAsignaturasVencidas(): Promise<number> {
   }
 
   const now = new Date();
-  await Promise.all(
+  const finalizedIds = (
+    await Promise.all(
     expiredIds.map((id) =>
       db
         .update(asignaturas)
         .set({ estado: "finalizado", updatedAt: now })
-        .where(and(eq(asignaturas.id, id), eq(asignaturas.estado, "activo"))),
+        .where(and(eq(asignaturas.id, id), eq(asignaturas.estado, "activo")))
+        .returning({ id: asignaturas.id }),
     ),
-  );
+    )
+  )
+    .flatMap((rows) => rows)
+    .map((row) => row.id);
 
-  return expiredIds.length;
+  if (finalizedIds.length === 0) {
+    return 0;
+  }
+
+  for (const asignaturaId of finalizedIds) {
+    try {
+      await generarEncuestasObligatoriasAlFinalizar(asignaturaId);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "unknown_error";
+      logEvent({
+        correlationId: `course-lifecycle-${Date.now()}`,
+        action: "mandatory_surveys_generation_failed",
+        result: "error",
+        details: {
+          asignaturaId,
+          reason,
+        },
+      });
+    }
+  }
+
+  return finalizedIds.length;
 }

@@ -253,6 +253,12 @@ const nextAuth = NextAuth({
         const rawRut = typeof credentials?.rut === "string" ? credentials.rut : "";
         const isForeign = esRutExtranjero(rawRut);
         const rutLimpio = isForeign ? rawRut.trim().toUpperCase() : normalizarRut(rawRut);
+        const foreignLoginCandidates = isForeign
+          ? [
+              rutLimpio,
+              rutLimpio.startsWith("EXT-") ? rutLimpio : `EXT-${rutLimpio.replace(/^EXT-?/i, "")}`,
+            ]
+          : [];
 
         try {
           const db = getDb();
@@ -273,7 +279,7 @@ const nextAuth = NextAuth({
             .where(
               and(
                 isForeign
-                  ? eq(usuarios.rut, rutLimpio)
+                  ? or(...foreignLoginCandidates.map((candidate) => eq(usuarios.rut, candidate)))
                   : or(eq(usuarios.rut, rutLimpio), eq(usuarios.rut, rutFormateado)),
                 eq(usuarios.rol, "alumno"),
                 eq(usuarios.activo, true),

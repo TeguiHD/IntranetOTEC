@@ -98,12 +98,13 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
       <div className="flex h-16 items-center justify-between border-b border-purple-100 bg-white px-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3">
           <Image
-            src="/logo-icon.svg"
-            alt="Mi OTEC"
-            width={40}
-            height={40}
-            className="h-10 w-10 rounded-xl object-contain"
+            src="/logo-intranet.webp"
+            alt="Mi OTEC Intranet"
+            width={44}
+            height={44}
+            className="h-11 w-11 rounded-xl object-contain"
             priority
+            unoptimized
           />
           <div>
             <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>

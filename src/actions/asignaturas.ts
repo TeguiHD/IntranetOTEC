@@ -566,6 +566,67 @@ export async function editarAsignaturaAction(input: {
   }
 }
 
+export async function archivarAsignaturaAction(input: { id: string }): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_archivar", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: asignaturas.id, estado: asignaturas.estado, nombre: asignaturas.nombre })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, input.id))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "asignatura_not_found", message: "No se encontró la asignatura." };
+    }
+
+    if (existing.estado === "archivado") {
+      return { ok: true, code: "already_archived" };
+    }
+
+    await db
+      .update(asignaturas)
+      .set({ estado: "archivado", updatedAt: new Date() })
+      .where(eq(asignaturas.id, input.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "archivar",
+      entidad: "asignaturas",
+      entidadId: input.id,
+      payload: { nombre: existing.nombre, estadoAnterior: existing.estado },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "asignatura_archived" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_asignatura_archivar_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "archive_failed", message: "No fue posible archivar la asignatura." };
+  }
+}
+
+export async function archivarAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await archivarAsignaturaAction({ id: getStringField(formData, "id") });
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
 export async function asignarDocenteFormAction(formData: FormData): Promise<void> {
   const result = await asignarDocenteAction({
     asignaturaId: getStringField(formData, "asignaturaId"),

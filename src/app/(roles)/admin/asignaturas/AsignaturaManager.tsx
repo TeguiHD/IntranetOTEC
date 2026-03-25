@@ -2,9 +2,10 @@
 
 import { useRef, useMemo, useState, useTransition } from "react";
 
-import { BookOpen, Plus, RotateCcw, Search, UserCog, X } from "lucide-react";
+import { Archive, BookOpen, Plus, RotateCcw, Search, UserCog, X } from "lucide-react";
 
 import {
+  archivarAsignaturaFormAction,
   asignarDocenteFormAction,
   crearAsignaturaFormAction,
 } from "@/actions/asignaturas";
@@ -246,8 +247,10 @@ export function AsignaturaManager({
   const [assigningAsig, setAssigningAsig] = useState<Asignatura | null>(null);
   const [confirmDocente, setConfirmDocente] = useState<Docente | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [archivingAsig, setArchivingAsig] = useState<Asignatura | null>(null);
   const [isPending, startTransition] = useTransition();
   const assignFormRef = useRef<HTMLFormElement>(null);
+  const archiveFormRef = useRef<HTMLFormElement>(null);
 
   const handleAssignSubmit = () => {
     if (!confirmDocente || !assignFormRef.current) return;
@@ -348,16 +351,28 @@ export function AsignaturaManager({
                       </span>
                     )}
                   </p>
-                  {(a.estado === "activo" || a.estado === "borrador") && (
-                    <button
-                      type="button"
-                      onClick={() => setAssigningAsig(a)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
-                    >
-                      <UserCog className="h-3.5 w-3.5" />
-                      Asignar docente
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {(a.estado === "activo" || a.estado === "borrador") && (
+                      <button
+                        type="button"
+                        onClick={() => setAssigningAsig(a)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                      >
+                        <UserCog className="h-3.5 w-3.5" />
+                        Asignar
+                      </button>
+                    )}
+                    {a.estado !== "archivado" && (
+                      <button
+                        type="button"
+                        onClick={() => setArchivingAsig(a)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                        Archivar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -444,20 +459,31 @@ export function AsignaturaManager({
 
                     {/* Acción */}
                     <td className="px-3 py-3 text-right">
-                      {canAssign ? (
-                        <button
-                          type="button"
-                          onClick={() => setAssigningAsig(a)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
-                        >
-                          <UserCog className="h-3.5 w-3.5" />
-                          {docenteLabel ? "Cambiar" : "Asignar"}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-text-muted dark:text-gray-600">
-                          —
-                        </span>
-                      )}
+                      <div className="inline-flex items-center gap-2">
+                        {canAssign && (
+                          <button
+                            type="button"
+                            onClick={() => setAssigningAsig(a)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                          >
+                            <UserCog className="h-3.5 w-3.5" />
+                            {docenteLabel ? "Cambiar docente" : "Asignar docente"}
+                          </button>
+                        )}
+                        {a.estado !== "archivado" && (
+                          <button
+                            type="button"
+                            onClick={() => setArchivingAsig(a)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                            Archivar
+                          </button>
+                        )}
+                        {a.estado === "archivado" && (
+                          <span className="text-xs text-text-muted dark:text-gray-600">—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -685,6 +711,28 @@ export function AsignaturaManager({
         }
         confirmLabel="Confirmar asignación"
         variant="primary"
+        isPending={isPending}
+      />
+
+      {/* ── Hidden form + confirm dialog for archiving ── */}
+      <form ref={archiveFormRef} action={archivarAsignaturaFormAction} className="hidden">
+        <input type="hidden" name="id" value={archivingAsig?.id ?? ""} />
+      </form>
+      <ConfirmDialog
+        open={archivingAsig !== null}
+        onClose={() => setArchivingAsig(null)}
+        onConfirm={() => {
+          setArchivingAsig(null);
+          startTransition(() => { archiveFormRef.current?.requestSubmit(); });
+        }}
+        title="Archivar asignatura"
+        description={
+          archivingAsig
+            ? `¿Archivar "${archivingAsig.nombre}"? La asignatura quedará inactiva y no aparecerá en las vistas activas. Esta acción no se puede deshacer fácilmente.`
+            : ""
+        }
+        confirmLabel="Sí, archivar"
+        variant="danger"
         isPending={isPending}
       />
     </>

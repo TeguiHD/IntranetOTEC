@@ -120,6 +120,9 @@ export async function middleware(request: NextRequest) {
     } catch {}
   }
 
+  // Expose pathname to server components via header
+  forwardedHeaders.set("x-pathname", pathname);
+
   const finalize = (
     response: NextResponse,
     result: "success" | "error" | "denied",

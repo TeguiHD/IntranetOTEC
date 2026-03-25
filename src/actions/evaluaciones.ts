@@ -67,7 +67,7 @@ export type PreguntaItem = {
   id: string;
   evaluacionId: string;
   enunciado: string;
-  tipo: "opcion_multiple" | "verdadero_falso" | "respuesta_corta" | "desarrollo";
+  tipo: "opcion_multiple" | "verdadero_falso" | "respuesta_corta" | "desarrollo" | "likert" | "si_no" | "texto_libre";
   opciones: unknown;
   puntaje: string | null;
   orden: number | null;

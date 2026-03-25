@@ -18,6 +18,7 @@ import {
   IdCard,
   LayoutDashboard,
   type LucideIcon,
+  MessageSquare,
   Shield,
   Star,
   TrendingUp,
@@ -52,6 +53,7 @@ const GRADIENT_COLORS: Record<string, string> = {
   "grad-violet": "#8B5CF6",
   "grad-gold": "#F5A623",
   "grad-slate": "#64748B",
+  "grad-indigo": "#6366F1",
 };
 
 type NavSection = {
@@ -82,6 +84,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald" },
       { href: "/admin/encuestas", label: "Encuestas Docente", Icon: Star, gradient: "grad-amber" },
       { href: "/admin/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet" },
+      { href: "/admin/encuestas-builder", label: "Constructor Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
     ],
   },
   {
@@ -125,6 +128,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
+      { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
     ],
   },
   {
@@ -152,6 +156,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
       { href: "/alumno/asistencias", label: "Mi Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald" },
       { href: "/alumno/encuesta-docente", label: "Evaluar Docente", Icon: Star, gradient: "grad-amber" },
       { href: "/alumno/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet" },
+      { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
     ],
   },
   {

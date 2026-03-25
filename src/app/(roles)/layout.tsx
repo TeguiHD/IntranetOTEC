@@ -1,9 +1,12 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { countSolicitudesPendientesAdmin } from "@/actions/solicitudes-documentos";
+import { EncuestaObligatoriaBlocker } from "@/components/shared/EncuestaObligatoriaBlocker";
 import { RoleShell } from "@/components/shared/RoleShell";
 import { parseAppRole } from "@/lib/authz";
+import { obtenerEncuestasPendientesObligatorias } from "@/lib/encuestaBlocking";
 
 type RolesLayoutProps = {
   children: React.ReactNode;
@@ -20,14 +23,32 @@ export default async function RolesLayout({ children }: RolesLayoutProps) {
 
   const userName = session.user.name?.trim() || "Usuario";
 
-  let pendingSolicitudes = 0;
-  if (role === "admin") {
-    pendingSolicitudes = await countSolicitudesPendientesAdmin();
-  }
+  // Determine current path (injected by middleware via x-pathname header)
+  const requestHeaders = await headers();
+  const pathname = requestHeaders.get("x-pathname") ?? "/";
+
+  // Allow the /encuestas/* route through without blocking
+  // so users can actually respond to surveys
+  const isEncuestaResponsePath = pathname.startsWith("/encuestas/");
+
+  const [pendingSolicitudes, encuestasPendientes] = await Promise.all([
+    role === "admin" ? countSolicitudesPendientesAdmin() : Promise.resolve(0),
+    // Only check for blocking if not already on a survey response page
+    role === "alumno" || role === "docente"
+      ? obtenerEncuestasPendientesObligatorias(userId)
+      : Promise.resolve([]),
+  ]);
+
+  // Block navigation only for non-encuesta paths
+  const hasPendingObligatory = !isEncuestaResponsePath && encuestasPendientes.length > 0;
 
   return (
     <RoleShell role={role} userName={userName} pendingSolicitudes={pendingSolicitudes}>
-      {children}
+      {hasPendingObligatory ? (
+        <EncuestaObligatoriaBlocker pendientes={encuestasPendientes} />
+      ) : (
+        children
+      )}
     </RoleShell>
   );
 }

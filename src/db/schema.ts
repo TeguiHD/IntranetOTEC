@@ -72,6 +72,21 @@ export const tipoPregEnum = pgEnum("tipo_preg", [
   "verdadero_falso",
   "respuesta_corta",
   "desarrollo",
+  "likert",
+  "si_no",
+  "texto_libre",
+]);
+
+export const audienciaEncuestaEnum = pgEnum("audiencia_encuesta", [
+  "alumnos",
+  "docentes",
+  "todos",
+]);
+
+export const estadoEncuestaEnum = pgEnum("estado_encuesta", [
+  "borrador",
+  "activa",
+  "cerrada",
 ]);
 
 export const tipoCertEnum = pgEnum("tipo_cert", [
@@ -242,6 +257,14 @@ export const evaluaciones = pgTable(
     intentosMax: integer("intentos_max").default(1),
     instrucciones: text("instrucciones"),
     publicada: boolean("publicada").default(false),
+    // --- Unified survey fields ---
+    esEncuesta: boolean("es_encuesta").default(false),
+    audiencia: audienciaEncuestaEnum("audiencia"),
+    obligatoria: boolean("obligatoria").default(false),
+    estadoEncuesta: estadoEncuestaEnum("estado_encuesta").default("borrador"),
+    plantillaOrigen: text("plantilla_origen"), // e.g. "docente_otec", "estilos_aprendizaje"
+    creadoPor: uuid("creado_por").references(() => usuarios.id),
+    // ---
     eliminadoAt: tstz("eliminado_at"),
     eliminadoPor: uuid("eliminado_por"),
     createdAt: tstz("created_at").defaultNow(),
@@ -250,6 +273,9 @@ export const evaluaciones = pgTable(
     activoIdx: index("evaluaciones_activas_idx")
       .on(t.asignaturaId)
       .where(sql`${t.eliminadoAt} IS NULL AND ${t.publicada} = true`),
+    encuestaActivaIdx: index("evaluaciones_encuesta_activa_idx")
+      .on(t.asignaturaId)
+      .where(sql`${t.esEncuesta} = true AND ${t.eliminadoAt} IS NULL`),
   }),
 );
 
@@ -287,6 +313,29 @@ export const respuestasFormulario = pgTable("respuestas_formulario", {
   intento: integer("intento").default(1),
   createdAt: tstz("created_at").defaultNow(),
 });
+
+// --- Asignaciones de encuesta: quién debe responder y si ya lo hizo ---
+export const encuestaAsignaciones = pgTable(
+  "encuesta_asignaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    evaluacionId: uuid("evaluacion_id")
+      .notNull()
+      .references(() => evaluaciones.id),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => usuarios.id),
+    completada: boolean("completada").default(false),
+    completadaAt: tstz("completada_at"),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    uniq: unique().on(t.evaluacionId, t.usuarioId),
+    pendienteIdx: index("encuesta_asig_pendiente_idx")
+      .on(t.usuarioId)
+      .where(sql`${t.completada} = false`),
+  }),
+);
 
 export const notas = pgTable(
   "notas",

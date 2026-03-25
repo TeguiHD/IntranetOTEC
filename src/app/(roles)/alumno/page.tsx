@@ -94,10 +94,16 @@ export default async function AlumnoDashboardPage() {
     <section className="space-y-5">
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
-        <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Panel Alumno</h1>
-        <p className="mt-1 text-sm text-white/80">
-          Resumen de tu actividad académica y accesos rápidos.
-        </p>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-intranet.webp" alt="OTEC" className="h-10 w-10 rounded-xl object-contain bg-white/10 p-1" />
+          <div>
+            <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Panel Alumno</h1>
+            <p className="mt-0.5 text-sm text-white/80">
+              Resumen de tu actividad académica y accesos rápidos.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Quick stats */}

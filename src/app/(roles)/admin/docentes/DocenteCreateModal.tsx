@@ -14,7 +14,7 @@ const inputClass =
 const CODE_MESSAGES: Record<string, string> = {
   docente_created: "Docente creado exitosamente.",
   docente_updated: "Docente restaurado y actualizado.",
-  email_conflict: "El correo ya está registrado por otro usuario.",
+  email_conflict: "El correo ya está en uso. Si esta persona es alumno, usa un correo distinto para su cuenta docente.",
   invalid_rut: "El RUT ingresado no es válido.",
   invalid_email: "El correo ingresado no es válido.",
   invalid_password_policy: "La contraseña no cumple con la política de seguridad.",
@@ -146,17 +146,17 @@ export function DocenteCreateModal() {
             </div>
             <div className="space-y-1.5">
               <label htmlFor="modal-docente-rut" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                RUT <span className="text-danger">*</span>
+                RUT / Credencial <span className="text-danger">*</span>
               </label>
               <input
                 id="modal-docente-rut"
                 name="rut"
                 type="text"
-                inputMode="numeric"
+                inputMode="text"
                 required
-                minLength={8}
-                maxLength={12}
-                placeholder="12.345.678-5"
+                minLength={4}
+                maxLength={24}
+                placeholder="12.345.678-5 o EXT-A12345678"
                 className={inputClass}
                 disabled={isPending}
               />

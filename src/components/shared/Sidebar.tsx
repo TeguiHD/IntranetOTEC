@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import {
   BookOpen,
+  Brain,
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
@@ -18,6 +19,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Shield,
+  Star,
   TrendingUp,
   Upload,
   User,
@@ -75,8 +77,11 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
       { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
+      { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/admin/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-gold" },
       { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald" },
+      { href: "/admin/encuestas", label: "Encuestas Docente", Icon: Star, gradient: "grad-amber" },
+      { href: "/admin/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet" },
     ],
   },
   {
@@ -142,16 +147,19 @@ const ALUMNO_SECTIONS: NavSection[] = [
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
       { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
+      { href: "/alumno/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/alumno/notas", label: "Mis Notas", Icon: ClipboardList, gradient: "grad-gold" },
       { href: "/alumno/asistencias", label: "Mi Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald" },
+      { href: "/alumno/encuesta-docente", label: "Evaluar Docente", Icon: Star, gradient: "grad-amber" },
+      { href: "/alumno/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet" },
     ],
   },
   {
     title: "Solicitudes",
     items: [
-      { href: "/alumno/solicitudes?tipo=credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
-      { href: "/alumno/solicitudes?tipo=alumno_regular", label: "Cert. Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
-      { href: "/alumno/solicitudes?tipo=tarjeta_beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
+      { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
+      { href: "/alumno/solicitudes/alumno-regular", label: "Cert. Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
+      { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
     ],
   },
   {
@@ -258,12 +266,13 @@ function SidebarNav({
 function SidebarLogo({ collapsed }: { collapsed: boolean }) {
   return (
     <Image
-      src="/logo-icon.svg"
-      alt="Mi OTEC"
-      width={collapsed ? 36 : 36}
-      height={collapsed ? 36 : 36}
-      className="h-9 w-9 rounded-xl object-contain"
+      src="/logo-intranet.webp"
+      alt="Mi OTEC Intranet"
+      width={collapsed ? 44 : 44}
+      height={collapsed ? 44 : 44}
+      className="h-11 w-11 rounded-xl object-contain"
       priority
+      unoptimized
     />
   );
 }

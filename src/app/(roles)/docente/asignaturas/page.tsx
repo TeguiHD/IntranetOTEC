@@ -1,6 +1,10 @@
 import {
   crearClaseDocenteFormAction,
   editarClaseDocenteFormAction,
+  eliminarClaseDocenteFormAction,
+  eliminarNotaDocenteFormAction,
+  eliminarObservacionDocenteFormAction,
+  importarNotasDocenteFormAction,
   listarAsignaturasDocente,
   listarClasesDocente,
   listarMatriculasDocente,
@@ -23,14 +27,23 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   clase_docente_updated: { tone: "success", text: "Clase actualizada correctamente." },
   clase_sesion_conflict: { tone: "error", text: "Ya existe una clase con ese número de sesión." },
   clase_not_found: { tone: "error", text: "No se encontró la clase seleccionada." },
+  clase_deleted: { tone: "success", text: "Clase eliminada correctamente." },
   asistencia_created: { tone: "success", text: "Asistencia registrada correctamente." },
   asistencia_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
   nota_created: { tone: "success", text: "Nota registrada correctamente." },
+  nota_deleted: { tone: "success", text: "Nota eliminada correctamente." },
+  nota_not_found: { tone: "error", text: "La nota ya no existe o fue eliminada." },
+  notas_imported: { tone: "success", text: "Notas importadas correctamente desde archivo." },
   observacion_created: { tone: "success", text: "Observación registrada correctamente." },
+  observacion_deleted: { tone: "success", text: "Observación eliminada correctamente." },
+  observacion_not_found: { tone: "error", text: "La observación ya no existe o fue eliminada." },
   material_uploaded: { tone: "success", text: "Material subido correctamente." },
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
   file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
   invalid_type: { tone: "error", text: "Tipo de archivo no permitido." },
+  import_empty: { tone: "error", text: "El archivo no contiene filas para importar." },
+  import_no_valid_rows: { tone: "error", text: "No se encontraron filas válidas. Usa columnas rut y nota." },
+  import_failed: { tone: "error", text: "No fue posible importar el archivo de notas." },
   duplicate: { tone: "error", text: "Este archivo ya fue subido a esta clase." },
   invalid_input: { tone: "error", text: "Datos inválidos. Revisa los campos requeridos." },
   forbidden: { tone: "error", text: "No autorizado para operar sobre esta asignatura." },
@@ -55,6 +68,9 @@ const toCsvDataUri = (headers: string[], rows: string[][]): string => {
   const csv = `\uFEFF${lines.join("\n")}`;
   return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
 };
+
+const formatRutValue = (rut: string | null): string =>
+  rut ? (rut.startsWith("EXT-") ? `Ext: ${rut.replace(/^EXT-/, "")}` : formatearRut(rut)) : "-";
 
 export const metadata = {
   title: "Tus Asignaturas",
@@ -97,7 +113,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
     ["Alumno", "RUT", "Nota", "Fecha", "Año"],
     notasFiltradas.map((n) => [
       `${n.alumnoNombre} ${n.alumnoApellido}`,
-      n.alumnoRut ? formatearRut(n.alumnoRut) : "",
+      formatRutValue(n.alumnoRut),
       String(n.nota),
       n.fechaRegistro,
       String(n.anioRegistro),
@@ -108,7 +124,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
     ["Alumno", "RUT", "Fecha", "Año", "Observación"],
     observacionesFiltradas.map((o) => [
       `${o.alumnoNombre} ${o.alumnoApellido}`,
-      o.alumnoRut ? formatearRut(o.alumnoRut) : "",
+      formatRutValue(o.alumnoRut),
       o.fechaRegistro,
       String(o.anioRegistro),
       o.observacion,
@@ -217,6 +233,24 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">Guardar cambios de clase</button>
               </div>
             </form>
+
+            <form action={eliminarClaseDocenteFormAction} className="mt-4 flex items-center gap-3">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <select name="claseId" required title="Seleccionar clase a eliminar" className="w-full max-w-xs rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+                <option value="">Selecciona clase a eliminar</option>
+                {clases.map((clase) => (
+                  <option key={clase.id} value={clase.id}>
+                    Sesión {clase.numeroSesion} - {clase.titulo}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="h-10 rounded bg-danger px-4 text-sm font-semibold text-white hover:bg-danger/80"
+              >
+                Eliminar clase
+              </button>
+            </form>
           </article>
 
           <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -289,7 +323,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
             )}
           </article>
 
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <article id="asistencia" className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar asistencia</h2>
             <form action={registrarAsistenciaDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
@@ -305,7 +339,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona alumno</option>
                 {matriculas.map((m) => (
                   <option key={m.matriculaId} value={m.matriculaId}>
-                    {m.alumnoNombre} {m.alumnoApellido} ({m.alumnoRut ? formatearRut(m.alumnoRut) : "Sin credencial"})
+                    {m.alumnoNombre} {m.alumnoApellido} ({formatRutValue(m.alumnoRut)})
                   </option>
                 ))}
               </select>
@@ -333,7 +367,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona alumno</option>
                 {matriculas.map((m) => (
                   <option key={m.matriculaId} value={m.matriculaId}>
-                    {m.alumnoNombre} {m.alumnoApellido} ({m.alumnoRut ? formatearRut(m.alumnoRut) : "Sin credencial"})
+                    {m.alumnoNombre} {m.alumnoApellido} ({formatRutValue(m.alumnoRut)})
                   </option>
                 ))}
               </select>
@@ -348,6 +382,38 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
           </article>
 
           <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Importar notas por archivo</h2>
+            <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+              Sube un archivo <code>.xlsx</code> o <code>.csv</code> con columnas <code>rut</code> y <code>nota</code>.
+            </p>
+            <form action={importarNotasDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2" encType="multipart/form-data">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input
+                name="archivo"
+                type="file"
+                required
+                accept=".xlsx,.csv"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              />
+              <input
+                name="fechaRegistro"
+                type="date"
+                required
+                title="Fecha general de registro"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              />
+              <div className="md:col-span-2">
+                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+                  Importar notas
+                </button>
+                <span className="ml-3 text-xs text-text-secondary dark:text-gray-400">
+                  Ejemplo: <code>rut,nota</code> o <code>rut,nota,fechaRegistro</code>.
+                </span>
+              </div>
+            </form>
+          </article>
+
+          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar observación</h2>
             <form action={registrarObservacionDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
@@ -355,7 +421,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona alumno</option>
                 {matriculas.map((m) => (
                   <option key={m.matriculaId} value={m.matriculaId}>
-                    {m.alumnoNombre} {m.alumnoApellido} ({m.alumnoRut ? formatearRut(m.alumnoRut) : "Sin credencial"})
+                    {m.alumnoNombre} {m.alumnoApellido} ({formatRutValue(m.alumnoRut)})
                   </option>
                 ))}
               </select>
@@ -398,16 +464,34 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                       <th className="px-2 py-2">Nota</th>
                       <th className="px-2 py-2">Fecha</th>
                       <th className="px-2 py-2">Año</th>
+                      <th className="px-2 py-2">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {notasFiltradas.map((n) => (
                       <tr key={n.id}>
                         <td className="px-2 py-2">{n.alumnoNombre} {n.alumnoApellido}</td>
-                        <td className="px-2 py-2">{n.alumnoRut ? formatearRut(n.alumnoRut) : "-"}</td>
+                        <td className="px-2 py-2">{formatRutValue(n.alumnoRut)}</td>
                         <td className="px-2 py-2">{n.nota}</td>
                         <td className="px-2 py-2">{n.fechaRegistro}</td>
                         <td className="px-2 py-2">{n.anioRegistro}</td>
+                        <td className="px-2 py-2">
+                          <form action={eliminarNotaDocenteFormAction} className="inline">
+                            <input type="hidden" name="notaId" value={n.id} />
+                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
+                            <button
+                              type="submit"
+                              className="rounded px-2 py-1 text-xs text-danger hover:bg-danger/10"
+                              onClick={(event) => {
+                                if (!confirm("¿Eliminar esta nota?")) {
+                                  event.preventDefault();
+                                }
+                              }}
+                            >
+                              Eliminar
+                            </button>
+                          </form>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -424,16 +508,34 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                       <th className="px-2 py-2">Fecha</th>
                       <th className="px-2 py-2">Año</th>
                       <th className="px-2 py-2">Observación</th>
+                      <th className="px-2 py-2">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {observacionesFiltradas.map((o) => (
                       <tr key={o.id}>
                         <td className="px-2 py-2">{o.alumnoNombre} {o.alumnoApellido}</td>
-                        <td className="px-2 py-2">{o.alumnoRut ? formatearRut(o.alumnoRut) : "-"}</td>
+                        <td className="px-2 py-2">{formatRutValue(o.alumnoRut)}</td>
                         <td className="px-2 py-2">{o.fechaRegistro}</td>
                         <td className="px-2 py-2">{o.anioRegistro}</td>
                         <td className="px-2 py-2">{o.observacion}</td>
+                        <td className="px-2 py-2">
+                          <form action={eliminarObservacionDocenteFormAction} className="inline">
+                            <input type="hidden" name="observacionId" value={o.id} />
+                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
+                            <button
+                              type="submit"
+                              className="rounded px-2 py-1 text-xs text-danger hover:bg-danger/10"
+                              onClick={(event) => {
+                                if (!confirm("¿Eliminar esta observación?")) {
+                                  event.preventDefault();
+                                }
+                              }}
+                            >
+                              Eliminar
+                            </button>
+                          </form>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

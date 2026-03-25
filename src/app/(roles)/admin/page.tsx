@@ -9,6 +9,7 @@ import {
   UserCog,
   Users,
   Wallet,
+  ClipboardList,
 } from "lucide-react";
 
 import { obtenerMetricasGlobales, obtenerMetricasPorAsignatura } from "@/actions/admin-metricas";
@@ -33,6 +34,9 @@ const MODULE_CARDS: { href: string; title: string; description: string; gradient
   { href: "/admin/docentes",     title: "Docentes",     description: "Crear y desactivar cuentas docentes.", gradient: "grad-amber", Icon: UserCog },
   { href: "/admin/alumnos",      title: "Alumnos",      description: "Registrar alumnos y controlar su acceso.", gradient: "grad-emerald", Icon: Users },
   { href: "/admin/asignaturas",  title: "Asignaturas",  description: "Crear asignaturas y asignar docentes.", gradient: "grad-blue", Icon: BookOpen },
+  { href: "/admin/evaluaciones", title: "Evaluaciones", description: "Administrar formularios y revisar resultados.", gradient: "grad-violet", Icon: ClipboardList },
+  { href: "/admin/encuestas", title: "Encuestas Docente", description: "Habilitar encuestas de evaluación y ver resultados.", gradient: "grad-amber", Icon: ClipboardList },
+  { href: "/admin/test-estilos", title: "Test Estilos", description: "Ver resultados de test de estilos de aprendizaje.", gradient: "grad-cyan", Icon: ClipboardList },
   { href: "/admin/matriculas",   title: "Matriculas",   description: "Vincular alumnos a asignaturas.", gradient: "grad-pink", Icon: Wallet },
   { href: "/admin/clases",       title: "Clases",       description: "Programar sesiones y publicar contenido.", gradient: "grad-cyan", Icon: CalendarDays },
   { href: "/admin/solicitudes",  title: "Solicitudes",  description: "Gestionar solicitudes de documentos.", gradient: "grad-violet", Icon: FileText },
@@ -45,6 +49,11 @@ type AdminDashboardPageProps = {
 const formatDate = (value: Date | null): string => {
   if (!value) return "-";
   return new Intl.DateTimeFormat("es-CL", { year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+};
+
+const formatRutValue = (value: string | null): string => {
+  if (!value) return "-";
+  return value.startsWith("EXT-") ? `Ext: ${value.replace(/^EXT-/, "")}` : formatearRut(value);
 };
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -72,10 +81,16 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
     <section className="space-y-5">
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
-        <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Panel Admin</h1>
-        <p className="mt-1 text-sm text-white/80">
-          Centro operativo para administración académica y control de usuarios.
-        </p>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-intranet.webp" alt="OTEC" className="h-10 w-10 rounded-xl object-contain bg-white/10 p-1" />
+          <div>
+            <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Panel Admin</h1>
+            <p className="mt-0.5 text-sm text-white/80">
+              Centro operativo para administración académica y control de usuarios.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Global metrics */}
@@ -212,12 +227,12 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
               id="buscar-rut"
               name="rut"
               type="text"
-              inputMode="numeric"
+              inputMode="text"
               required
-              minLength={8}
-              maxLength={12}
+              minLength={4}
+              maxLength={24}
               defaultValue={rutConsulta}
-              placeholder="12.345.678-5"
+              placeholder="12.345.678-5 o EXT-ABC123"
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-primary-light dark:focus:ring-primary/30"
             />
           </div>
@@ -240,7 +255,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
                 {resultadoBusqueda.persona.nombre} {resultadoBusqueda.persona.apellido}
               </p>
               <p className="mt-1 text-text-secondary dark:text-gray-400">
-                RUT: {resultadoBusqueda.persona.rut ? formatearRut(resultadoBusqueda.persona.rut) : "-"} · Rol: {resultadoBusqueda.persona.rol}
+                RUT: {formatRutValue(resultadoBusqueda.persona.rut)} · Rol: {resultadoBusqueda.persona.rol}
               </p>
             </div>
 

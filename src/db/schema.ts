@@ -410,6 +410,60 @@ export const finanzas = pgTable(
   }),
 );
 
+// --- Encuesta de evaluación docente/OTEC ---
+// Cada alumno puede completar UNA encuesta por asignatura (una vez finalizado el periodo).
+// Admin puede habilitar/deshabilitar por asignatura.
+export const encuestasDocente = pgTable(
+  "encuestas_docente",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    asignaturaId: uuid("asignatura_id").notNull().references(() => asignaturas.id),
+    alumnoId: uuid("alumno_id").notNull().references(() => usuarios.id),
+    // Respuestas como JSONB: { d1..d6: 1-7, o1..o6: 1-7 }
+    respuestas: jsonb("respuestas").notNull(),
+    // Promedios calculados al guardar
+    promedioDocente: numeric("promedio_docente", { precision: 3, scale: 1 }),
+    promedioOtec: numeric("promedio_otec", { precision: 3, scale: 1 }),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    // Un alumno solo puede responder una vez por asignatura
+    uniq: unique().on(t.asignaturaId, t.alumnoId),
+    asigIdx: index("encuesta_docente_asig_idx").on(t.asignaturaId),
+  }),
+);
+
+// Config de encuesta por asignatura (habilitada o no)
+export const encuestaDocenteConfig = pgTable("encuesta_docente_config", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  asignaturaId: uuid("asignatura_id").notNull().unique().references(() => asignaturas.id),
+  habilitada: boolean("habilitada").default(false),
+  updatedAt: tstz("updated_at").defaultNow(),
+});
+
+// --- Test de Estilos de Aprendizaje ---
+// Máximo 2 intentos por alumno.
+export const testEstilos = pgTable(
+  "test_estilos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alumnoId: uuid("alumno_id").notNull().references(() => usuarios.id),
+    intento: integer("intento").notNull().default(1), // 1 o 2
+    // Respuestas como JSONB: { v1..v5, a1..a5, k1..k5 }
+    respuestas: jsonb("respuestas").notNull(),
+    // Puntajes calculados por estilo
+    puntajeVisual: numeric("puntaje_visual", { precision: 4, scale: 1 }),
+    puntajeAuditivo: numeric("puntaje_auditivo", { precision: 4, scale: 1 }),
+    puntajeKinestesico: numeric("puntaje_kinestesico", { precision: 4, scale: 1 }),
+    estiloPreferente: text("estilo_preferente"), // "visual" | "auditivo" | "kinestesico"
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    alumnoIdx: index("test_estilos_alumno_idx").on(t.alumnoId),
+    uniq: unique().on(t.alumnoId, t.intento),
+  }),
+);
+
 export const auditLogs = pgTable(
   "audit_logs",
   {

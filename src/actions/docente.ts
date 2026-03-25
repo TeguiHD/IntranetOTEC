@@ -18,6 +18,7 @@ import {
 import { registrarAudit } from "@/lib/audit";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { sanitizeText } from "@/lib/sanitize";
+import { parseSpreadsheetRowsFromBuffer } from "@/lib/spreadsheet";
 
 import { requireActionActor, type MutationResult } from "./_security";
 
@@ -35,6 +36,9 @@ const parseDateInput = (value: string): Date | null => {
   const date = new Date(`${trimmed}T00:00:00Z`);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+const normalizeRutLike = (value: string): string =>
+  value.trim().replace(/\./g, "").replace(/\s+/g, "").toUpperCase();
 
 const claseDocenteInputSchema = z.object({
   asignaturaId: z.string().uuid(),
@@ -634,6 +638,272 @@ export async function registrarObservacionDocenteAction(input: {
   return { ok: true, code: "observacion_created" };
 }
 
+export async function eliminarClaseDocenteAction(input: {
+  claseId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_clase_delete", ["docente"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!input.claseId) return { ok: false, code: "invalid_input", message: "ID requerido." };
+
+  const db = getDb();
+
+  const [clase] = await db
+    .select({ id: clases.id, asignaturaId: clases.asignaturaId, eliminadoAt: clases.eliminadoAt })
+    .from(clases)
+    .where(eq(clases.id, input.claseId))
+    .limit(1);
+
+  if (!clase) return { ok: false, code: "clase_not_found", message: "Clase no encontrada." };
+  if (clase.eliminadoAt) return { ok: true, code: "already_deleted" };
+
+  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, clase.asignaturaId);
+  if (!isOwner) return { ok: false, code: "forbidden", message: "No tienes permiso para eliminar esta clase." };
+
+  await db.update(clases).set({ eliminadoAt: new Date(), eliminadoPor: actorResult.actor.userId }).where(eq(clases.id, input.claseId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "archivar",
+    entidad: "clases",
+    entidadId: input.claseId,
+    exitoso: true,
+  });
+
+  return { ok: true, code: "clase_deleted" };
+}
+
+export async function eliminarClaseDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await eliminarClaseDocenteAction({ claseId: getStringField(formData, "claseId") });
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+const eliminarNotaDocenteInputSchema = z.object({
+  notaId: z.string().uuid(),
+});
+
+export async function eliminarNotaDocenteAction(input: {
+  notaId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_nota_delete", ["docente"]);
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = eliminarNotaDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Identificador de nota invalido." };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: notasDocente.id, docenteId: notasDocente.docenteId })
+    .from(notasDocente)
+    .where(eq(notasDocente.id, parsed.data.notaId))
+    .limit(1);
+
+  if (!existing) {
+    return { ok: false, code: "nota_not_found", message: "Nota no encontrada." };
+  }
+
+  if (existing.docenteId !== actorResult.actor.userId) {
+    return { ok: false, code: "forbidden", message: "Solo puedes eliminar tus propias notas." };
+  }
+
+  await db.delete(notasDocente).where(eq(notasDocente.id, parsed.data.notaId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "notas_docente",
+    entidadId: parsed.data.notaId,
+    payload: {},
+    exitoso: true,
+  });
+
+  return { ok: true, code: "nota_deleted" };
+}
+
+const eliminarObservacionDocenteInputSchema = z.object({
+  observacionId: z.string().uuid(),
+});
+
+export async function eliminarObservacionDocenteAction(input: {
+  observacionId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_observacion_delete", ["docente"]);
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const parsed = eliminarObservacionDocenteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Identificador de observacion invalido.",
+    };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: observacionesDocente.id, docenteId: observacionesDocente.docenteId })
+    .from(observacionesDocente)
+    .where(eq(observacionesDocente.id, parsed.data.observacionId))
+    .limit(1);
+
+  if (!existing) {
+    return { ok: false, code: "observacion_not_found", message: "Observacion no encontrada." };
+  }
+
+  if (existing.docenteId !== actorResult.actor.userId) {
+    return {
+      ok: false,
+      code: "forbidden",
+      message: "Solo puedes eliminar tus propias observaciones.",
+    };
+  }
+
+  await db.delete(observacionesDocente).where(eq(observacionesDocente.id, parsed.data.observacionId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "observaciones_docente",
+    entidadId: parsed.data.observacionId,
+    payload: {},
+    exitoso: true,
+  });
+
+  return { ok: true, code: "observacion_deleted" };
+}
+
+export async function importarNotasDocenteAction(formData: FormData): Promise<MutationResult> {
+  const actorResult = await requireActionActor("docente_notas_import", ["docente"]);
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  await finalizarAsignaturasVencidas();
+
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const fechaRegistro = getStringField(formData, "fechaRegistro");
+  const archivo = formData.get("archivo");
+
+  if (!asignaturaId || !(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, code: "invalid_input", message: "Debes indicar asignatura, fecha y archivo." };
+  }
+
+  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!isOwner) {
+    return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
+  }
+
+  const fecha = parseDateInput(fechaRegistro);
+  if (!fecha) {
+    return { ok: false, code: "invalid_date", message: "Fecha inválida." };
+  }
+
+  const lowerName = archivo.name.toLowerCase();
+  if (!lowerName.endsWith(".csv") && !lowerName.endsWith(".xlsx")) {
+    return { ok: false, code: "invalid_type", message: "Solo se permiten archivos .csv o .xlsx." };
+  }
+
+  const db = getDb();
+  const [subject] = await db
+    .select({ estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, asignaturaId))
+    .limit(1);
+
+  if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
+    return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
+  }
+
+  try {
+    const buffer = Buffer.from(await archivo.arrayBuffer());
+    const rawRows = await parseSpreadsheetRowsFromBuffer(buffer, archivo.name);
+
+    if (rawRows.length === 0) {
+      return { ok: false, code: "import_empty", message: "El archivo no contiene filas." };
+    }
+
+    const matriculasRows = await db
+      .select({
+        matriculaId: matriculas.id,
+        alumnoRut: usuarios.rut,
+      })
+      .from(matriculas)
+      .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+      .where(and(eq(matriculas.asignaturaId, asignaturaId), eq(matriculas.activa, true)));
+
+    const matriculaByRut = new Map(
+      matriculasRows
+        .filter((row) => row.alumnoRut)
+        .flatMap((row) => {
+          const rut = row.alumnoRut as string;
+          const clean = normalizeRutLike(rut);
+          const plainForeign = clean.startsWith("EXT-") ? clean.replace(/^EXT-/, "") : null;
+          return [
+            [clean, row.matriculaId] as const,
+            ...(plainForeign ? ([[plainForeign, row.matriculaId]] as const) : []),
+          ];
+        }),
+    );
+
+    let inserted = 0;
+    const anioRegistro = fecha.getUTCFullYear();
+
+    for (const row of rawRows) {
+      const mapped = Object.fromEntries(
+        Object.entries(row).map(([key, value]) => [key.trim().toLowerCase(), String(value).trim()]),
+      );
+
+      const rut = mapped.rut || mapped.identificador || mapped.credencial || "";
+      const notaRaw = mapped.nota || mapped.calificacion || mapped.score || "";
+      const rowFecha = mapped.fecharegistro || mapped.fecha || fechaRegistro;
+      const nota = Number.parseFloat(notaRaw.replace(",", "."));
+      const matriculaId = matriculaByRut.get(normalizeRutLike(rut));
+
+      if (!matriculaId || !Number.isFinite(nota) || nota < 1 || nota > 7) {
+        continue;
+      }
+
+      await db.insert(notasDocente).values({
+        docenteId: actorResult.actor.userId,
+        asignaturaId,
+        matriculaId,
+        nota: nota.toFixed(1),
+        fechaRegistro: rowFecha,
+        anioRegistro,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      inserted += 1;
+    }
+
+    if (inserted === 0) {
+      return {
+        ok: false,
+        code: "import_no_valid_rows",
+        message: "No se encontraron filas válidas. Usa columnas rut y nota.",
+      };
+    }
+
+    return { ok: true, code: "notas_imported" };
+  } catch {
+    return { ok: false, code: "import_failed", message: "No fue posible importar las notas." };
+  }
+}
+
 export async function crearClaseDocenteFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const result = await crearClaseDocenteAction({
@@ -706,6 +976,34 @@ export async function registrarObservacionDocenteFormAction(formData: FormData):
     matriculaId: getStringField(formData, "matriculaId"),
     observacion: getStringField(formData, "observacion"),
     fechaRegistro: getStringField(formData, "fechaRegistro"),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+export async function importarNotasDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await importarNotasDocenteAction(formData);
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+export async function eliminarNotaDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await eliminarNotaDocenteAction({
+    notaId: getStringField(formData, "notaId"),
+  });
+
+  revalidatePath("/docente/asignaturas");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+export async function eliminarObservacionDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const result = await eliminarObservacionDocenteAction({
+    observacionId: getStringField(formData, "observacionId"),
   });
 
   revalidatePath("/docente/asignaturas");

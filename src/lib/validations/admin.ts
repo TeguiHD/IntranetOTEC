@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { normalizarRut, validarRut } from "@/lib/rut";
+import { esRutExtranjero, normalizarRut, validarRut } from "@/lib/rut";
 import { sanitizeVideoUrl } from "@/lib/sanitizePath";
 
 const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'.-]+$/;
@@ -399,7 +399,15 @@ export const editarAlumnoInputSchema = z.object({
 });
 
 export const buscarPersonaPorRutInputSchema = z.object({
-  rut: rutValue,
+  rut: z
+    .string()
+    .trim()
+    .refine((value) => !/[<>]/.test(value), "RUT inválido.")
+    .transform((value) => {
+      const trimmed = value.trim().toUpperCase();
+      return esRutExtranjero(trimmed) ? trimmed : normalizarRut(trimmed);
+    })
+    .refine((value) => validarRut(value), "RUT inválido."),
 });
 
 export const solicitudDocumentoInputSchema = z.object({

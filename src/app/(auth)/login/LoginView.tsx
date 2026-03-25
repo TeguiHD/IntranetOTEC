@@ -209,7 +209,8 @@ export function LoginView({ authError }: LoginViewProps) {
               <form className="space-y-5" onSubmit={handleAlumnoSubmit} noValidate>
                 <div>
                   <p className="mb-4 text-sm text-text-secondary dark:text-gray-400">
-                    Ingresa con tu <strong className="text-text-primary dark:text-white">RUT</strong> sin puntos y con guión (ej: 12345678-9).
+                    Ingresa con tu <strong className="text-text-primary dark:text-white">RUT</strong> o
+                    activa el modo de <strong className="text-text-primary dark:text-white">credencial extranjera</strong>.
                   </p>
                   <RutInput
                     id="alumno-rut"
@@ -225,7 +226,7 @@ export function LoginView({ authError }: LoginViewProps) {
                 </div>
                 <button
                   type="submit"
-                  disabled={isPending || !isRutValid}
+                  disabled={isPending || (!isRutValid && !esRutExtranjero(rut))}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-all duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
                 >
                   {isPending ? (

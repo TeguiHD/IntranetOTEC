@@ -35,6 +35,25 @@ const formatTipoSolicitud = (
   }
 };
 
+export async function obtenerPerfilAlumnoActual(): Promise<{
+  id: string;
+  nombre: string;
+  apellido: string;
+  rut: string | null;
+} | null> {
+  const actorResult = await requireActionActor("alumno_perfil", ["alumno"]);
+  if (!actorResult.ok) return null;
+
+  const db = getDb();
+  const [row] = await db
+    .select({ id: usuarios.id, nombre: usuarios.nombre, apellido: usuarios.apellido, rut: usuarios.rut })
+    .from(usuarios)
+    .where(eq(usuarios.id, actorResult.actor.userId))
+    .limit(1);
+
+  return row ?? null;
+}
+
 export async function listarSolicitudesDocumentosAlumno() {
   const actorResult = await requireActionActor("alumno_solicitudes_documentos_list", ["alumno"]);
 

@@ -17,15 +17,16 @@ export const metadata = {
 };
 
 type AdminNotasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     q?: string;
     asignaturaId?: string;
-  };
+  }>;
 };
 
 export default async function AdminNotasPage({ searchParams }: AdminNotasPageProps) {
-  const q = typeof searchParams?.q === "string" ? searchParams.q.trim() : undefined;
-  const asignaturaId = typeof searchParams?.asignaturaId === "string" ? searchParams.asignaturaId : undefined;
+  const params = await (searchParams ?? Promise.resolve({} as { q?: string; asignaturaId?: string }));
+  const q = typeof params.q === "string" ? params.q.trim() : undefined;
+  const asignaturaId = typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;
 
   const notas = await listarNotasAdmin({ q: q || undefined, asignaturaId });
 

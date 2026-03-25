@@ -51,11 +51,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type DocenteAsignaturasPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string;
     asignaturaId?: string;
     anio?: string;
-  };
+  }>;
 };
 
 const escapeCsvValue = (value: string): string => {
@@ -77,10 +77,11 @@ export const metadata = {
 };
 
 export default async function DocenteAsignaturasPage({ searchParams }: DocenteAsignaturasPageProps) {
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string; anio?: string }));
   const asignaturas = await listarAsignaturasDocente();
   const selectedAsignaturaId =
-    typeof searchParams?.asignaturaId === "string" && searchParams.asignaturaId.length > 0
-      ? searchParams.asignaturaId
+    typeof params.asignaturaId === "string" && params.asignaturaId.length > 0
+      ? params.asignaturaId
       : asignaturas[0]?.id;
 
   const [clases, matriculas, notas, observaciones, materiales] = selectedAsignaturaId
@@ -94,8 +95,8 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
     : [[], [], [], [], []];
 
   const anioParam =
-    typeof searchParams?.anio === "string" && /^\d{4}$/.test(searchParams.anio)
-      ? Number.parseInt(searchParams.anio, 10)
+    typeof params.anio === "string" && /^\d{4}$/.test(params.anio)
+      ? Number.parseInt(params.anio, 10)
       : null;
   const aniosDisponibles = Array.from(
     new Set([
@@ -133,7 +134,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
 
   return (
     <section className="space-y-6">
-      <RouteStateToast state={searchParams?.state} map={STATUS_MAP} />
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
 
       <header>
         <h1 className="text-2xl font-bold text-text-primary dark:text-white">Gestión docente</h1>

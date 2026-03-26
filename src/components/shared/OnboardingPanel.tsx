@@ -98,18 +98,19 @@ export function OnboardingPanel() {
     localStorage.setItem(STEPS_KEY, JSON.stringify(updated));
   };
 
-  if (!hydrated || dismissed) return null;
-
   const totalCompleted = STEPS.filter((s) => completed[s.key]).length;
   const allDone = totalCompleted === STEPS.length;
 
-  // Auto-dismiss when all done (after brief delay)
+  // Auto-dismiss when all done (after brief delay) — must be before any early return
   useEffect(() => {
-    if (allDone && hydrated) {
+    if (allDone && hydrated && !dismissed) {
       const t = setTimeout(dismiss, 2000);
       return () => clearTimeout(t);
     }
-  }, [allDone, hydrated]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDone, hydrated, dismissed]);
+
+  if (!hydrated || dismissed) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-72 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
@@ -153,7 +154,7 @@ export function OnboardingPanel() {
       {!collapsed && (
         <div className="space-y-1 px-3 pb-3 pt-2">
           {STEPS.map((step) => {
-            const Icon = step.icon;
+            const StepIcon = step.icon;
             const done = !!completed[step.key];
             return (
               <div
@@ -169,7 +170,7 @@ export function OnboardingPanel() {
                   {done ? (
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (
-                    <Circle className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+                    <StepIcon className="h-5 w-5" style={{ color: step.color }} />
                   )}
                 </span>
 

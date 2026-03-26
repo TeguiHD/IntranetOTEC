@@ -1,3 +1,5 @@
+// Desarrollado por Nicoholas Lopetegui — https://nicoholas.dev/
+// Diseño y desarrollo web: Victor Salinas — NETLINKS (instagram.com/netlinks.cl)
 "use client";
 
 import Image from "next/image";
@@ -165,7 +167,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     title: "Solicitudes",
     items: [
       { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
-      { href: "/alumno/solicitudes/alumno-regular", label: "Cert. Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
+      { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
       { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
     ],
   },

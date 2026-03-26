@@ -1,3 +1,6 @@
+// Desarrollado por Nicoholas Lopetegui — https://nicoholas.dev/
+// Diseño y desarrollo web: Victor Salinas — NETLINKS (instagram.com/netlinks.cl)
+
 export function Footer() {
   return (
     <footer className="border-t border-gray-200/80 bg-white/90 px-6 py-4 text-center text-xs text-text-secondary dark:border-gray-800 dark:bg-gray-950/90 dark:text-gray-500">

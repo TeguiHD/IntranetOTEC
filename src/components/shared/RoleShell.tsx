@@ -1,3 +1,5 @@
+// Desarrollado por Nicoholas Lopetegui — https://nicoholas.dev/
+// Diseño y desarrollo web: Victor Salinas — NETLINKS (instagram.com/netlinks.cl)
 "use client";
 
 import { useEffect, useState } from "react";

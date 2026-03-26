@@ -1,4 +1,4 @@
-// Desarrollado por Nicolás Hernández — nicoholas.dev
+// Desarrollado por Nicoholas Lopetegui — https://nicoholas.dev/
 // Diseño y desarrollo web: Victor Salinas — NETLINKS (instagram.com/netlinks.cl)
 
 import { NextRequest, NextResponse } from "next/server";

@@ -30,13 +30,13 @@ export async function generarQrAsistenciaAction(claseId: string): Promise<{
 
   // Verificar que el docente sea dueño de la clase
   if (actor.userRol === "docente") {
-    const clase = await db
+    const [clase] = await db
       .select({ docenteId: asignaturas.docenteId })
       .from(clases)
       .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
       .where(eq(clases.id, claseId))
       .limit(1);
-    if (!clase[0] || clase[0].docenteId !== actor.userId)
+    if (!clase || clase.docenteId !== actor.userId)
       return { ok: false, error: "No autorizado para esta clase" };
   }
 

@@ -99,6 +99,8 @@ export async function crearEncuestaAction(input: {
       })
       .returning({ id: evaluaciones.id });
 
+    if (!created) return { ok: false, code: "error", message: "No se pudo crear la encuesta" };
+
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
       userId: actorResult.actor.userId,

@@ -273,6 +273,8 @@ export async function crearEvaluacionAction(input: {
       })
       .returning({ id: evaluaciones.id });
 
+    if (!created) return { ok: false, code: "creation_failed", message: "No se pudo crear la evaluación" };
+
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
       userId: actorResult.actor.userId,
@@ -392,6 +394,8 @@ export async function crearPlantillaEncuestaAction(input: {
         createdAt: new Date(),
       })
       .returning({ id: evaluaciones.id });
+
+    if (!created) return { ok: false, code: "creation_failed", message: "No se pudo crear la encuesta" };
 
     await db.insert(preguntas).values(
       definition.questions.map((enunciado, index) => ({
@@ -754,6 +758,8 @@ export async function agregarPreguntaAction(input: {
         orden: input.orden ?? null,
       })
       .returning({ id: preguntas.id });
+
+    if (!created) return { ok: false, code: "creation_failed", message: "No se pudo crear la pregunta" };
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,

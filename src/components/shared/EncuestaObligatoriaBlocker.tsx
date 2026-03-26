@@ -23,7 +23,7 @@ export function EncuestaObligatoriaBlocker({ pendientes }: Props) {
           </h2>
           <p className="text-sm text-text-secondary dark:text-gray-400">
             Debes completar{" "}
-            {pendientes.length === 1 ? "la siguiente encuesta" : `las ${pendientes.length} encuestas siguientes"}`}{" "}
+            {pendientes.length === 1 ? "la siguiente encuesta" : `las ${pendientes.length} encuestas siguientes`}{" "}
             para continuar usando el portal.
           </p>
         </div>

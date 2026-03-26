@@ -141,6 +141,8 @@ export async function solicitarDocumentoAlumnoAction(input: {
     })
     .returning({ id: solicitudesDocumentos.id });
 
+  if (!created) return { ok: false, code: "error" as const, message: "No se pudo crear la solicitud" };
+
   await registrarAudit({
     correlationId: actorResult.actor.correlationId,
     userId: actorResult.actor.userId,

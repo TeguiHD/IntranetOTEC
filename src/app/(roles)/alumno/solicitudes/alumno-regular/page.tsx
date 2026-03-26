@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { Download, FileCheck } from "lucide-react";
+import { FileCheck } from "lucide-react";
 
 import {
   listarSolicitudesDocumentosAlumno,
@@ -10,12 +8,22 @@ import { HistorialSolicitudes } from "@/components/solicitudes/HistorialSolicitu
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
-  request_created: { tone: "success", text: "Solicitud de certificado enviada. Revisión en 48 horas hábiles." },
-  already_pending: { tone: "error", text: "Ya tienes un certificado de alumno regular pendiente." },
+  already_pending: { tone: "error", text: "Ya tienes un certificado de alumno regular pendiente de revisión." },
   invalid_input: { tone: "error", text: "Datos inválidos." },
   forbidden: { tone: "error", text: "No autorizado." },
   error: { tone: "error", text: "No fue posible registrar la solicitud." },
 };
+
+const PROPOSITOS = [
+  "Uso personal",
+  "Trámite bancario",
+  "Postulación laboral",
+  "Fines médicos",
+  "Trámite educacional",
+  "Beneficio estatal (JUNAEB, Fonasa, etc.)",
+  "Arriendo / trámite legal",
+  "Otro",
+];
 
 type Props = { searchParams?: Promise<{ state?: string }> };
 
@@ -43,14 +51,6 @@ export default async function SolicitudAlumnoRegularPage({ searchParams }: Props
             </p>
           </div>
         </div>
-        {/* Acceso directo al certificado imprimible */}
-        <Link
-          href="/alumno/solicitudes/alumno-regular/certificado"
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark hover:shadow-lg active:scale-[0.98]"
-        >
-          <Download className="h-4 w-4" />
-          Ver certificado
-        </Link>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -65,23 +65,29 @@ export default async function SolicitudAlumnoRegularPage({ searchParams }: Props
             <form action={solicitarDocumentoAlumnoFormAction} className="mt-4 space-y-4">
               <input type="hidden" name="tipo" value="alumno_regular" />
               <div className="space-y-1.5">
-                <label htmlFor="obs-regular" className="text-sm font-medium text-text-primary dark:text-gray-200">
-                  Propósito del certificado <span className="text-text-muted dark:text-gray-500">(opcional)</span>
+                <label htmlFor="proposito-select" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                  Propósito del certificado
                 </label>
-                <textarea
-                  id="obs-regular"
+                <select
+                  id="proposito-select"
                   name="observacion"
-                  rows={3}
-                  maxLength={300}
-                  placeholder="Ej: Trámite bancario, postulación laboral, etc."
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                />
+                  required
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="">Selecciona el motivo...</option>
+                  {PROPOSITOS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
               </div>
+              <p className="text-xs text-text-muted dark:text-gray-500">
+                El certificado se genera al instante y quedará registrado en tu historial.
+              </p>
               <button
                 type="submit"
                 className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98]"
               >
-                Solicitar Certificado
+                Generar Certificado
               </button>
             </form>
           </article>

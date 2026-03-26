@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { FileDown } from "lucide-react";
+
 import type { listarSolicitudesDocumentosAlumno } from "@/actions/solicitudes-documentos";
 
 type Solicitud = Awaited<ReturnType<typeof listarSolicitudesDocumentosAlumno>>[number];
@@ -43,24 +47,37 @@ export function HistorialSolicitudes({ solicitudes, tipoFiltro }: Props) {
       {filtradas.map((s) => (
         <div
           key={s.id}
-          className="flex flex-col gap-1.5 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-800/40"
+          className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/40"
         >
-          <div>
-            <p className="text-sm font-medium text-text-primary dark:text-gray-100">
-              {TIPO_LABELS[s.tipo] ?? s.tipo}
-            </p>
-            {s.observacion && (
-              <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">{s.observacion}</p>
-            )}
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-text-primary dark:text-gray-100">
+                {TIPO_LABELS[s.tipo] ?? s.tipo}
+              </p>
+              {s.observacion && (
+                <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">{s.observacion}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_STYLES[s.estado] ?? ""}`}>
+                {ESTADO_LABELS[s.estado] ?? s.estado}
+              </span>
+              <span className="text-xs text-text-secondary dark:text-gray-400">
+                {s.createdAt ? new Date(s.createdAt).toLocaleDateString("es-CL") : "-"}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_STYLES[s.estado] ?? ""}`}>
-              {ESTADO_LABELS[s.estado] ?? s.estado}
-            </span>
-            <span className="text-xs text-text-secondary dark:text-gray-400">
-              {s.createdAt ? new Date(s.createdAt).toLocaleDateString("es-CL") : "-"}
-            </span>
-          </div>
+
+          {/* Enlace al certificado para alumno_regular aprobadas */}
+          {s.tipo === "alumno_regular" && s.estado === "aprobada" && (
+            <Link
+              href={`/alumno/solicitudes/alumno-regular/certificado?solicitudId=${s.id}`}
+              className="inline-flex items-center gap-1.5 self-start rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 dark:text-primary-light"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              Ver / imprimir certificado
+            </Link>
+          )}
         </div>
       ))}
     </div>

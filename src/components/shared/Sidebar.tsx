@@ -128,6 +128,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
+      { href: "/docente/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
     ],
   },
@@ -150,6 +151,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
+      { href: "/alumno/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/alumno/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/alumno/notas", label: "Mis Notas", Icon: ClipboardList, gradient: "grad-gold" },

@@ -149,6 +149,104 @@ export function templateSolicitudResuelta(data: {
   };
 }
 
+export function templateCertificadoGenerado(data: {
+  alumnoNombre: string;
+  proposito: string;
+  fechaEmision: string;
+  solicitudId: string;
+}) {
+  const body = [
+    heading("Certificado generado"),
+    paragraph(`Hola ${data.alumnoNombre},`),
+    paragraph("Tu <strong>Certificado de Alumno Regular</strong> ha sido generado exitosamente."),
+    detailsTable(
+      detail("Propósito", data.proposito) +
+      detail("Fecha de emisión", data.fechaEmision) +
+      detail("Referencia", data.solicitudId.slice(0, 8).toUpperCase()),
+    ),
+    paragraph("Puedes imprimir o descargar tu certificado desde el siguiente enlace:"),
+    ctaButton(
+      `${BASE_URL}/alumno/solicitudes/alumno-regular/certificado?solicitudId=${data.solicitudId}`,
+      "Ver certificado",
+    ),
+  ].join("");
+
+  return {
+    subject: "Certificado de Alumno Regular generado",
+    html: renderEmailBase("Certificado generado", body),
+  };
+}
+
+export function templateEvaluacionPublicada(data: {
+  alumnoNombre: string;
+  evaluacionTitulo: string;
+  asignaturaNombre: string;
+  fechaLimite: string | null;
+}) {
+  const body = [
+    heading("Nueva evaluación disponible"),
+    paragraph(`Hola ${data.alumnoNombre},`),
+    paragraph("Se ha publicado una nueva evaluación en uno de tus cursos."),
+    detailsTable(
+      detail("Evaluación", data.evaluacionTitulo) +
+      detail("Asignatura", data.asignaturaNombre) +
+      (data.fechaLimite ? detail("Fecha límite", data.fechaLimite) : ""),
+    ),
+    ctaButton(`${BASE_URL}/alumno/evaluaciones`, "Ir a evaluaciones"),
+  ].join("");
+
+  return {
+    subject: `Nueva evaluación: ${data.evaluacionTitulo}`,
+    html: renderEmailBase("Nueva evaluación", body),
+  };
+}
+
+export function templateClaseAgendada(data: {
+  alumnoNombre: string;
+  claseTitulo: string;
+  asignaturaNombre: string;
+  fecha: string;
+  hora?: string | null;
+}) {
+  const body = [
+    heading("Nueva clase agendada"),
+    paragraph(`Hola ${data.alumnoNombre},`),
+    paragraph("Se ha publicado una nueva clase en uno de tus cursos."),
+    detailsTable(
+      detail("Clase", data.claseTitulo) +
+      detail("Asignatura", data.asignaturaNombre) +
+      detail("Fecha", data.fecha) +
+      (data.hora ? detail("Hora", data.hora) : ""),
+    ),
+    ctaButton(`${BASE_URL}/alumno/clases`, "Ver clases"),
+  ].join("");
+
+  return {
+    subject: `Nueva clase: ${data.claseTitulo} — ${data.asignaturaNombre}`,
+    html: renderEmailBase("Nueva clase", body),
+  };
+}
+
+export function templateNuevoMensaje(data: {
+  destinatarioNombre: string;
+  emisorNombre: string;
+  asignaturaNombre: string;
+  preview: string;
+}) {
+  const body = [
+    heading("Nuevo mensaje"),
+    paragraph(`Hola ${data.destinatarioNombre},`),
+    paragraph(`<strong>${data.emisorNombre}</strong> te ha enviado un mensaje en la asignatura <strong>${data.asignaturaNombre}</strong>.`),
+    `<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #8B3A9E;background:#faf5ff;border-radius:0 8px 8px 0;color:#4b5563;font-size:14px;font-style:italic;">${data.preview}</blockquote>`,
+    ctaButton(`${BASE_URL}/alumno/asignaturas`, "Ver conversación"),
+  ].join("");
+
+  return {
+    subject: `Nuevo mensaje de ${data.emisorNombre} — ${data.asignaturaNombre}`,
+    html: renderEmailBase("Nuevo mensaje", body),
+  };
+}
+
 export function templateBienvenida(data: {
   nombre: string;
   rol: string;

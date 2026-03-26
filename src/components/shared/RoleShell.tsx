@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import type { AppRole } from "@/lib/authz";
 
+import { Breadcrumbs } from "./Breadcrumbs";
 import { Footer } from "./Footer";
 import { MobileNavGrid } from "./MobileNavGrid";
 import { Sidebar } from "./Sidebar";
@@ -92,6 +93,7 @@ export function RoleShell({ role, userName, children, pendingSolicitudes }: Role
         }`}
       >
         <main className="mx-auto min-h-[calc(100dvh-4rem)] max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+          <Breadcrumbs />
           {children}
         </main>
         <Footer />

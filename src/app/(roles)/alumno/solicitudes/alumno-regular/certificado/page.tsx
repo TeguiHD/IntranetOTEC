@@ -2,30 +2,56 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { asignaturas, matriculas, usuarios } from "@/db/schema";
+import { asignaturas, matriculas, solicitudesDocumentos, usuarios } from "@/db/schema";
 import { PrintButton } from "@/components/shared/PrintButton";
 import { formatearRut } from "@/lib/rut";
 
 export const metadata = { title: "Certificado de Alumno Regular" };
 
-export default async function CertificadoAlumnoRegularPage() {
+type SearchParams = { solicitudId?: string };
+type Props = { searchParams?: Promise<SearchParams> };
+
+export default async function CertificadoAlumnoRegularPage({ searchParams }: Props) {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return null;
 
   const db = getDb();
+  const params: SearchParams = await (searchParams ?? Promise.resolve<SearchParams>({}));
 
+  // Buscar datos del alumno
   const [alumno] = await db
     .select({ nombre: usuarios.nombre, apellido: usuarios.apellido, rut: usuarios.rut })
     .from(usuarios)
     .where(eq(usuarios.id, userId))
     .limit(1);
 
+  // Si viene un solicitudId, verificar que pertenece al alumno y obtener propósito
+  let proposito: string | null = null;
+  let fechaSolicitud: Date | null = null;
+
+  if (params.solicitudId) {
+    const [sol] = await db
+      .select({ observacion: solicitudesDocumentos.observacion, createdAt: solicitudesDocumentos.createdAt })
+      .from(solicitudesDocumentos)
+      .where(
+        and(
+          eq(solicitudesDocumentos.id, params.solicitudId),
+          eq(solicitudesDocumentos.alumnoId, userId),
+          eq(solicitudesDocumentos.tipo, "alumno_regular"),
+        ),
+      )
+      .limit(1);
+    if (sol) {
+      proposito = sol.observacion ?? null;
+      fechaSolicitud = sol.createdAt ?? null;
+    }
+  }
+
   const cursosActivos = await db
     .select({
       nombre: asignaturas.nombre,
       codigo: asignaturas.codigo,
-      fechaInicio: asignaturas.fechaInicio,
     })
     .from(matriculas)
     .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
@@ -44,7 +70,7 @@ export default async function CertificadoAlumnoRegularPage() {
       : formatearRut(alumno.rut)
     : "—";
 
-  const hoy = new Date().toLocaleDateString("es-CL", {
+  const fechaEmision = (fechaSolicitud ?? new Date()).toLocaleDateString("es-CL", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -61,7 +87,7 @@ export default async function CertificadoAlumnoRegularPage() {
         }
       `}</style>
 
-      {/* Botón imprimir (solo pantalla) */}
+      {/* Barra superior */}
       <div className="mb-4 flex items-center justify-between print:hidden">
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white">
           Certificado de Alumno Regular
@@ -123,9 +149,17 @@ export default async function CertificadoAlumnoRegularPage() {
             </ul>
           )}
 
+          {proposito && (
+            <p className="mt-2">
+              El presente certificado se emite para el siguiente fin:{" "}
+              <strong>{proposito}</strong>.
+            </p>
+          )}
+
           <p className="mt-6">
-            El presente certificado se emite para los fines que el interesado estime conveniente,
-            a los {hoy}.
+            {proposito
+              ? `Se extiende el presente certificado, a los ${fechaEmision}.`
+              : `El presente certificado se emite para los fines que el interesado estime conveniente, a los ${fechaEmision}.`}
           </p>
         </div>
 
@@ -140,7 +174,8 @@ export default async function CertificadoAlumnoRegularPage() {
 
         {/* Pie */}
         <p className="mt-8 text-center text-[10px] text-text-muted dark:text-gray-600">
-          Documento generado electrónicamente el {hoy} · Válido sin firma manuscrita
+          Documento generado electrónicamente el {fechaEmision} · Válido sin firma manuscrita
+          {params.solicitudId ? ` · Ref: ${params.solicitudId.slice(0, 8).toUpperCase()}` : ""}
         </p>
       </div>
     </>

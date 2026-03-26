@@ -15,13 +15,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 const PROPOSITOS = [
-  "Uso personal",
-  "Trámite bancario",
-  "Postulación laboral",
-  "Fines médicos",
-  "Trámite educacional",
-  "Beneficio estatal (JUNAEB, Fonasa, etc.)",
-  "Arriendo / trámite legal",
+  "Uso Personal",
+  "Postulación Laboral",
+  "Trámite Educacional",
+  "Arriendo / Trámite Legal",
   "Otro",
 ];
 

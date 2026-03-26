@@ -91,12 +91,12 @@ const ALUMNO_ITEMS: NavItem[] = [
   { href: "/alumno/evaluaciones",             label: "Evaluaciones",   Icon: ClipboardList,  gradient: "grad-violet" },
   { href: "/alumno/notas",                    label: "Mis Notas",      Icon: ClipboardList,  gradient: "grad-gold" },
   { href: "/alumno/asistencias",              label: "Mi Asistencia",  Icon: ClipboardCheck, gradient: "grad-emerald" },
-  { href: "/alumno/encuesta-docente",         label: "Eval. Docente",  Icon: Star,           gradient: "grad-amber" },
-  { href: "/alumno/test-estilos",             label: "Test Estilos",   Icon: Brain,          gradient: "grad-violet" },
-  { href: "/encuestas",                       label: "Mis Encuestas",  Icon: MessageSquare,  gradient: "grad-indigo" },
-  { href: "/alumno/solicitudes/credencial",   label: "Credencial",     Icon: IdCard,         gradient: "grad-violet" },
-  { href: "/alumno/solicitudes/alumno-regular", label: "Cert. Alumno", Icon: FileCheck,      gradient: "grad-blue" },
-  { href: "/alumno/solicitudes/tarjeta-beneficio", label: "T. Beneficio", Icon: CreditCard,  gradient: "grad-pink" },
+  { href: "/alumno/encuesta-docente",         label: "Evaluar Docente",        Icon: Star,           gradient: "grad-amber" },
+  { href: "/alumno/test-estilos",             label: "Test Estilos",           Icon: Brain,          gradient: "grad-violet" },
+  { href: "/encuestas",                       label: "Mis Encuestas",          Icon: MessageSquare,  gradient: "grad-indigo" },
+  { href: "/alumno/solicitudes/credencial",   label: "Credencial",             Icon: IdCard,         gradient: "grad-violet" },
+  { href: "/alumno/solicitudes/alumno-regular", label: "Cert. Alumno Regular", Icon: FileCheck,      gradient: "grad-blue" },
+  { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard,     gradient: "grad-pink" },
   { href: "/alumno/perfil",                   label: "Mi Perfil",      Icon: User,           gradient: "grad-blue" },
 ];
 
@@ -196,7 +196,15 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
       {/* Footer */}
       <div className="border-t border-purple-100 bg-white/80 px-4 py-3 text-center backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/80">
         <p className="text-xs text-text-muted dark:text-gray-500">
-          Entorno seguro · Mi OTEC Intranet
+          Entorno seguro ·{" "}
+          <a
+            href="https://www.instagram.com/netlinks.cl/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            Creado por NETLINKS
+          </a>
         </p>
       </div>
     </div>

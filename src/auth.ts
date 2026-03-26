@@ -1,3 +1,6 @@
+// Desarrollado por Nicolás Hernández — nicoholas.dev
+// Diseño y desarrollo web: Victor Salinas — NETLINKS (instagram.com/netlinks.cl)
+
 import { randomUUID } from "node:crypto";
 
 import "@/lib/env";

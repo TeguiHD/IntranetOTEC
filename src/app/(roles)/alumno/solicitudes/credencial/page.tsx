@@ -2,13 +2,10 @@ import { IdCard } from "lucide-react";
 
 import {
   listarSolicitudesDocumentosAlumno,
-  obtenerPerfilAlumnoActual,
   solicitarDocumentoAlumnoFormAction,
 } from "@/actions/solicitudes-documentos";
-import { TarjetaBeneficio } from "@/components/beneficio/TarjetaBeneficio";
 import { HistorialSolicitudes } from "@/components/solicitudes/HistorialSolicitudes";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
-import { formatearRut } from "@/lib/rut";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   request_created: { tone: "success", text: "Solicitud de credencial enviada. Revisión en 48 horas hábiles." },
@@ -24,16 +21,7 @@ export const metadata = { title: "Solicitud de Credencial" };
 
 export default async function SolicitudCredencialPage({ searchParams }: Props) {
   const params = await (searchParams ?? Promise.resolve({} as { state?: string }));
-  const [perfil, solicitudes] = await Promise.all([
-    obtenerPerfilAlumnoActual(),
-    listarSolicitudesDocumentosAlumno(),
-  ]);
-
-  const rutDisplay = perfil?.rut
-    ? perfil.rut.startsWith("EXT-")
-      ? `Ext: ${perfil.rut.replace(/^EXT-/, "")}`
-      : formatearRut(perfil.rut)
-    : undefined;
+  const solicitudes = await listarSolicitudesDocumentosAlumno();
 
   return (
     <section className="space-y-5">
@@ -54,16 +42,7 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
       </header>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* Tarjeta de beneficio + formulario */}
         <div className="space-y-5">
-          {perfil && (
-            <TarjetaBeneficio
-              rut={rutDisplay}
-              nombre={perfil.nombre}
-              apellido={perfil.apellido}
-            />
-          )}
-
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <h2 className="text-base font-semibold text-text-primary dark:text-white">
               Nueva Solicitud

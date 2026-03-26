@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { asignaturas, matriculas, mensajes, usuarios } from "@/db/schema";
 import { requireActionActor } from "@/actions/_security";
+import { sendEmail, templateNuevoMensaje } from "@/lib/email";
 
 const MAX_CONTENIDO = 1000;
 
@@ -91,6 +92,72 @@ export async function enviarMensajeAction(asignaturaId: string, contenido: strin
     emisorId: actor.userId,
     contenido: texto,
   });
+
+  // Notificación por correo: solo al "otro lado" para no spamear
+  // alumno → docente | docente/admin → alumnos matriculados
+  try {
+    const [asigData] = await db
+      .select({ nombre: asignaturas.nombre, docenteId: asignaturas.docenteId })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, asignaturaId))
+      .limit(1);
+
+    const [emisor] = await db
+      .select({ nombre: usuarios.nombre, apellido: usuarios.apellido })
+      .from(usuarios)
+      .where(eq(usuarios.id, actor.userId))
+      .limit(1);
+
+    if (asigData && emisor) {
+      const emisorNombre = `${emisor.nombre} ${emisor.apellido}`.trim();
+      const preview = texto.length > 120 ? `${texto.slice(0, 120)}…` : texto;
+
+      if (actor.userRol === "alumno" && asigData.docenteId) {
+        // Notify docente
+        const [docente] = await db
+          .select({ email: usuarios.email, nombre: usuarios.nombre, apellido: usuarios.apellido })
+          .from(usuarios)
+          .where(eq(usuarios.id, asigData.docenteId))
+          .limit(1);
+
+        if (docente?.email) {
+          const { subject, html } = templateNuevoMensaje({
+            destinatarioNombre: `${docente.nombre} ${docente.apellido}`.trim(),
+            emisorNombre,
+            asignaturaNombre: asigData.nombre,
+            preview,
+          });
+          sendEmail(docente.email, subject, html).catch(() => {});
+        }
+      } else if (actor.userRol === "docente" || actor.userRol === "admin") {
+        // Notify all enrolled students
+        const alumnos = await db
+          .select({ email: usuarios.email, nombre: usuarios.nombre, apellido: usuarios.apellido })
+          .from(matriculas)
+          .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+          .where(
+            and(
+              eq(matriculas.asignaturaId, asignaturaId),
+              eq(matriculas.activa, true),
+              isNull(matriculas.eliminadoAt),
+            ),
+          );
+
+        for (const alumno of alumnos) {
+          if (!alumno.email) continue;
+          const { subject, html } = templateNuevoMensaje({
+            destinatarioNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
+            emisorNombre,
+            asignaturaNombre: asigData.nombre,
+            preview,
+          });
+          sendEmail(alumno.email, subject, html).catch(() => {});
+        }
+      }
+    }
+  } catch {
+    // Email failures never block the message
+  }
 
   return { ok: true };
 }

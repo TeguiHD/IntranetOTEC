@@ -16,6 +16,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { sendEmail, templateEvaluacionPublicada } from "@/lib/email";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
 import {
@@ -493,6 +494,48 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
       payload: { publicada: true },
       exitoso: true,
     });
+
+    // Notificar a alumnos matriculados
+    const [evalData] = await db
+      .select({
+        titulo: evaluaciones.titulo,
+        asignaturaId: evaluaciones.asignaturaId,
+        asignaturaNombre: asignaturas.nombre,
+        fechaLimite: evaluaciones.fechaLimite,
+      })
+      .from(evaluaciones)
+      .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+      .where(eq(evaluaciones.id, id))
+      .limit(1);
+
+    if (evalData) {
+      const alumnos = await db
+        .select({ nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
+        .from(matriculas)
+        .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+        .where(
+          and(
+            eq(matriculas.asignaturaId, evalData.asignaturaId),
+            eq(matriculas.activa, true),
+            isNull(matriculas.eliminadoAt),
+          ),
+        );
+
+      const fechaLimiteStr = evalData.fechaLimite
+        ? evalData.fechaLimite.toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" })
+        : null;
+
+      for (const alumno of alumnos) {
+        if (!alumno.email) continue;
+        const { subject, html } = templateEvaluacionPublicada({
+          alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
+          evaluacionTitulo: evalData.titulo,
+          asignaturaNombre: evalData.asignaturaNombre,
+          fechaLimite: fechaLimiteStr,
+        });
+        sendEmail(alumno.email, subject, html).catch(() => {});
+      }
+    }
 
     return { ok: true, code: "evaluacion_published" };
   } catch (error) {

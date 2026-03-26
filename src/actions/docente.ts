@@ -16,6 +16,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { sendEmail, templateClaseAgendada } from "@/lib/email";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { sanitizeText } from "@/lib/sanitize";
 import { parseSpreadsheetRowsFromBuffer } from "@/lib/spreadsheet";
@@ -324,6 +325,43 @@ export async function crearClaseDocenteAction(input: {
     payload: { origen: "docente" },
     exitoso: true,
   });
+
+  // Notificar a alumnos matriculados
+  const [asigData] = await db
+    .select({ nombre: asignaturas.nombre })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, parsed.data.asignaturaId))
+    .limit(1);
+
+  if (asigData) {
+    const alumnos = await db
+      .select({ nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
+      .from(matriculas)
+      .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+      .where(
+        and(
+          eq(matriculas.asignaturaId, parsed.data.asignaturaId),
+          eq(matriculas.activa, true),
+          isNull(matriculas.eliminadoAt),
+        ),
+      );
+
+    const fechaStr = new Date(parsed.data.fecha + "T12:00:00").toLocaleDateString("es-CL", {
+      day: "2-digit", month: "long", year: "numeric",
+    });
+
+    for (const alumno of alumnos) {
+      if (!alumno.email) continue;
+      const { subject, html } = templateClaseAgendada({
+        alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
+        claseTitulo: sanitizeText(parsed.data.titulo),
+        asignaturaNombre: asigData.nombre,
+        fecha: fechaStr,
+        hora: parsed.data.horaInicio ?? null,
+      });
+      sendEmail(alumno.email, subject, html).catch(() => {});
+    }
+  }
 
   return { ok: true, code: "clase_docente_created" };
 }

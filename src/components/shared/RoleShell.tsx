@@ -8,6 +8,7 @@ import type { AppRole } from "@/lib/authz";
 
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Footer } from "./Footer";
+import { OnboardingPanel } from "./OnboardingPanel";
 import { MobileNavGrid } from "./MobileNavGrid";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -97,6 +98,7 @@ export function RoleShell({ role, userName, children, pendingSolicitudes }: Role
           {children}
         </main>
         <Footer />
+        {role === "alumno" && <OnboardingPanel />}
       </div>
     </div>
   );

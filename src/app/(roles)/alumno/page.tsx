@@ -17,7 +17,6 @@ import {
 
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
 import { listarObservacionesAlumno } from "@/actions/docente";
-import { OnboardingModal } from "@/components/shared/OnboardingModal";
 
 const GRADIENT_COLORS: Record<string, string> = {
   "grad-purple": "#8B3A9E",
@@ -135,7 +134,6 @@ export default async function AlumnoDashboardPage() {
 
   return (
     <section className="space-y-5">
-      <OnboardingModal />
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
         <div className="flex items-center gap-3">

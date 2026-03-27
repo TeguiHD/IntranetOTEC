@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  Bell,
   BookOpen,
   Brain,
   CalendarDays,
@@ -77,6 +78,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { href: "/admin/solicitudes",        label: "Solicitudes",        Icon: FileText,        gradient: "grad-violet" },
   { href: "/admin/importar",           label: "Importar",           Icon: Upload,          gradient: "grad-emerald" },
   { href: "/admin/finanzas",           label: "Finanzas",           Icon: TrendingUp,      gradient: "grad-emerald" },
+  { href: "/admin/notificaciones",    label: "Notificaciones",     Icon: Bell,            gradient: "grad-amber" },
 ];
 
 const DOCENTE_ITEMS: NavItem[] = [
@@ -99,6 +101,7 @@ const ALUMNO_ITEMS: NavItem[] = [
   { href: "/alumno/solicitudes/credencial",   label: "Credencial",             Icon: IdCard,         gradient: "grad-violet" },
   { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck,      gradient: "grad-blue" },
   { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard,     gradient: "grad-pink" },
+  { href: "/alumno/notificaciones",           label: "Notificaciones", Icon: Bell,           gradient: "grad-amber" },
   { href: "/alumno/perfil",                   label: "Mi Perfil",      Icon: User,           gradient: "grad-blue" },
 ];
 

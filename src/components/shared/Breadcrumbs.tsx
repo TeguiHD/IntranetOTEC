@@ -36,6 +36,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   "alumno-regular": "Alumno Regular",
   certificado: "Certificado",
   "tarjeta-beneficio": "Tarjeta Beneficio",
+  // Notificaciones
+  notificaciones: "Notificaciones",
   // QR
   asistencia: "Asistencia",
   qr: "QR",

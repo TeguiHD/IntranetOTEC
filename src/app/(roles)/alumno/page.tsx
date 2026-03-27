@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  Bell,
   Brain,
   CalendarDays,
   ClipboardCheck,
@@ -42,6 +43,7 @@ const ALUMNO_NAV: { href: string; title: string; gradient: string; Icon: LucideI
   { href: "/alumno/solicitudes/credencial",   title: "Credencial",           gradient: "grad-violet",  Icon: IdCard },
   { href: "/alumno/solicitudes/alumno-regular", title: "Cert. Alumno Regular", gradient: "grad-blue", Icon: FileCheck },
   { href: "/alumno/solicitudes/tarjeta-beneficio", title: "Tarjeta de Beneficio", gradient: "grad-pink", Icon: CreditCard },
+  { href: "/alumno/notificaciones",           title: "Notificaciones",       gradient: "grad-amber",   Icon: Bell },
   { href: "/alumno/perfil",                   title: "Mi Perfil",            gradient: "grad-blue",    Icon: User },
 ];
 

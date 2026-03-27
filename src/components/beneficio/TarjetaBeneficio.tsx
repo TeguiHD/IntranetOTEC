@@ -66,10 +66,10 @@ export function TarjetaBeneficio({
 
   return (
     <div className="space-y-4">
-      {/* Tarjeta principal — imagen morada */}
-      <div className="relative overflow-hidden rounded-2xl shadow-xl shadow-purple-900/30">
+      {/* Tarjeta principal — imagen amarilla */}
+      <div className="relative overflow-hidden rounded-2xl shadow-lg shadow-yellow-500/20">
         <Image
-          src="/beneficio-morado.jpg"
+          src="/beneficio-amarillo.jpg"
           alt="Club de Beneficios Impulsate"
           width={1275}
           height={810}
@@ -116,17 +116,6 @@ export function TarjetaBeneficio({
           </div>
         </div>
       )}
-
-      {/* Tarjeta secundaria — imagen amarilla */}
-      <div className="overflow-hidden rounded-2xl shadow-lg shadow-yellow-500/20">
-        <Image
-          src="/beneficio-amarillo.jpg"
-          alt="Club de Beneficios Impulsate — variante dorada"
-          width={1275}
-          height={810}
-          className="h-auto w-full object-cover"
-        />
-      </div>
 
       {/* Hidden inputs for form submission */}
       {editable && (

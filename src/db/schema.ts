@@ -41,6 +41,7 @@ export const auditAccionEnum = pgEnum("audit_accion", [
   "exportar_excel",
   "cambiar_nota",
   "registrar_asistencia",
+  "cambiar_password",
 ]);
 
 export type Rol = (typeof rolEnum.enumValues)[number];
@@ -126,6 +127,7 @@ export const usuarios = pgTable(
     password: text("password"),
     rol: rolEnum("rol").notNull(),
     avatarUrl: text("avatar_url"),
+    pinCambiado: boolean("pin_cambiado").default(false),
     activo: boolean("activo").default(true),
     eliminadoAt: tstz("eliminado_at"),
     eliminadoPor: uuid("eliminado_por"),
@@ -569,6 +571,68 @@ export const mensajes = pgTable(
   (t) => ({
     asignaturaIdx: index("mensajes_asignatura_idx").on(t.asignaturaId),
     creadoAtIdx: index("mensajes_creado_at_idx").on(t.creadoAt),
+  }),
+);
+
+export const tipoNotificacionEnum = pgEnum("tipo_notificacion", [
+  "general",
+  "curso",
+  "individual",
+]);
+
+export const notificaciones = pgTable(
+  "notificaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    titulo: text("titulo").notNull(),
+    contenido: text("contenido").notNull(),
+    tipo: tipoNotificacionEnum("tipo").default("general"),
+    emisorId: uuid("emisor_id")
+      .notNull()
+      .references(() => usuarios.id),
+    asignaturaId: uuid("asignatura_id").references(() => asignaturas.id),
+    createdAt: tstz("created_at").defaultNow(),
+    eliminadoAt: tstz("eliminado_at"),
+  },
+  (t) => ({
+    emisorIdx: index("notificaciones_emisor_idx").on(t.emisorId),
+    createdAtIdx: index("notificaciones_created_at_idx").on(t.createdAt),
+  }),
+);
+
+export const notificacionesDestinatarios = pgTable(
+  "notificaciones_destinatarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    notificacionId: uuid("notificacion_id")
+      .notNull()
+      .references(() => notificaciones.id),
+    alumnoId: uuid("alumno_id")
+      .notNull()
+      .references(() => usuarios.id),
+    leidoAt: tstz("leido_at"),
+  },
+  (t) => ({
+    notifIdx: index("notif_dest_notificacion_idx").on(t.notificacionId),
+    alumnoIdx: index("notif_dest_alumno_idx").on(t.alumnoId),
+    uniqNotifAlumno: unique().on(t.notificacionId, t.alumnoId),
+  }),
+);
+
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alumnoId: uuid("alumno_id")
+      .notNull()
+      .references(() => usuarios.id),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    alumnoIdx: index("push_sub_alumno_idx").on(t.alumnoId),
   }),
 );
 

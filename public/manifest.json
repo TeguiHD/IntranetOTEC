@@ -1,0 +1,26 @@
+{
+  "name": "Mi OTEC Intranet",
+  "short_name": "Mi OTEC",
+  "description": "Intranet educativa OTEC - Impulsate & Emprende",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3eef9",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "categories": ["education"],
+  "lang": "es-CL",
+  "icons": [
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-intranet.webp",
+      "sizes": "600x260",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ]
+}

@@ -64,3 +64,32 @@ export function validarRut(value: string): boolean {
 
   return dv === expectedDv;
 }
+
+/**
+ * Deriva el PIN predeterminado de 4 digitos para un alumno.
+ *
+ * - RUT chileno "12345678-5": cuerpo = "12345678", ultimos 4 = "5678"
+ * - Credencial extranjera "EXT-A12345678": sin prefijo = "A12345678",
+ *   ultimos 4 digitos del string = "5678"
+ *
+ * Si no hay suficientes caracteres, rellena con ceros a la izquierda.
+ */
+export function derivarPinPredeterminado(identificadorLogin: string): string {
+  const isForeign = esRutExtranjero(identificadorLogin);
+
+  if (isForeign) {
+    // Quitar prefijo EXT-
+    const body = identificadorLogin.replace(/^EXT-/i, "");
+    const digits = body.replace(/[^0-9]/g, "");
+    return digits.length >= 4
+      ? digits.slice(-4)
+      : digits.padStart(4, "0");
+  }
+
+  // RUT chileno: normalizar y tomar el cuerpo (sin digito verificador)
+  const cleaned = normalizarRut(identificadorLogin);
+  const rutBody = cleaned.length >= 2 ? cleaned.slice(0, -1) : cleaned;
+  return rutBody.length >= 4
+    ? rutBody.slice(-4)
+    : rutBody.padStart(4, "0");
+}

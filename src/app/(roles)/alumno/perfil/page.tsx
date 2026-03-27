@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { auth } from "@/auth";
+import { CambiarPinForm } from "@/components/alumno/CambiarPinForm";
 import { getDb } from "@/db";
 import { asignaturas, matriculas, usuarios } from "@/db/schema";
 
@@ -107,11 +108,17 @@ export default async function AlumnoPerfilPage() {
           </div>
         </dl>
 
-        {alumno.email && (
-          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-            Para cambiar tu contraseña, contacta al administrador.
-          </p>
-        )}
+      </article>
+
+      {/* Cambiar clave */}
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <h2 className="mb-4 text-base font-semibold text-text-primary dark:text-white">
+          Cambiar clave
+        </h2>
+        <p className="mb-4 text-sm text-text-secondary dark:text-gray-400">
+          Tu clave es de 4 dígitos numéricos. Puedes cambiarla aquí.
+        </p>
+        <CambiarPinForm />
       </article>
 
       {/* Asignaturas activas */}

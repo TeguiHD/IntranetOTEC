@@ -75,6 +75,7 @@ export function LoginView({ authError }: LoginViewProps) {
   });
   const [rut, setRut] = useState("");
   const [isRutValid, setIsRutValid] = useState(false);
+  const [pin, setPin] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -136,7 +137,12 @@ export function LoginView({ authError }: LoginViewProps) {
       return;
     }
 
-    runSignIn("alumno-rut", { rut: esRutExtranjero(rut) ? rut.trim().toUpperCase() : rutLimpio });
+    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      setFormError("Debes ingresar tu clave de 4 dígitos.");
+      return;
+    }
+
+    runSignIn("alumno-rut", { rut: esRutExtranjero(rut) ? rut.trim().toUpperCase() : rutLimpio, pin });
   };
 
   const handleStaffSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -224,9 +230,28 @@ export function LoginView({ authError }: LoginViewProps) {
                     onValidityChange={setIsRutValid}
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="alumno-pin" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                    Clave (4 dígitos)
+                  </label>
+                  <input
+                    id="alumno-pin"
+                    name="pin"
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]{4}"
+                    maxLength={4}
+                    autoComplete="current-password"
+                    value={pin}
+                    disabled={isPending}
+                    onChange={(e) => setPin(e.currentTarget.value.replace(/\D/g, "").slice(0, 4))}
+                    placeholder="••••"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-center text-lg font-mono tracking-[0.5em] text-text-primary placeholder:text-gray-400 placeholder:tracking-[0.3em] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+                  />
+                </div>
                 <button
                   type="submit"
-                  disabled={isPending || (!isRutValid && !esRutExtranjero(rut))}
+                  disabled={isPending || (!isRutValid && !esRutExtranjero(rut)) || pin.length !== 4}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-all duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
                 >
                   {isPending ? (

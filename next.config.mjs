@@ -7,7 +7,7 @@ const csp = [
 	"media-src 'self' data: blob:",
 	"frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://drive.google.com",
 	"connect-src 'self'",
-	"worker-src blob:",
+	"worker-src 'self' blob:",
 	"object-src 'none'",
 	"base-uri 'self'",
 	"form-action 'self'",

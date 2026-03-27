@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { countSolicitudesPendientesAdmin } from "@/actions/solicitudes-documentos";
 import { EncuestaObligatoriaBlocker } from "@/components/shared/EncuestaObligatoriaBlocker";
+import { PushNotificationSetup } from "@/components/shared/PushNotificationSetup";
 import { RoleShell } from "@/components/shared/RoleShell";
 import { parseAppRole } from "@/lib/authz";
 import { obtenerEncuestasPendientesObligatorias } from "@/lib/encuestaBlocking";
@@ -47,6 +48,7 @@ export default async function RolesLayout({ children }: RolesLayoutProps) {
 
   return (
     <RoleShell role={role} userName={userName} pendingSolicitudes={pendingSolicitudes}>
+      {role === "alumno" && <PushNotificationSetup />}
       {hasPendingObligatory ? (
         <EncuestaObligatoriaBlocker pendientes={encuestasPendientes} />
       ) : (

@@ -251,9 +251,11 @@ const nextAuth = NextAuth({
       name: "Alumno RUT",
       credentials: {
         rut: { label: "RUT", type: "text" },
+        pin: { label: "PIN", type: "password" },
       },
       async authorize(credentials, request) {
         const rawRut = typeof credentials?.rut === "string" ? credentials.rut : "";
+        const rawPin = typeof credentials?.pin === "string" ? credentials.pin : "";
         const isForeign = esRutExtranjero(rawRut);
         const rutLimpio = isForeign ? rawRut.trim().toUpperCase() : normalizarRut(rawRut);
         const foreignLoginCandidates = isForeign
@@ -319,26 +321,16 @@ const nextAuth = NextAuth({
             return denyAndAudit(request, "alumno-rut", "usuario_no_encontrado");
           }
 
-          const rutSalt = process.env.RUT_SALT;
-
-          if (!rutSalt) {
-            logEvent({
-              correlationId: getCorrelationId(request),
-              action: "auth_missing_rut_salt",
-              result: "error",
-              details: { provider: "alumno-rut" },
-            });
-
+          if (!rawPin || rawPin.length !== 4 || !/^\d{4}$/.test(rawPin)) {
             return denyAndAudit(
               request,
               "alumno-rut",
-              "server_configuration_error",
+              "pin_invalido",
               { id: record.id, rol: record.rol },
             );
           }
 
-          const expectedSecret = `${rutSalt}${record.rut ?? rutLimpio}${record.id}`;
-          const passwordOk = await bcrypt.compare(expectedSecret, record.password);
+          const passwordOk = await bcrypt.compare(rawPin, record.password);
 
           if (!passwordOk) {
             return denyAndAudit(

@@ -12,7 +12,7 @@ import { asignaturas, material, matriculas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateBienvenida } from "@/lib/email";
 import { logEvent } from "@/lib/observability/logger";
-import { formatearRut } from "@/lib/rut";
+import { derivarPinPredeterminado, formatearRut } from "@/lib/rut";
 import { sanitizeText } from "@/lib/sanitize";
 import {
   alumnoInputSchema,
@@ -652,15 +652,6 @@ export async function crearAlumnoAction(input: {
       ? `EXT-${credencialExtranjera}`
       : null;
   const email = parsed.data.email ?? null;
-  const rutSalt = process.env.RUT_SALT;
-
-  if (!rutSalt) {
-    return {
-      ok: false,
-      code: "missing_rut_salt",
-      message: "Configuración de seguridad incompleta: RUT_SALT.",
-    };
-  }
 
   if (nombre.length < 2 || apellido.length < 2) {
     return {
@@ -711,8 +702,8 @@ export async function crearAlumnoAction(input: {
     }
 
     if (existingByRut) {
-      const derivedPassword = `${rutSalt}${identificadorLogin}${existingByRut.id}`;
-      const passwordHash = await bcrypt.hash(derivedPassword, 12);
+      const pin = derivarPinPredeterminado(identificadorLogin);
+      const passwordHash = await bcrypt.hash(pin, 12);
 
       await db
         .update(usuarios)
@@ -722,6 +713,7 @@ export async function crearAlumnoAction(input: {
           rut: identificadorLogin,
           email,
           password: passwordHash,
+          pinCambiado: false,
           rol: "alumno",
           activo: true,
           eliminadoAt: null,
@@ -763,8 +755,8 @@ export async function crearAlumnoAction(input: {
     }
 
     const userId = randomUUID();
-    const derivedPassword = `${rutSalt}${identificadorLogin}${userId}`;
-    const passwordHash = await bcrypt.hash(derivedPassword, 12);
+    const pin = derivarPinPredeterminado(identificadorLogin);
+    const passwordHash = await bcrypt.hash(pin, 12);
 
     try {
       await db.insert(usuarios).values({
@@ -774,6 +766,7 @@ export async function crearAlumnoAction(input: {
         rut: identificadorLogin,
         email,
         password: passwordHash,
+        pinCambiado: false,
         rol: "alumno",
         activo: true,
         createdAt: now,
@@ -1538,5 +1531,70 @@ export async function activarAdministradorFormAction(formData: FormData): Promis
 
   revalidatePath("/admin/administradores");
   redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+}
+
+const PIN_REGEX = /^\d{4}$/;
+
+export async function cambiarPinAlumnoAction(input: {
+  pinActual: string;
+  pinNuevo: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("alumno_cambiar_pin", ["alumno"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const { pinActual, pinNuevo } = input;
+
+  if (!PIN_REGEX.test(pinActual) || !PIN_REGEX.test(pinNuevo)) {
+    return {
+      ok: false,
+      code: "invalid_pin",
+      message: "La clave debe ser de exactamente 4 dígitos numéricos.",
+    };
+  }
+
+  const db = getDb();
+
+  const [user] = await db
+    .select({ id: usuarios.id, password: usuarios.password })
+    .from(usuarios)
+    .where(eq(usuarios.id, actorResult.actor.userId))
+    .limit(1);
+
+  if (!user || !user.password) {
+    return { ok: false, code: "not_found", message: "Usuario no encontrado." };
+  }
+
+  const pinOk = await bcrypt.compare(pinActual, user.password);
+
+  if (!pinOk) {
+    return { ok: false, code: "pin_mismatch", message: "La clave actual es incorrecta." };
+  }
+
+  const newHash = await bcrypt.hash(pinNuevo, 12);
+
+  await db
+    .update(usuarios)
+    .set({
+      password: newHash,
+      pinCambiado: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(usuarios.id, actorResult.actor.userId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "cambiar_password",
+    entidad: "usuarios",
+    entidadId: actorResult.actor.userId,
+    payload: { metodo: "pin_alumno" },
+    exitoso: true,
+  });
+
+  return { ok: true, code: "pin_changed" };
 }
 

@@ -10,7 +10,6 @@ import { solicitudesDocumentos, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import {
   sendEmail,
-  templateCertificadoGenerado,
   templateSolicitudCreada,
   templateSolicitudResuelta,
 } from "@/lib/email";
@@ -123,9 +122,7 @@ export async function solicitarDocumentoAlumnoAction(input: {
 
   const now = new Date();
 
-  // Certificado de alumno regular: auto-aprobado (se genera en el momento)
-  const estadoInicial =
-    parsed.data.tipo === "alumno_regular" ? "aprobada" : "pendiente";
+  const estadoInicial = "pendiente" as const;
 
   const [created] = await db
     .insert(solicitudesDocumentos)
@@ -134,8 +131,8 @@ export async function solicitarDocumentoAlumnoAction(input: {
       tipo: parsed.data.tipo,
       estado: estadoInicial,
       observacion: parsed.data.observacion ?? null,
-      resueltoPor: estadoInicial === "aprobada" ? actorResult.actor.userId : null,
-      resueltoAt: estadoInicial === "aprobada" ? now : null,
+      resueltoPor: null,
+      resueltoAt: null,
       createdAt: now,
       updatedAt: now,
     })
@@ -167,22 +164,11 @@ export async function solicitarDocumentoAlumnoAction(input: {
     .limit(1);
 
   if (alumno?.email) {
-    if (parsed.data.tipo === "alumno_regular") {
-      const hoy = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
-      const { subject, html } = templateCertificadoGenerado({
-        alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
-        proposito: parsed.data.observacion ?? "Uso personal",
-        fechaEmision: hoy,
-        solicitudId: created.id,
-      });
-      sendEmail(alumno.email, subject, html).catch(() => {});
-    } else {
-      const { subject, html } = templateSolicitudCreada({
-        alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
-        tipoSolicitud: formatTipoSolicitud(parsed.data.tipo),
-      });
-      sendEmail(alumno.email, subject, html).catch(() => {});
-    }
+    const { subject, html } = templateSolicitudCreada({
+      alumnoNombre: `${alumno.nombre} ${alumno.apellido}`.trim(),
+      tipoSolicitud: formatTipoSolicitud(parsed.data.tipo),
+    });
+    sendEmail(alumno.email, subject, html).catch(() => {});
   }
 
   return {
@@ -207,13 +193,7 @@ export async function solicitarDocumentoAlumnoFormAction(formData: FormData): Pr
   });
 
   revalidatePath("/alumno/solicitudes");
-
-  // Certificado alumno regular: redirigir al certificado generado
-  if (result.ok && tipo === "alumno_regular" && result.solicitudId) {
-    redirect(
-      `/alumno/solicitudes/alumno-regular/certificado?solicitudId=${result.solicitudId}`,
-    );
-  }
+  revalidatePath("/alumno/solicitudes/alumno-regular");
 
   redirect(`/alumno/solicitudes?state=${result.ok ? result.code : result.code}`);
 }

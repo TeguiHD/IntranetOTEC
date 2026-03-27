@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  Bell,
   BookOpen,
   Brain,
   CalendarDays,
@@ -112,6 +113,12 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Comunicaciones",
+    items: [
+      { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber" },
+    ],
+  },
+  {
     title: "Sistema",
     items: [
       { href: "/admin/auditoria", label: "Auditoría", Icon: ClipboardList, gradient: "grad-slate" },
@@ -169,6 +176,12 @@ const ALUMNO_SECTIONS: NavSection[] = [
       { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
       { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
       { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
+    ],
+  },
+  {
+    title: "Comunicaciones",
+    items: [
+      { href: "/alumno/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber" },
     ],
   },
   {

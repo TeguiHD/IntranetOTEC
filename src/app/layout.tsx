@@ -1,11 +1,12 @@
 // Desarrollado por Nicoholas Lopetegui — https://nicoholas.dev/
 // Diseño y desarrollo web: Victor Salinas — NETLINKS (instagram.com/netlinks.cl)
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "sonner";
 
 import { GradientDefs } from "@/components/shared/GradientDefs";
+import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
 import "./globals.css";
@@ -21,15 +22,30 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#7c3aed",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: {
     default: "Mi OTEC Intranet",
     template: "%s | Mi OTEC",
   },
-  description: "Intranet educativa OTEC",
+  description: "Intranet educativa OTEC - Impulsate & Emprende",
+  manifest: "/manifest.json",
   icons: {
     icon: "/logo-intranet.webp",
     apple: "/logo-intranet.webp",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Mi OTEC",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -49,6 +65,7 @@ export default function RootLayout({
           enableSystem
         >
           <GradientDefs />
+          <ServiceWorkerRegister />
           {children}
           <Toaster
             theme="system"

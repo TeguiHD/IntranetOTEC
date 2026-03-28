@@ -49,7 +49,7 @@ export default async function RolesLayout({ children }: RolesLayoutProps) {
 
   return (
     <RoleShell role={role} userName={userName} pendingSolicitudes={pendingSolicitudes}>
-      {role === "alumno" && <PushNotificationSetup />}
+      <PushNotificationSetup />
       <InstallAppBanner />
       {hasPendingObligatory ? (
         <EncuestaObligatoriaBlocker pendientes={encuestasPendientes} />

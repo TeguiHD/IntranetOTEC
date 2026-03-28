@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ import { registrarAudit } from "@/lib/audit";
 import { sanitizeText } from "@/lib/sanitize";
 
 export async function enviarPushADestinatarios(
-  alumnoIds: string[],
+  usuarioIds: string[],
   titulo: string,
   contenido: string,
 ) {
@@ -25,49 +25,33 @@ export async function enviarPushADestinatarios(
   const vapidPublic = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
 
-  if (!vapidSubject || !vapidPublic || !vapidPrivate || alumnoIds.length === 0) return;
+  if (!vapidSubject || !vapidPublic || !vapidPrivate || usuarioIds.length === 0) return;
 
   let webpush: typeof import("web-push") | null = null;
   try {
     webpush = (await import("web-push")).default as unknown as typeof import("web-push");
     webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
   } catch {
-    return; // web-push no instalado — ignorar silenciosamente
+    return;
   }
 
   const db = getDb();
+
   const subs = await db
     .select({
       endpoint: pushSubscriptions.endpoint,
       p256dh: pushSubscriptions.p256dh,
       auth: pushSubscriptions.auth,
+      usuarioId: pushSubscriptions.usuarioId,
     })
-    .from(pushSubscriptions)
-    .where(
-      alumnoIds.length === 1
-        ? eq(pushSubscriptions.alumnoId, alumnoIds[0])
-        : // Para multiples, filtramos en JS (drizzle no tiene inArray en todos los casos)
-          eq(pushSubscriptions.alumnoId, alumnoIds[0]),
-    );
+    .from(pushSubscriptions);
 
-  // Para envio global/multiple hacemos la query sin filtro
-  const allSubs = alumnoIds.length > 1
-    ? await db.select({
-        endpoint: pushSubscriptions.endpoint,
-        p256dh: pushSubscriptions.p256dh,
-        auth: pushSubscriptions.auth,
-        alumnoId: pushSubscriptions.alumnoId,
-      }).from(pushSubscriptions)
-    : subs.map((s) => ({ ...s, alumnoId: alumnoIds[0] }));
-
-  const filteredSubs = alumnoIds.length > 1
-    ? allSubs.filter((s) => alumnoIds.includes(s.alumnoId))
-    : allSubs;
+  const filteredSubs = subs.filter((s) => usuarioIds.includes(s.usuarioId));
 
   const payload = JSON.stringify({
     title: titulo,
     body: contenido.slice(0, 120),
-    url: "/alumno/notificaciones",
+    url: "/notificaciones",
   });
 
   await Promise.allSettled(
@@ -87,7 +71,7 @@ const enviarNotificacionSchema = z.object({
   contenido: z.string().min(1).max(2000),
   tipo: z.enum(["general", "curso", "individual"]),
   asignaturaId: z.string().uuid().optional(),
-  alumnoIds: z.array(z.string().uuid()).optional(),
+  usuarioIds: z.array(z.string().uuid()).optional(),
 });
 
 export async function enviarNotificacionAction(input: {
@@ -95,7 +79,7 @@ export async function enviarNotificacionAction(input: {
   contenido: string;
   tipo: "general" | "curso" | "individual";
   asignaturaId?: string;
-  alumnoIds?: string[];
+  usuarioIds?: string[];
 }): Promise<MutationResult> {
   const actorResult = await requireActionActor("admin_notificaciones_enviar", ["admin"]);
 
@@ -109,7 +93,7 @@ export async function enviarNotificacionAction(input: {
     return { ok: false, code: "invalid_input", message: "Datos inválidos." };
   }
 
-  const { tipo, asignaturaId, alumnoIds } = parsed.data;
+  const { tipo, asignaturaId, usuarioIds } = parsed.data;
   const titulo = sanitizeText(parsed.data.titulo);
   const contenido = sanitizeText(parsed.data.contenido);
 
@@ -117,13 +101,12 @@ export async function enviarNotificacionAction(input: {
     return { ok: false, code: "missing_asignatura", message: "Debes seleccionar un curso." };
   }
 
-  if (tipo === "individual" && (!alumnoIds || alumnoIds.length === 0)) {
-    return { ok: false, code: "missing_alumnos", message: "Debes seleccionar al menos un alumno." };
+  if (tipo === "individual" && (!usuarioIds || usuarioIds.length === 0)) {
+    return { ok: false, code: "missing_usuarios", message: "Debes seleccionar al menos un destinatario." };
   }
 
   const db = getDb();
 
-  // Crear la notificacion
   const [notif] = await db
     .insert(notificaciones)
     .values({
@@ -139,21 +122,21 @@ export async function enviarNotificacionAction(input: {
     return { ok: false, code: "error", message: "No se pudo crear la notificación." };
   }
 
-  // Obtener destinatarios segun tipo
   let destinatarioIds: string[] = [];
 
   if (tipo === "general") {
-    const alumnos = await db
+    // General: alumnos y docentes activos
+    const todos = await db
       .select({ id: usuarios.id })
       .from(usuarios)
       .where(
         and(
-          eq(usuarios.rol, "alumno"),
+          inArray(usuarios.rol, ["alumno", "docente"]),
           eq(usuarios.activo, true),
           isNull(usuarios.eliminadoAt),
         ),
       );
-    destinatarioIds = alumnos.map((a) => a.id);
+    destinatarioIds = todos.map((u) => u.id);
   } else if (tipo === "curso" && asignaturaId) {
     const matriculados = await db
       .select({ alumnoId: matriculas.alumnoId })
@@ -166,16 +149,15 @@ export async function enviarNotificacionAction(input: {
         ),
       );
     destinatarioIds = matriculados.map((m) => m.alumnoId);
-  } else if (tipo === "individual" && alumnoIds) {
-    destinatarioIds = alumnoIds;
+  } else if (tipo === "individual" && usuarioIds) {
+    destinatarioIds = usuarioIds;
   }
 
-  // Insertar destinatarios
   if (destinatarioIds.length > 0) {
     await db.insert(notificacionesDestinatarios).values(
-      destinatarioIds.map((alumnoId) => ({
+      destinatarioIds.map((usuarioId) => ({
         notificacionId: notif.id,
-        alumnoId,
+        usuarioId,
       })),
     );
   }
@@ -191,7 +173,6 @@ export async function enviarNotificacionAction(input: {
     exitoso: true,
   });
 
-  // Enviar push notifications (best-effort, no bloquea)
   if (destinatarioIds.length > 0) {
     enviarPushADestinatarios(destinatarioIds, titulo, contenido).catch(() => {});
   }
@@ -210,7 +191,7 @@ export async function listarNotificacionesAdmin() {
 
   const db = getDb();
 
-  const notifs = await db
+  return db
     .select({
       id: notificaciones.id,
       titulo: notificaciones.titulo,
@@ -224,12 +205,11 @@ export async function listarNotificacionesAdmin() {
     .where(isNull(notificaciones.eliminadoAt))
     .orderBy(desc(notificaciones.createdAt))
     .limit(50);
-
-  return notifs;
 }
 
-export async function listarNotificacionesAlumno() {
-  const actorResult = await requireActionActor("alumno_notificaciones_list", ["alumno"]);
+// Función genérica para cualquier rol (alumno o docente)
+export async function listarMisNotificaciones() {
+  const actorResult = await requireActionActor("notificaciones_list", ["alumno", "docente"]);
 
   if (!actorResult.ok) {
     return [];
@@ -237,7 +217,7 @@ export async function listarNotificacionesAlumno() {
 
   const db = getDb();
 
-  const notifs = await db
+  return db
     .select({
       id: notificaciones.id,
       titulo: notificaciones.titulo,
@@ -253,18 +233,21 @@ export async function listarNotificacionesAlumno() {
     )
     .where(
       and(
-        eq(notificacionesDestinatarios.alumnoId, actorResult.actor.userId),
+        eq(notificacionesDestinatarios.usuarioId, actorResult.actor.userId),
         isNull(notificaciones.eliminadoAt),
       ),
     )
     .orderBy(desc(notificaciones.createdAt))
     .limit(50);
-
-  return notifs;
 }
 
-export async function countNotificacionesNoLeidasAlumno(): Promise<number> {
-  const actorResult = await requireActionActor("alumno_notificaciones_count", ["alumno"]);
+// Mantener alias para no romper imports existentes
+export async function listarNotificacionesAlumno() {
+  return listarMisNotificaciones();
+}
+
+export async function countMisNotificacionesNoLeidas(): Promise<number> {
+  const actorResult = await requireActionActor("notificaciones_count", ["alumno", "docente"]);
 
   if (!actorResult.ok) {
     return 0;
@@ -281,7 +264,7 @@ export async function countNotificacionesNoLeidasAlumno(): Promise<number> {
     )
     .where(
       and(
-        eq(notificacionesDestinatarios.alumnoId, actorResult.actor.userId),
+        eq(notificacionesDestinatarios.usuarioId, actorResult.actor.userId),
         isNull(notificacionesDestinatarios.leidoAt),
         isNull(notificaciones.eliminadoAt),
       ),
@@ -290,29 +273,38 @@ export async function countNotificacionesNoLeidasAlumno(): Promise<number> {
   return Number(result?.total ?? 0);
 }
 
-export async function marcarNotificacionesLeidasAlumnoAction(): Promise<MutationResult> {
-  const actorResult = await requireActionActor("alumno_notificaciones_marcar", ["alumno"]);
+export async function countNotificacionesNoLeidasAlumno(): Promise<number> {
+  return countMisNotificacionesNoLeidas();
+}
+
+export async function marcarMisNotificacionesLeidas(): Promise<MutationResult> {
+  const actorResult = await requireActionActor("notificaciones_marcar", ["alumno", "docente"]);
 
   if (!actorResult.ok) {
     return actorResult.result;
   }
 
   const db = getDb();
-  const now = new Date();
 
   await db
     .update(notificacionesDestinatarios)
-    .set({ leidoAt: now })
+    .set({ leidoAt: new Date() })
     .where(
       and(
-        eq(notificacionesDestinatarios.alumnoId, actorResult.actor.userId),
+        eq(notificacionesDestinatarios.usuarioId, actorResult.actor.userId),
         isNull(notificacionesDestinatarios.leidoAt),
       ),
     );
 
+  revalidatePath("/notificaciones");
   revalidatePath("/alumno/notificaciones");
+  revalidatePath("/docente/notificaciones");
 
   return { ok: true, code: "marked_read" };
+}
+
+export async function marcarNotificacionesLeidasAlumnoAction(): Promise<MutationResult> {
+  return marcarMisNotificacionesLeidas();
 }
 
 export async function listarAsignaturasActivasAdmin() {
@@ -331,8 +323,9 @@ export async function listarAsignaturasActivasAdmin() {
     .orderBy(asignaturas.nombre);
 }
 
-export async function listarAlumnosActivosAdmin() {
-  const actorResult = await requireActionActor("admin_notificaciones_alumnos", ["admin"]);
+// Lista combinada de alumnos y docentes para envíos individuales
+export async function listarUsuariosActivosAdmin() {
+  const actorResult = await requireActionActor("admin_notificaciones_usuarios", ["admin"]);
 
   if (!actorResult.ok) {
     return [];
@@ -346,15 +339,20 @@ export async function listarAlumnosActivosAdmin() {
       nombre: usuarios.nombre,
       apellido: usuarios.apellido,
       rut: usuarios.rut,
+      rol: usuarios.rol,
     })
     .from(usuarios)
     .where(
       and(
-        eq(usuarios.rol, "alumno"),
+        inArray(usuarios.rol, ["alumno", "docente"]),
         eq(usuarios.activo, true),
         isNull(usuarios.eliminadoAt),
       ),
     )
     .orderBy(usuarios.apellido, usuarios.nombre)
     .limit(500);
+}
+
+export async function listarAlumnosActivosAdmin() {
+  return listarUsuariosActivosAdmin();
 }

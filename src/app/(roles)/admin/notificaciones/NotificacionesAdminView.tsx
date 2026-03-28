@@ -7,8 +7,8 @@ import { toast } from "sonner";
 
 import { enviarNotificacionAction } from "@/actions/notificaciones";
 
+type Usuario = { id: string; nombre: string; apellido: string; rut: string | null; rol: string };
 type Asignatura = { id: string; nombre: string };
-type Alumno = { id: string; nombre: string; apellido: string; rut: string | null };
 type Notificacion = {
   id: string;
   titulo: string;
@@ -20,32 +20,37 @@ type Notificacion = {
 
 type Props = {
   asignaturas: Asignatura[];
-  alumnos: Alumno[];
+  usuarios: Usuario[];
   historial: Notificacion[];
 };
 
 const TIPO_LABELS: Record<string, string> = {
-  general: "Global (todos los alumnos)",
-  curso: "Por curso",
-  individual: "Alumnos específicos",
+  general: "Global (alumnos y docentes)",
+  curso: "Por curso (solo alumnos del curso)",
+  individual: "Personas específicas",
 };
 
-export function NotificacionesAdminView({ asignaturas, alumnos, historial }: Props) {
+const ROL_BADGE: Record<string, string> = {
+  alumno: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  docente: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+};
+
+export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Props) {
   const [tipo, setTipo] = useState<"general" | "curso" | "individual">("general");
   const [titulo, setTitulo] = useState("");
   const [contenido, setContenido] = useState("");
   const [asignaturaId, setAsignaturaId] = useState("");
-  const [selectedAlumnos, setSelectedAlumnos] = useState<string[]>([]);
-  const [buscarAlumno, setBuscarAlumno] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [buscar, setBuscar] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const alumnosFiltrados = buscarAlumno.trim()
-    ? alumnos.filter(
-        (a) =>
-          !selectedAlumnos.includes(a.id) &&
-          `${a.nombre} ${a.apellido} ${a.rut ?? ""}`
+  const usuariosFiltrados = buscar.trim()
+    ? usuarios.filter(
+        (u) =>
+          !selectedIds.includes(u.id) &&
+          `${u.nombre} ${u.apellido} ${u.rut ?? ""} ${u.rol}`
             .toLowerCase()
-            .includes(buscarAlumno.toLowerCase()),
+            .includes(buscar.toLowerCase()),
       )
     : [];
 
@@ -58,15 +63,15 @@ export function NotificacionesAdminView({ asignaturas, alumnos, historial }: Pro
         contenido,
         tipo,
         asignaturaId: tipo === "curso" ? asignaturaId : undefined,
-        alumnoIds: tipo === "individual" ? selectedAlumnos : undefined,
+        usuarioIds: tipo === "individual" ? selectedIds : undefined,
       });
 
       if (result.ok) {
         toast.success("Notificación enviada correctamente.");
         setTitulo("");
         setContenido("");
-        setSelectedAlumnos([]);
-        setBuscarAlumno("");
+        setSelectedIds([]);
+        setBuscar("");
       } else {
         toast.error(result.message ?? "No fue posible enviar la notificación.");
       }
@@ -91,7 +96,11 @@ export function NotificacionesAdminView({ asignaturas, alumnos, historial }: Pro
             <select
               id="notif-tipo"
               value={tipo}
-              onChange={(e) => setTipo(e.target.value as "general" | "curso" | "individual")}
+              onChange={(e) => {
+                setTipo(e.target.value as "general" | "curso" | "individual");
+                setSelectedIds([]);
+                setBuscar("");
+              }}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             >
               <option value="general">{TIPO_LABELS.general}</option>
@@ -121,51 +130,54 @@ export function NotificacionesAdminView({ asignaturas, alumnos, historial }: Pro
             </div>
           )}
 
-          {/* Selector de alumnos */}
+          {/* Selector de personas (alumnos + docentes) */}
           {tipo === "individual" && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                Alumnos ({selectedAlumnos.length} seleccionados)
+                Personas ({selectedIds.length} seleccionadas)
               </label>
               <input
                 type="text"
-                value={buscarAlumno}
-                onChange={(e) => setBuscarAlumno(e.target.value)}
-                placeholder="Buscar por nombre o RUT..."
+                value={buscar}
+                onChange={(e) => setBuscar(e.target.value)}
+                placeholder="Buscar por nombre, RUT o rol..."
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-              {alumnosFiltrados.length > 0 && (
-                <ul className="max-h-40 overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                  {alumnosFiltrados.slice(0, 10).map((a) => (
-                    <li key={a.id}>
+              {usuariosFiltrados.length > 0 && (
+                <ul className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                  {usuariosFiltrados.slice(0, 12).map((u) => (
+                    <li key={u.id}>
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedAlumnos((prev) => [...prev, a.id]);
-                          setBuscarAlumno("");
+                          setSelectedIds((prev) => [...prev, u.id]);
+                          setBuscar("");
                         }}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-primary/5 dark:hover:bg-primary/10"
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-primary/5 dark:hover:bg-primary/10"
                       >
-                        {a.nombre} {a.apellido}
-                        {a.rut && <span className="ml-2 text-xs text-text-muted">{a.rut}</span>}
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${ROL_BADGE[u.rol] ?? ""}`}>
+                          {u.rol}
+                        </span>
+                        <span>{u.nombre} {u.apellido}</span>
+                        {u.rut && <span className="text-xs text-text-muted">{u.rut}</span>}
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
-              {selectedAlumnos.length > 0 && (
+              {selectedIds.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {selectedAlumnos.map((id) => {
-                    const alumno = alumnos.find((a) => a.id === id);
+                  {selectedIds.map((id) => {
+                    const u = usuarios.find((x) => x.id === id);
                     return (
                       <span
                         key={id}
                         className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary dark:bg-primary/20 dark:text-primary-light"
                       >
-                        {alumno ? `${alumno.nombre} ${alumno.apellido}` : id.slice(0, 8)}
+                        {u ? `${u.nombre} ${u.apellido}` : id.slice(0, 8)}
                         <button
                           type="button"
-                          onClick={() => setSelectedAlumnos((prev) => prev.filter((x) => x !== id))}
+                          onClick={() => setSelectedIds((prev) => prev.filter((x) => x !== id))}
                           className="ml-1 text-primary/60 hover:text-primary"
                           aria-label="Quitar"
                         >
@@ -208,7 +220,7 @@ export function NotificacionesAdminView({ asignaturas, alumnos, historial }: Pro
               required
               maxLength={2000}
               rows={4}
-              placeholder="Escribe el mensaje para los alumnos..."
+              placeholder="Escribe el mensaje para los destinatarios..."
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>

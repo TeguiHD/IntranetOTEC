@@ -8,7 +8,7 @@ import { pushSubscriptions } from "@/db/schema";
 export async function POST(request: NextRequest) {
   const session = await auth();
 
-  if (!session?.user?.id || session.user.rol !== "alumno") {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   await db
     .insert(pushSubscriptions)
     .values({
-      alumnoId: session.user.id,
+      usuarioId: session.user.id,
       endpoint: body.endpoint,
       p256dh: body.keys.p256dh,
       auth: body.keys.auth,
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     .onConflictDoUpdate({
       target: pushSubscriptions.endpoint,
       set: {
-        alumnoId: session.user.id,
+        usuarioId: session.user.id,
         p256dh: body.keys.p256dh,
         auth: body.keys.auth,
       },

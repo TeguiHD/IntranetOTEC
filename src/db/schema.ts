@@ -607,15 +607,15 @@ export const notificacionesDestinatarios = pgTable(
     notificacionId: uuid("notificacion_id")
       .notNull()
       .references(() => notificaciones.id),
-    alumnoId: uuid("alumno_id")
+    usuarioId: uuid("usuario_id")
       .notNull()
       .references(() => usuarios.id),
     leidoAt: tstz("leido_at"),
   },
   (t) => ({
     notifIdx: index("notif_dest_notificacion_idx").on(t.notificacionId),
-    alumnoIdx: index("notif_dest_alumno_idx").on(t.alumnoId),
-    uniqNotifAlumno: unique().on(t.notificacionId, t.alumnoId),
+    usuarioIdx: index("notif_dest_usuario_idx").on(t.usuarioId),
+    uniqNotifUsuario: unique("notif_dest_unique").on(t.notificacionId, t.usuarioId),
   }),
 );
 
@@ -623,7 +623,7 @@ export const pushSubscriptions = pgTable(
   "push_subscriptions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    alumnoId: uuid("alumno_id")
+    usuarioId: uuid("usuario_id")
       .notNull()
       .references(() => usuarios.id),
     endpoint: text("endpoint").notNull().unique(),
@@ -632,7 +632,7 @@ export const pushSubscriptions = pgTable(
     createdAt: tstz("created_at").defaultNow(),
   },
   (t) => ({
-    alumnoIdx: index("push_sub_alumno_idx").on(t.alumnoId),
+    usuarioIdx: index("push_sub_usuario_idx").on(t.usuarioId),
   }),
 );
 

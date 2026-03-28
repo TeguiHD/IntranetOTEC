@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   CreditCard,
+  Download,
   FileCheck,
   FileText,
   GraduationCap,
@@ -122,6 +123,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "Sistema",
     items: [
       { href: "/admin/auditoria", label: "Auditoría", Icon: ClipboardList, gradient: "grad-slate" },
+      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald" },
     ],
   },
 ];
@@ -142,9 +144,16 @@ const DOCENTE_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Comunicaciones",
+    items: [
+      { href: "/docente/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber" },
+    ],
+  },
+  {
     title: "Mi cuenta",
     items: [
       { href: "/docente/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue" },
+      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald" },
     ],
   },
 ];
@@ -188,6 +197,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     title: "Mi cuenta",
     items: [
       { href: "/alumno/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue" },
+      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald" },
     ],
   },
 ];

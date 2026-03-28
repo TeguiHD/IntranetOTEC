@@ -1,7 +1,7 @@
 import { Bell } from "lucide-react";
 
 import {
-  listarAlumnosActivosAdmin,
+  listarUsuariosActivosAdmin,
   listarAsignaturasActivasAdmin,
   listarNotificacionesAdmin,
 } from "@/actions/notificaciones";
@@ -11,9 +11,9 @@ import { NotificacionesAdminView } from "./NotificacionesAdminView";
 export const metadata = { title: "Notificaciones" };
 
 export default async function AdminNotificacionesPage() {
-  const [asignaturas, alumnos, historial] = await Promise.all([
+  const [asignaturas, usuarios, historial] = await Promise.all([
     listarAsignaturasActivasAdmin(),
-    listarAlumnosActivosAdmin(),
+    listarUsuariosActivosAdmin(),
     listarNotificacionesAdmin(),
   ]);
 
@@ -28,14 +28,14 @@ export default async function AdminNotificacionesPage() {
             Notificaciones
           </h1>
           <p className="text-sm text-text-secondary dark:text-gray-400">
-            Envía mensajes a todos los alumnos, por curso o individualmente.
+            Envía mensajes a alumnos y docentes — global, por curso o individualmente.
           </p>
         </div>
       </header>
 
       <NotificacionesAdminView
         asignaturas={asignaturas}
-        alumnos={alumnos}
+        usuarios={usuarios}
         historial={historial}
       />
     </section>

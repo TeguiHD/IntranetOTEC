@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   CreditCard,
+  Download,
   FileCheck,
   FileText,
   GraduationCap,
@@ -82,10 +83,12 @@ const ADMIN_ITEMS: NavItem[] = [
 ];
 
 const DOCENTE_ITEMS: NavItem[] = [
-  { href: "/docente",             label: "Panel",           Icon: Home,           gradient: "grad-purple" },
-  { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen,       gradient: "grad-blue" },
-  { href: "/encuestas",           label: "Mis Encuestas",   Icon: MessageSquare,  gradient: "grad-indigo" },
-  { href: "/docente/perfil",      label: "Mi Perfil",       Icon: User,           gradient: "grad-blue" },
+  { href: "/docente",                  label: "Panel",            Icon: Home,          gradient: "grad-purple" },
+  { href: "/docente/asignaturas",      label: "Mis Asignaturas",  Icon: BookOpen,      gradient: "grad-blue" },
+  { href: "/encuestas",                label: "Mis Encuestas",    Icon: MessageSquare, gradient: "grad-indigo" },
+  { href: "/docente/notificaciones",   label: "Notificaciones",   Icon: Bell,          gradient: "grad-amber" },
+  { href: "/docente/perfil",           label: "Mi Perfil",        Icon: User,          gradient: "grad-blue" },
+  { href: "/instalar",                 label: "Instalar App",     Icon: Download,      gradient: "grad-emerald" },
 ];
 
 const ALUMNO_ITEMS: NavItem[] = [
@@ -101,8 +104,9 @@ const ALUMNO_ITEMS: NavItem[] = [
   { href: "/alumno/solicitudes/credencial",   label: "Credencial",             Icon: IdCard,         gradient: "grad-violet" },
   { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck,      gradient: "grad-blue" },
   { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard,     gradient: "grad-pink" },
-  { href: "/alumno/notificaciones",           label: "Notificaciones", Icon: Bell,           gradient: "grad-amber" },
-  { href: "/alumno/perfil",                   label: "Mi Perfil",      Icon: User,           gradient: "grad-blue" },
+  { href: "/alumno/notificaciones",           label: "Notificaciones",  Icon: Bell,     gradient: "grad-amber" },
+  { href: "/alumno/perfil",                   label: "Mi Perfil",       Icon: User,     gradient: "grad-blue" },
+  { href: "/instalar",                        label: "Instalar App",    Icon: Download, gradient: "grad-emerald" },
 ];
 
 const ROLE_ITEMS: Record<AppRole, NavItem[]> = {

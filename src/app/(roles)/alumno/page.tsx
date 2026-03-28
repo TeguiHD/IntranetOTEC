@@ -18,6 +18,7 @@ import {
 
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
 import { listarObservacionesAlumno } from "@/actions/docente";
+import { listarMisNotificaciones } from "@/actions/notificaciones";
 
 const GRADIENT_COLORS: Record<string, string> = {
   "grad-purple": "#8B3A9E",
@@ -98,11 +99,13 @@ export const metadata = {
 export default async function AlumnoDashboardPage() {
   let data;
   let observaciones: Awaited<ReturnType<typeof listarObservacionesAlumno>> = [];
+  let notificacionesRecientes: Awaited<ReturnType<typeof listarMisNotificaciones>> = [];
 
   try {
-    [data, observaciones] = await Promise.all([
+    [data, observaciones, notificacionesRecientes] = await Promise.all([
       obtenerDashboardAlumno(),
       listarObservacionesAlumno(),
+      listarMisNotificaciones(),
     ]);
   } catch {
     observaciones = [];
@@ -175,6 +178,49 @@ export default async function AlumnoDashboardPage() {
           <p className="text-xs text-text-secondary dark:text-gray-400">Solicitudes Pend.</p>
         </div>
       </div>
+
+      {/* Notificaciones recientes */}
+      {notificacionesRecientes.length > 0 && (
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-text-primary dark:text-white">
+              <Bell className="h-4 w-4 text-amber-500" />
+              Notificaciones
+              {notificacionesRecientes.filter((n) => !n.leidoAt).length > 0 && (
+                <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                  {notificacionesRecientes.filter((n) => !n.leidoAt).length}
+                </span>
+              )}
+            </h2>
+            <Link
+              href="/alumno/notificaciones"
+              className="text-xs font-medium text-primary hover:underline dark:text-primary-light"
+            >
+              Ver todas
+            </Link>
+          </div>
+          <div className="mt-3 space-y-2">
+            {notificacionesRecientes.slice(0, 3).map((n) => (
+              <div
+                key={n.id}
+                className={`rounded-xl p-3 text-sm ${
+                  n.leidoAt
+                    ? "bg-gray-50 dark:bg-gray-800/50"
+                    : "bg-primary/[0.04] ring-1 ring-primary/10 dark:bg-primary/5"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {!n.leidoAt && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                  <span className="font-medium text-text-primary dark:text-white">{n.titulo}</span>
+                </div>
+                <p className="mt-0.5 line-clamp-1 text-xs text-text-secondary dark:text-gray-400">
+                  {n.contenido}
+                </p>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
 
       {/* Quick nav */}
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">

@@ -36,12 +36,17 @@ export const metadata: Metadata = {
   description: "Intranet educativa OTEC - Impulsate & Emprende",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo-intranet.webp",
-    apple: "/logo-intranet.webp",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icon-180.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Mi OTEC",
   },
   other: {

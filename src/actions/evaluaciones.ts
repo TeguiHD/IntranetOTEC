@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateEvaluacionPublicada } from "@/lib/email";
+import { enviarPushADestinatarios } from "@/actions/notificaciones";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
 import {
@@ -514,7 +515,7 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
 
     if (evalData) {
       const alumnos = await db
-        .select({ nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
+        .select({ id: usuarios.id, nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
         .from(matriculas)
         .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
         .where(
@@ -538,6 +539,15 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
           fechaLimite: fechaLimiteStr,
         });
         sendEmail(alumno.email, subject, html).catch(() => {});
+      }
+
+      const alumnoIds = alumnos.map((a) => a.id);
+      if (alumnoIds.length > 0) {
+        enviarPushADestinatarios(
+          alumnoIds,
+          `Nueva evaluación: ${evalData.titulo}`,
+          `Tienes una nueva evaluación en ${evalData.asignaturaNombre}${fechaLimiteStr ? ` — límite: ${fechaLimiteStr}` : ""}.`,
+        ).catch(() => {});
       }
     }
 

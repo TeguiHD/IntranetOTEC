@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateClaseAgendada } from "@/lib/email";
+import { enviarPushADestinatarios } from "@/actions/notificaciones";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { sanitizeText } from "@/lib/sanitize";
 import { parseSpreadsheetRowsFromBuffer } from "@/lib/spreadsheet";
@@ -335,7 +336,7 @@ export async function crearClaseDocenteAction(input: {
 
   if (asigData) {
     const alumnos = await db
-      .select({ nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
+      .select({ id: usuarios.id, nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
       .from(matriculas)
       .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
       .where(
@@ -360,6 +361,15 @@ export async function crearClaseDocenteAction(input: {
         hora: parsed.data.horaInicio ?? null,
       });
       sendEmail(alumno.email, subject, html).catch(() => {});
+    }
+
+    const alumnoIds = alumnos.map((a) => a.id);
+    if (alumnoIds.length > 0) {
+      enviarPushADestinatarios(
+        alumnoIds,
+        `Nueva clase: ${sanitizeText(parsed.data.titulo)}`,
+        `Nueva clase en ${asigData.nombre} el ${fechaStr}${parsed.data.horaInicio ? ` a las ${parsed.data.horaInicio}` : ""}.`,
+      ).catch(() => {});
     }
   }
 
@@ -584,7 +594,7 @@ export async function registrarNotaDocenteAction(input: {
   }
 
   const [matriculaRow] = await db
-    .select({ id: matriculas.id })
+    .select({ id: matriculas.id, alumnoId: matriculas.alumnoId })
     .from(matriculas)
     .where(and(eq(matriculas.id, parsed.data.matriculaId), eq(matriculas.asignaturaId, parsed.data.asignaturaId)))
     .limit(1);
@@ -610,6 +620,13 @@ export async function registrarNotaDocenteAction(input: {
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+
+  // Push al alumno notificando la nueva nota
+  enviarPushADestinatarios(
+    [matriculaRow.alumnoId],
+    "Nueva nota registrada",
+    `Se registró una nota de ${parsed.data.nota.toFixed(1)} en tu curso.`,
+  ).catch(() => {});
 
   return { ok: true, code: "nota_created" };
 }

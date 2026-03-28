@@ -1,14 +1,14 @@
 "use server";
 
-import { and, asc, count, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas } from "@/db/schema";
+import { asignaturas, clases, matriculas } from "@/db/schema";
 import { activo } from "@/db/filters";
-import { clases } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { enviarPushADestinatarios } from "@/actions/notificaciones";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
@@ -398,6 +398,38 @@ export async function crearClaseAction(input: {
       },
       exitoso: true,
     });
+
+    // Push a alumnos matriculados (solo si clase está publicada)
+    if (parsed.data.publicada) {
+      const [asigData] = await db
+        .select({ nombre: asignaturas.nombre })
+        .from(asignaturas)
+        .where(eq(asignaturas.id, parsed.data.asignaturaId))
+        .limit(1);
+
+      const matriculados = await db
+        .select({ alumnoId: matriculas.alumnoId })
+        .from(matriculas)
+        .where(
+          and(
+            eq(matriculas.asignaturaId, parsed.data.asignaturaId),
+            eq(matriculas.activa, true),
+            isNull(matriculas.eliminadoAt),
+          ),
+        );
+
+      const alumnoIds = matriculados.map((m) => m.alumnoId);
+      if (alumnoIds.length > 0 && asigData) {
+        const fechaStr = new Date(parsed.data.fecha + "T12:00:00").toLocaleDateString("es-CL", {
+          day: "2-digit", month: "long", year: "numeric",
+        });
+        enviarPushADestinatarios(
+          alumnoIds,
+          `Nueva clase: ${sanitizeText(parsed.data.titulo)}`,
+          `Nueva clase en ${asigData.nombre} el ${fechaStr}${parsed.data.horaInicio ? ` a las ${parsed.data.horaInicio}` : ""}.`,
+        ).catch(() => {});
+      }
+    }
 
     return { ok: true, code: "clase_created" };
   } catch (error) {

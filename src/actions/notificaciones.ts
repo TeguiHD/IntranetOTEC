@@ -16,7 +16,7 @@ import {
 import { registrarAudit } from "@/lib/audit";
 import { sanitizeText } from "@/lib/sanitize";
 
-async function enviarPushADestinatarios(
+export async function enviarPushADestinatarios(
   alumnoIds: string[],
   titulo: string,
   contenido: string,

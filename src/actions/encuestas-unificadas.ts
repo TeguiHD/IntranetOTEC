@@ -253,7 +253,7 @@ export async function agregarPreguntaEncuestaFormAction(formData: FormData): Pro
   });
 
   revalidatePath(`/admin/encuestas-builder/${evaluacionId}`);
-  redirect(`/admin/encuestas-builder/${evaluacionId}?state=${result.ok ? result.code : "error"}`);
+  redirect(`/admin/encuestas-builder/${evaluacionId}?state=${result.code}`);
 }
 
 // ----------------------------------------------------------------

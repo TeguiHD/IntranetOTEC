@@ -1,5 +1,8 @@
 import { BarChart3, CheckCircle2, ChevronLeft, Clock, GripVertical, Lock, Plus, Rocket, Trash2, Users, X, Zap } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+
+import { ConfirmDeleteEncuesta } from "./ConfirmDeleteEncuesta";
 
 import {
   agregarPreguntaEncuestaFormAction,
@@ -25,6 +28,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   pregunta_created: { tone: "success", text: "Pregunta agregada correctamente." },
   pregunta_deleted: { tone: "success", text: "Pregunta eliminada." },
   no_preguntas: { tone: "error", text: "Agrega al menos una pregunta antes de lanzar la encuesta." },
+  not_found: { tone: "error", text: "Encuesta no encontrada." },
+  invalid_input: { tone: "error", text: "El enunciado de la pregunta no puede estar vacío." },
+  pregunta_create_failed: { tone: "error", text: "Error al guardar la pregunta en la base de datos." },
+  forbidden: { tone: "error", text: "No tienes permisos para esta acción." },
+  already_closed: { tone: "error", text: "La encuesta ya está cerrada." },
   error: { tone: "error", text: "No fue posible completar la acción." },
 };
 
@@ -97,12 +105,12 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
 
   return (
     <section className="space-y-6">
-      <RouteStateToast state={sp.state} map={STATUS_MAP} />
+      <Suspense><RouteStateToast state={sp.state} map={STATUS_MAP} /></Suspense>
 
       {/* Header */}
       <header className="flex items-start gap-3">
         <Link
-          href="/admin/encuestas-builder"
+          href={`/admin/encuestas-builder?asignaturaId=${encuesta.asignaturaId}`}
           className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-text-secondary hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -528,12 +536,10 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
 
           {/* Delete (draft) */}
           {isDraft && (
-            <form action={eliminarEncuestaFormAction}>
-              <input type="hidden" name="evaluacionId" value={id} />
-              <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition-all hover:bg-red-50 active:scale-[0.97] dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20">
-                <Trash2 className="h-4 w-4" /> Eliminar encuesta
-              </button>
-            </form>
+            <ConfirmDeleteEncuesta
+              evaluacionId={id}
+              action={eliminarEncuestaFormAction}
+            />
           )}
         </aside>
       </div>

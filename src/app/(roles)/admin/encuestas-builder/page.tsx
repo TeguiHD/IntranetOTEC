@@ -1,5 +1,6 @@
 import { CheckCircle2, ClipboardList, Clock, FileText, Plus, Rocket, Users, XCircle, Zap } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { obtenerAsignaturaAdminById } from "@/actions/asignaturas";
 import { crearEncuestaFormAction, listarEncuestasAdmin } from "@/actions/encuestas-unificadas";
@@ -61,7 +62,7 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
 
   return (
     <section className="space-y-6">
-      <RouteStateToast state={params.state} map={STATUS_MAP} />
+      <Suspense><RouteStateToast state={params.state} map={STATUS_MAP} /></Suspense>
 
       {/* Header */}
       <header className="flex items-center gap-3">

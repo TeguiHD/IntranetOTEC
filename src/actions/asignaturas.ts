@@ -55,6 +55,31 @@ export type AsignaturaBusqueda = {
   estado: "borrador" | "activo" | "finalizado" | "archivado" | null;
 };
 
+export async function obtenerAsignaturaAdminById(
+  id: string,
+): Promise<AsignaturaBusqueda | null> {
+  const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
+
+  if (!actorResult.ok) return null;
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(id)) return null;
+
+  const db = getDb();
+  const [row] = await db
+    .select({
+      id: asignaturas.id,
+      nombre: asignaturas.nombre,
+      codigo: asignaturas.codigo,
+      estado: asignaturas.estado,
+    })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, id))
+    .limit(1);
+
+  return row ?? null;
+}
+
 export async function buscarAsignaturasAdminAction(
   query: string,
 ): Promise<AsignaturaBusqueda[]> {

@@ -1,11 +1,12 @@
 import { CheckCircle2, ClipboardList, Clock, FileText, Plus, Rocket, Users, XCircle, Zap } from "lucide-react";
 import Link from "next/link";
 
-import { listarAsignaturasAdmin } from "@/actions/asignaturas";
+import { obtenerAsignaturaAdminById } from "@/actions/asignaturas";
 import { crearEncuestaFormAction, listarEncuestasAdmin } from "@/actions/encuestas-unificadas";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { StatCard } from "@/components/charts/StatCard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { EncuestasBuilderFiltro } from "./EncuestasBuilderFiltro";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,13 +42,13 @@ export const metadata = { title: "Constructor de Encuestas" };
 export default async function AdminEncuestasBuilderPage({ searchParams }: Props) {
   const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string }));
 
-  const asignaturas = await listarAsignaturasAdmin({ limit: 100, offset: 0 }, { incluirArchivadas: false });
-
   const selectedIdRaw = typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;
-  const selectedId =
-    selectedIdRaw && UUID_REGEX.test(selectedIdRaw) ? selectedIdRaw : asignaturas[0]?.id;
+  const selectedId = selectedIdRaw && UUID_REGEX.test(selectedIdRaw) ? selectedIdRaw : undefined;
 
-  const encuestas = selectedId ? await listarEncuestasAdmin(selectedId) : [];
+  const [defaultAsignatura, encuestas] = await Promise.all([
+    selectedId ? obtenerAsignaturaAdminById(selectedId) : Promise.resolve(null),
+    selectedId ? listarEncuestasAdmin(selectedId) : Promise.resolve([]),
+  ]);
 
   // Aggregate metrics
   const totalEncuestas = encuestas.length;
@@ -78,32 +79,16 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
       </header>
 
       {/* Asignatura selector */}
-      <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <div className="space-y-1.5">
-            <label htmlFor="enc-asig" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Asignatura
-            </label>
-            <select
-              id="enc-asig"
-              name="asignaturaId"
-              defaultValue={selectedId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              {asignaturas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.codigo ? `[${a.codigo}] ` : ""}{a.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button type="submit" className="h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98] sm:w-auto">
-              Filtrar
-            </button>
-          </div>
+      <EncuestasBuilderFiltro defaultAsignatura={defaultAsignatura} />
+
+      {!selectedId && (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gray-200 py-16 text-center dark:border-gray-700">
+          <ClipboardList className="h-10 w-10 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
+          <p className="text-sm font-medium text-text-secondary dark:text-gray-400">
+            Busca y selecciona una asignatura para ver o crear encuestas.
+          </p>
         </div>
-      </form>
+      )}
 
       {selectedId && (
         <>

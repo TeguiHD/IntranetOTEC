@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { buscarAlumnosAction, type AlumnoBusqueda } from "@/actions/usuarios";
+import { formatearIdentificador } from "@/lib/rut";
 
 export function AlumnoCombobox() {
   const [query, setQuery] = useState("");
@@ -54,12 +55,6 @@ export function AlumnoCombobox() {
     setQuery("");
     setResults([]);
     setOpen(false);
-  };
-
-  const displayRut = (rut: string | null) => {
-    if (!rut) return "Sin RUT";
-    if (rut.startsWith("EXT-")) return rut.replace("EXT-", "Ext: ");
-    return rut;
   };
 
   return (
@@ -158,7 +153,7 @@ export function AlumnoCombobox() {
                       {alumno.nombre} {alumno.apellido}
                     </p>
                     <p className="text-xs text-text-secondary dark:text-gray-400">
-                      {displayRut(alumno.rut)}
+                      {formatearIdentificador(alumno.rut)}
                     </p>
                   </div>
                 </button>

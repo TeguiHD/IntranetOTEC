@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 import { crearAlumnoFormAction } from "@/actions/usuarios";
 import { Modal } from "@/components/shared/Modal";
+import { RutInput } from "@/components/shared/RutInput";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
@@ -13,6 +14,21 @@ const inputClass =
 export function AlumnoCreateModal() {
   const [open, setOpen] = useState(false);
   const [credencialTipo, setCredencialTipo] = useState<"rut" | "extranjera">("rut");
+  const [rut, setRut] = useState("");
+  const [isRutValid, setIsRutValid] = useState(false);
+  const [credencialExtranjera, setCredencialExtranjera] = useState("");
+
+  const resetFormState = () => {
+    setCredencialTipo("rut");
+    setRut("");
+    setIsRutValid(false);
+    setCredencialExtranjera("");
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    resetFormState();
+  };
 
   return (
     <>
@@ -27,7 +43,7 @@ export function AlumnoCreateModal() {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={handleClose}
         title="Crear Alumno"
         description="Ingresa los datos del alumno con RUT chileno o credencial extranjera."
         size="max-w-xl"
@@ -89,7 +105,12 @@ export function AlumnoCreateModal() {
                     name="credencialTipoRadio"
                     value={tipo}
                     checked={credencialTipo === tipo}
-                    onChange={() => setCredencialTipo(tipo)}
+                    onChange={() => {
+                      setCredencialTipo(tipo);
+                      setRut("");
+                      setIsRutValid(false);
+                      setCredencialExtranjera("");
+                    }}
                     className="sr-only"
                   />
                   {tipo === "rut" ? "RUT chileno" : "Credencial extranjera"}
@@ -100,20 +121,14 @@ export function AlumnoCreateModal() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             {credencialTipo === "rut" ? (
-              <div className="space-y-1.5">
-                <label htmlFor="modal-alumno-rut" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                  RUT <span className="text-danger">*</span>
-                </label>
-                <input
+              <div>
+                <RutInput
                   id="modal-alumno-rut"
                   name="rut"
-                  type="text"
-                  inputMode="numeric"
+                  value={rut}
                   required
-                  minLength={8}
-                  maxLength={12}
-                  placeholder="12.345.678-5"
-                  className={inputClass}
+                  onChange={setRut}
+                  onValidityChange={setIsRutValid}
                 />
               </div>
             ) : (
@@ -130,6 +145,15 @@ export function AlumnoCreateModal() {
                   maxLength={24}
                   placeholder="Ej: A12345678"
                   className={inputClass}
+                  value={credencialExtranjera}
+                  onChange={(event) =>
+                    setCredencialExtranjera(
+                      event.currentTarget.value
+                        .toUpperCase()
+                        .replace(/[^A-Z0-9-]/g, "")
+                        .slice(0, 24),
+                    )
+                  }
                 />
                 <p className="text-xs text-text-muted dark:text-gray-500">
                   Pasaporte, DNI u otro documento extranjero.
@@ -153,17 +177,22 @@ export function AlumnoCreateModal() {
             </div>
           </div>
 
+          <div className="rounded-xl border border-primary/10 bg-primary/5 px-4 py-3 text-xs text-text-secondary dark:border-primary/20 dark:bg-primary/10 dark:text-gray-300">
+            El PIN inicial del alumno se genera automáticamente con los últimos 4 dígitos de su documento.
+          </div>
+
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              disabled={credencialTipo === "rut" ? !isRutValid : credencialExtranjera.trim().length < 4}
+              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
             >
               Crear Alumno
             </button>

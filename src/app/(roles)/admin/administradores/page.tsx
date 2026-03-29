@@ -32,6 +32,7 @@ type AdminAdministradoresPageProps = {
   searchParams?: Promise<{
     state?: string;
     page?: string;
+    q?: string;
   }>;
 };
 
@@ -42,21 +43,30 @@ export const metadata = {
 export default async function AdminAdministradoresPage({
   searchParams,
 }: AdminAdministradoresPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string; q?: string }));
   const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const searchQuery = typeof params.q === "string" ? params.q.trim() : "";
 
   const [administradores, totalCount] = await Promise.all([
     listarUsuariosPorRol(
       "admin",
       { limit: PAGE_SIZE, offset },
-      { incluirInactivos: true },
+      { incluirInactivos: true, query: searchQuery },
     ),
-    countUsuariosPorRol("admin", { incluirInactivos: true }),
+    countUsuariosPorRol("admin", { incluirInactivos: true, query: searchQuery }),
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const buildHref = (page: number): string => `/admin/administradores?page=${page}`;
+  const buildHref = (page: number): string => {
+    const qs = new URLSearchParams({ page: String(page) });
+
+    if (searchQuery) {
+      qs.set("q", searchQuery);
+    }
+
+    return `/admin/administradores?${qs.toString()}`;
+  };
 
   return (
     <section className="space-y-5">
@@ -86,12 +96,67 @@ export default async function AdminAdministradoresPage({
           )}
         </div>
 
-        <AdminTable administradores={administradores} />
+        <div className="mb-5 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/40">
+          <form action="/admin/administradores" method="get" className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div className="w-full xl:max-w-xl">
+              <label htmlFor="admins-q" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Buscar en todo el padrón administrativo
+              </label>
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="admins-q"
+                  name="q"
+                  type="search"
+                  defaultValue={searchQuery}
+                  maxLength={80}
+                  placeholder="Nombre, apellido, RUT o correo"
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="h-11 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+                  >
+                    Buscar
+                  </button>
+                  {searchQuery ? (
+                    <a
+                      href="/admin/administradores"
+                      className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      Limpiar
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-white px-4 py-3 text-sm text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
+              {searchQuery ? (
+                <span>
+                  {totalCount} resultado{totalCount === 1 ? "" : "s"} para <strong className="text-text-primary dark:text-white">“{searchQuery}”</strong>
+                </span>
+              ) : (
+                <span>La búsqueda considera toda la base de administradores y no solo la página visible.</span>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <AdminTable
+          administradores={administradores}
+          emptyMessage={
+            searchQuery
+              ? `No se encontraron administradores para “${searchQuery}”.`
+              : "No hay administradores registrados aún."
+          }
+        />
 
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           buildHref={buildHref}
+          totalCount={totalCount}
         />
       </article>
     </section>

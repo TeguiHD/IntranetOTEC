@@ -13,6 +13,10 @@ export function normalizarRut(value: string): string {
 export function formatearRut(value: string): string {
   const cleaned = normalizarRut(value);
 
+  if (esRutExtranjero(cleaned)) {
+    return cleaned;
+  }
+
   if (cleaned.length <= 1) {
     return cleaned;
   }
@@ -23,6 +27,24 @@ export function formatearRut(value: string): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
   return `${body}-${dv}`;
+}
+
+export function formatearIdentificador(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "-";
+  }
+
+  if (esRutExtranjero(trimmed)) {
+    return `Ext: ${trimmed.replace(/^EXT-/i, "")}`;
+  }
+
+  return formatearRut(trimmed);
 }
 
 export function validarRutExtranjero(value: string): boolean {

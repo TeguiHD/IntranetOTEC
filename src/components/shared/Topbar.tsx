@@ -6,12 +6,13 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   LayoutGrid,
   LogOut,
   Menu,
@@ -21,6 +22,8 @@ import {
 } from "lucide-react";
 
 import type { AppRole } from "@/lib/authz";
+
+import { usePwaInstall } from "./PwaInstallProvider";
 
 type TopbarProps = {
   role: AppRole;
@@ -60,7 +63,9 @@ export function Topbar({
   onToggleNavMode,
 }: TopbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const { platform, isInstalled, isInstallable, promptInstall } = usePwaInstall();
   const [mounted, setMounted] = useState(false);
   const [isSigningOut, startSignOut] = useTransition();
 
@@ -78,6 +83,8 @@ export function Topbar({
   }, [pathname, role]);
 
   const isDark = mounted && resolvedTheme === "dark";
+  const showInstallAction =
+    !isInstalled && (platform === "ios" || isInstallable);
 
   const handleThemeToggle = () => {
     document.documentElement.classList.add("theme-transition");
@@ -87,8 +94,17 @@ export function Topbar({
     }, 350);
   };
 
+  const handleInstallAction = async () => {
+    if (platform !== "ios" && isInstallable) {
+      await promptInstall();
+      return;
+    }
+
+    router.push("/instalar");
+  };
+
   return (
-    <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:px-4">
+    <header className="app-topbar fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:px-4">
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
         {/* Mobile menu button */}
         <button
@@ -143,6 +159,21 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {showInstallAction ? (
+          <button
+            type="button"
+            onClick={handleInstallAction}
+            aria-label="Instalar app"
+            title={platform === "ios" ? "Ver pasos de instalacion" : "Instalar app"}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-cta px-3 text-sm font-semibold text-white shadow-sm shadow-cta/20 transition-colors hover:bg-cta-dark active:scale-95"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">
+              {platform === "ios" ? "Instalar app" : "Instalar"}
+            </span>
+          </button>
+        ) : null}
+
         {/* Mobile nav mode toggle */}
         <button
           type="button"

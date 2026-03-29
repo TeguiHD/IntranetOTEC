@@ -1,5 +1,11 @@
-const CACHE_VERSION = "otec-v3";
+const CACHE_VERSION = "otec-v4";
 const OFFLINE_URL = "/offline.html";
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 // ── Install: pre-cache offline page and core icons ──
 self.addEventListener("install", (event) => {

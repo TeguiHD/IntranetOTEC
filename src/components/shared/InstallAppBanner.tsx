@@ -1,67 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Download, Smartphone } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Download, Smartphone, X } from "lucide-react";
 
-type Platform = "android" | "ios" | null;
-
-function detectPlatform(): Platform {
-  if (typeof navigator === "undefined") return null;
-  const ua = navigator.userAgent;
-  const isIos = /iphone|ipad|ipod/i.test(ua) && !("MSStream" in window);
-  const isAndroid = /android/i.test(ua);
-  return isIos ? "ios" : isAndroid ? "android" : null;
-}
-
-function isAlreadyInstalled(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true)
-  );
-}
+import { usePwaInstall } from "./PwaInstallProvider";
 
 export function InstallAppBanner() {
+  const router = useRouter();
+  const { platform, isInstallable, isInstalled, promptInstall } = usePwaInstall();
   const [show, setShow] = useState(false);
-  const [platform, setPlatform] = useState<Platform>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
 
   useEffect(() => {
-    if (isAlreadyInstalled()) return;
+    if (isInstalled) {
+      setShow(false);
+      return;
+    }
+
+    if (typeof window === "undefined") return;
     if (sessionStorage.getItem("install-banner-dismissed")) return;
 
-    const p = detectPlatform();
-    setPlatform(p);
+    const canSurface = platform === "ios" || isInstallable;
+    if (!canSurface) return;
 
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> });
-      setShow(true);
-    };
-
-    if (p === "android") {
-      window.addEventListener("beforeinstallprompt", handler);
-      return () => window.removeEventListener("beforeinstallprompt", handler);
-    }
-
-    if (p === "ios") {
-      // En iOS mostramos instrucciones manuales
-      const timer = setTimeout(() => setShow(true), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+    const timer = window.setTimeout(() => setShow(true), platform === "ios" ? 1800 : 900);
+    return () => window.clearTimeout(timer);
+  }, [isInstallable, isInstalled, platform]);
 
   const dismiss = () => {
     setShow(false);
     sessionStorage.setItem("install-banner-dismissed", "1");
   };
 
-  const install = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") setShow(false);
+  const handleAction = async () => {
+    if (isInstallable && platform !== "ios") {
+      const outcome = await promptInstall();
+      if (outcome === "accepted") {
+        setShow(false);
+      }
+      return;
     }
+
+    router.push("/instalar");
   };
 
   if (!show || !platform) return null;
@@ -69,7 +49,7 @@ export function InstallAppBanner() {
   return (
     <div
       role="banner"
-      className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-purple-200 bg-white px-4 py-3 shadow-xl shadow-purple-100/60 dark:border-purple-800/40 dark:bg-gray-900 dark:shadow-none"
+      className="app-install-banner fixed left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-3xl border border-primary/20 bg-white/95 px-4 py-3 shadow-2xl shadow-primary/15 backdrop-blur-md dark:border-primary/25 dark:bg-gray-950/95 dark:shadow-none"
     >
       <button
         onClick={dismiss}
@@ -80,31 +60,49 @@ export function InstallAppBanner() {
       </button>
 
       <div className="flex items-start gap-3 pr-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/40">
-          <Smartphone className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-cta/15 dark:from-primary/25 dark:to-cta/20">
+          <Smartphone className="h-5 w-5 text-primary dark:text-primary-light" />
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            Instala Mi OTEC
+            Instala Mi OTEC como app
           </p>
           {platform === "ios" ? (
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Toca <span className="font-medium">Compartir</span> y luego <span className="font-medium">&ldquo;Agregar a pantalla de inicio&rdquo;</span>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              En iPhone se agrega desde Safari. La guia solo te muestra los pasos.
             </p>
           ) : (
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Accede rápido desde tu pantalla de inicio, sin App Store.
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <span className="font-semibold text-text-primary dark:text-gray-200">
+                Instalar ahora
+              </span>{" "}
+              abre el instalador real.{" "}
+              <span className="font-semibold text-text-primary dark:text-gray-200">
+                Ver ayuda
+              </span>{" "}
+              solo explica el proceso.
             </p>
           )}
-          {platform === "android" && (
-            <button
-              onClick={install}
-              className="mt-2 flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700 active:bg-purple-800"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Instalar app
-            </button>
-          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(platform === "ios" || isInstallable) && (
+              <button
+                onClick={handleAction}
+                className="flex items-center gap-1.5 rounded-xl bg-cta px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-cta/20 transition-colors hover:bg-cta-dark active:bg-cta-dark"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {platform === "ios" ? "Ver pasos" : "Instalar ahora"}
+              </button>
+            )}
+
+            {platform !== "ios" && isInstallable ? (
+              <button
+                onClick={() => router.push("/instalar")}
+                className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-900"
+              >
+                Ver ayuda
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

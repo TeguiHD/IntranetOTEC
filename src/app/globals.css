@@ -25,6 +25,10 @@
 
   --background: var(--color-bg-light);
   --foreground: var(--color-text-main);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
   color-scheme: light;
 }
 
@@ -54,6 +58,29 @@ body {
   background: var(--background);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.app-topbar {
+  height: calc(4rem + var(--safe-area-top));
+  padding-top: var(--safe-area-top);
+}
+
+.app-shell-offset {
+  padding-top: calc(4rem + var(--safe-area-top));
+}
+
+.app-main-shell {
+  padding-bottom: calc(1.25rem + var(--safe-area-bottom));
+}
+
+.app-mobile-sheet {
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.app-install-banner {
+  bottom: calc(1rem + var(--safe-area-bottom));
 }
 
 /* Smooth theme transitions */
@@ -77,6 +104,13 @@ html.theme-transition *::after {
   }
   select {
     min-height: 48px;
+  }
+}
+
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
   }
 }
 

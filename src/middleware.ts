@@ -14,7 +14,7 @@ import { recordHttpMetric } from "@/lib/observability/metrics";
 import { checkRateLimitMemory } from "@/lib/rateLimitMemory";
 import { getRequestAuthContext } from "@/lib/requestAuth";
 
-const PUBLIC_ROUTES = ["/login", "/verificar"];
+const PUBLIC_ROUTES = ["/login", "/verificar", "/manifest.json", "/offline.html"];
 
 const isPublicRoute = (pathname: string): boolean =>
   PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));

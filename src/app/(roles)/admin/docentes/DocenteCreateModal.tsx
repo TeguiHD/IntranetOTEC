@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { crearDocenteAction } from "@/actions/usuarios";
 import { Modal } from "@/components/shared/Modal";
+import { RutInput } from "@/components/shared/RutInput";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
@@ -27,7 +28,16 @@ const CODE_MESSAGES: Record<string, string> = {
 export function DocenteCreateModal() {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rut, setRut] = useState("");
+  const [isRutValid, setIsRutValid] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const handleClose = () => {
+    setOpen(false);
+    setRut("");
+    setIsRutValid(false);
+    setShowPassword(false);
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,7 +48,6 @@ export function DocenteCreateModal() {
     const nombre = (formData.get("nombre") as string)?.trim() ?? "";
     const apellido = (formData.get("apellido") as string)?.trim() ?? "";
     const email = (formData.get("email") as string)?.trim() ?? "";
-    const rut = (formData.get("rut") as string)?.trim() ?? "";
     const password = (formData.get("password") as string) ?? "";
 
     if (!nombre || !apellido || !email || !rut || !password) {
@@ -59,8 +68,7 @@ export function DocenteCreateModal() {
         if (result.ok) {
           toast.success(CODE_MESSAGES[result.code] ?? "Docente creado exitosamente.");
           form.reset();
-          setOpen(false);
-          // Force a page reload to refresh the table
+          handleClose();
           window.location.href = `/admin/docentes?state=${result.code}`;
         } else {
           toast.error(CODE_MESSAGES[result.code] ?? result.message ?? "Error al crear docente.");
@@ -84,7 +92,7 @@ export function DocenteCreateModal() {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={handleClose}
         title="Crear Docente"
         description="Ingresa los datos del docente. La contraseña debe cumplir con la política de seguridad."
         size="max-w-xl"
@@ -144,21 +152,16 @@ export function DocenteCreateModal() {
                 disabled={isPending}
               />
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="modal-docente-rut" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                RUT / Credencial <span className="text-danger">*</span>
-              </label>
-              <input
+            <div>
+              <RutInput
                 id="modal-docente-rut"
                 name="rut"
-                type="text"
-                inputMode="text"
+                value={rut}
                 required
-                minLength={4}
-                maxLength={24}
-                placeholder="12.345.678-5 o EXT-A12345678"
-                className={inputClass}
+                allowForeign
                 disabled={isPending}
+                onChange={setRut}
+                onValidityChange={setIsRutValid}
               />
             </div>
           </div>
@@ -198,7 +201,7 @@ export function DocenteCreateModal() {
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               disabled={isPending}
               className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 disabled:opacity-50"
             >
@@ -206,7 +209,7 @@ export function DocenteCreateModal() {
             </button>
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || !isRutValid}
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
             >
               {isPending ? (

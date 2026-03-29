@@ -90,11 +90,11 @@ export function RoleShell({ role, userName, children, pendingSolicitudes }: Role
       />
 
       <div
-        className={`pt-16 transition-[margin-left] duration-300 ease-out ${
+        className={`app-shell-offset transition-[margin-left] duration-300 ease-out ${
           isSidebarCollapsed ? "md:ml-[4.5rem]" : "md:ml-64"
         }`}
       >
-        <main className="mx-auto min-h-[calc(100dvh-4rem)] max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+        <main className="app-main-shell mx-auto min-h-[calc(100dvh-4rem)] max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
           <Breadcrumbs />
           {children}
         </main>

@@ -34,6 +34,43 @@ const sanitizeName = (value: string): string =>
 
 const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
 
+const normalizeDirectorySearchQuery = (query?: string): string | undefined => {
+  if (typeof query !== "string") {
+    return undefined;
+  }
+
+  const parsed = comboboxSearchQuerySchema.safeParse(query);
+  return parsed.success ? parsed.data : undefined;
+};
+
+const buildUserDirectoryWhere = (
+  role: "admin" | "docente" | "alumno",
+  options?: { incluirInactivos?: boolean; query?: string },
+) => {
+  const conditions = [eq(usuarios.rol, role)];
+  const searchQuery = normalizeDirectorySearchQuery(options?.query);
+
+  if (!options?.incluirInactivos) {
+    conditions.push(eq(usuarios.activo, true), isNull(usuarios.eliminadoAt));
+  }
+
+  if (searchQuery) {
+    const term = `%${escapeLike(searchQuery)}%`;
+
+    conditions.push(
+      or(
+        ilike(usuarios.nombre, term),
+        ilike(usuarios.apellido, term),
+        ilike(usuarios.rut, term),
+        ilike(usuarios.email, term),
+        ilike(sql<string>`concat_ws(' ', ${usuarios.nombre}, ${usuarios.apellido})`, term),
+      )!,
+    );
+  }
+
+  return and(...conditions);
+};
+
 const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
   return typeof rawValue === "string" ? rawValue : "";
@@ -101,7 +138,7 @@ export type BuscarPersonaPorRutAdminResult =
 export async function listarUsuariosPorRol(
   role: "admin" | "docente" | "alumno",
   pagination: PaginationInput = {},
-  options?: { incluirInactivos?: boolean },
+  options?: { incluirInactivos?: boolean; query?: string },
 ) {
   const actorResult = await requireActionActor("admin_user_list", ["admin"]);
 
@@ -128,22 +165,12 @@ export async function listarUsuariosPorRol(
     .limit(limit)
     .offset(offset);
 
-  if (options?.incluirInactivos) {
-    return baseQuery.where(eq(usuarios.rol, role));
-  }
-
-  return baseQuery.where(
-    and(
-      eq(usuarios.rol, role),
-      eq(usuarios.activo, true),
-      isNull(usuarios.eliminadoAt),
-    ),
-  );
+  return baseQuery.where(buildUserDirectoryWhere(role, options));
 }
 
 export async function countUsuariosPorRol(
   role: "admin" | "docente" | "alumno",
-  options?: { incluirInactivos?: boolean },
+  options?: { incluirInactivos?: boolean; query?: string },
 ): Promise<number> {
   const actorResult = await requireActionActor("admin_user_list", ["admin"]);
 
@@ -153,16 +180,11 @@ export async function countUsuariosPorRol(
 
   const db = getDb();
 
-  const baseQuery = db.select({ total: count() }).from(usuarios);
+  const result = await db
+    .select({ total: count() })
+    .from(usuarios)
+    .where(buildUserDirectoryWhere(role, options));
 
-  if (options?.incluirInactivos) {
-    const result = await baseQuery.where(eq(usuarios.rol, role));
-    return Number(result[0]?.total ?? 0);
-  }
-
-  const result = await baseQuery.where(
-    and(eq(usuarios.rol, role), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt)),
-  );
   return Number(result[0]?.total ?? 0);
 }
 
@@ -1533,6 +1555,123 @@ export async function activarAdministradorFormAction(formData: FormData): Promis
   redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
 }
 
+// ── Hard-delete permanent ──────────────────────────────────────────
+
+export async function eliminarUsuarioPermanenteAction(input: {
+  userId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_user_deactivate", ["admin"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const parsed = desactivarUsuarioInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, code: "invalid_input", message: "Usuario inválido." };
+  }
+
+  if (parsed.data.userId === actorResult.actor.userId) {
+    return { ok: false, code: "self_delete_denied", message: "No puedes eliminarte a ti mismo." };
+  }
+
+  const db = getDb();
+
+  const [target] = await db
+    .select({
+      id: usuarios.id,
+      rol: usuarios.rol,
+      activo: usuarios.activo,
+      eliminadoAt: usuarios.eliminadoAt,
+    })
+    .from(usuarios)
+    .where(eq(usuarios.id, parsed.data.userId))
+    .limit(1);
+
+  if (!target) {
+    return { ok: false, code: "user_not_found", message: "Usuario no encontrado." };
+  }
+
+  if (target.activo !== false || !target.eliminadoAt) {
+    return {
+      ok: false,
+      code: "must_deactivate_first",
+      message: "Debes desactivar el usuario antes de eliminarlo definitivamente.",
+    };
+  }
+
+  if (target.rol === "alumno") {
+    const [hasMatricula] = await db
+      .select({ id: matriculas.id })
+      .from(matriculas)
+      .where(and(eq(matriculas.alumnoId, target.id), eq(matriculas.activa, true)))
+      .limit(1);
+
+    if (hasMatricula) {
+      return {
+        ok: false,
+        code: "has_active_records",
+        message: "El alumno tiene matrículas activas. Desmatrícula primero.",
+      };
+    }
+  }
+
+  try {
+    await db.delete(usuarios).where(eq(usuarios.id, target.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "desactivar",
+      entidad: "usuarios",
+      entidadId: target.id,
+      payload: { rolObjetivo: target.rol, eliminadoPermanentemente: true },
+      exitoso: true,
+    });
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_user_hard_deleted",
+      result: "success",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { targetId: target.id, targetRol: target.rol },
+    });
+
+    return { ok: true, code: "user_deleted" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_user_hard_delete_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return {
+      ok: false,
+      code: "delete_failed",
+      message: "No fue posible eliminar el usuario. Puede tener datos históricos asociados.",
+    };
+  }
+}
+
+export async function eliminarAlumnoPermanenteFormAction(formData: FormData): Promise<void> {
+  const result = await eliminarUsuarioPermanenteAction({
+    userId: getStringField(formData, "userId"),
+  });
+  revalidatePath("/admin/alumnos");
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function eliminarDocentePermanenteFormAction(formData: FormData): Promise<void> {
+  const result = await eliminarUsuarioPermanenteAction({
+    userId: getStringField(formData, "userId"),
+  });
+  revalidatePath("/admin/docentes");
+  redirect(`/admin/docentes?state=${result.ok ? result.code : result.code}`);
+}
+
 const PIN_REGEX = /^\d{4}$/;
 
 export async function cambiarPinAlumnoAction(input: {
@@ -1597,4 +1736,3 @@ export async function cambiarPinAlumnoAction(input: {
 
   return { ok: true, code: "pin_changed" };
 }
-

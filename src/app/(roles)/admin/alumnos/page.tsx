@@ -14,10 +14,14 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   alumno_updated: { tone: "success", text: "Alumno actualizado/reactivado correctamente." },
   user_deactivated: { tone: "success", text: "Alumno desactivado correctamente." },
   user_activated: { tone: "success", text: "Alumno activado correctamente." },
+  user_deleted: { tone: "success", text: "Alumno eliminado permanentemente." },
   already_inactive: { tone: "success", text: "El alumno ya estaba inactivo." },
   already_active: { tone: "success", text: "El alumno ya estaba activo." },
   invalid_input: { tone: "error", text: "Datos inválidos. Verifica los campos e intenta nuevamente." },
   email_conflict: { tone: "error", text: "El correo ya está registrado por otro usuario." },
+  must_deactivate_first: { tone: "error", text: "Debes desactivar el alumno antes de eliminarlo." },
+  has_active_records: { tone: "error", text: "El alumno tiene matrículas activas. Desmatrícula primero." },
+  delete_failed: { tone: "error", text: "No fue posible eliminar el alumno. Puede tener datos históricos." },
   alumno_mutation_failed: { tone: "error", text: "No fue posible crear/actualizar el alumno por un error interno." },
   forbidden: { tone: "error", text: "Tu sesión no tiene permisos de administrador para esta acción." },
   error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
@@ -27,6 +31,7 @@ type AdminAlumnosPageProps = {
   searchParams?: Promise<{
     state?: string;
     page?: string;
+    q?: string;
   }>;
 };
 
@@ -37,21 +42,30 @@ export const metadata = {
 export default async function AdminAlumnosPage({
   searchParams,
 }: AdminAlumnosPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string; q?: string }));
   const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const searchQuery = typeof params.q === "string" ? params.q.trim() : "";
 
   const [alumnos, totalCount] = await Promise.all([
     listarUsuariosPorRol(
       "alumno",
       { limit: PAGE_SIZE, offset },
-      { incluirInactivos: true },
+      { incluirInactivos: true, query: searchQuery },
     ),
-    countUsuariosPorRol("alumno", { incluirInactivos: true }),
+    countUsuariosPorRol("alumno", { incluirInactivos: true, query: searchQuery }),
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const buildHref = (page: number): string => `/admin/alumnos?page=${page}`;
+  const buildHref = (page: number): string => {
+    const qs = new URLSearchParams({ page: String(page) });
+
+    if (searchQuery) {
+      qs.set("q", searchQuery);
+    }
+
+    return `/admin/alumnos?${qs.toString()}`;
+  };
 
   return (
     <section className="space-y-5">
@@ -81,12 +95,67 @@ export default async function AdminAlumnosPage({
           )}
         </div>
 
-        <AlumnoTable alumnos={alumnos} />
+        <div className="mb-5 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/40">
+          <form action="/admin/alumnos" method="get" className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div className="w-full xl:max-w-xl">
+              <label htmlFor="alumnos-q" className="text-sm font-medium text-text-primary dark:text-gray-200">
+                Buscar en todo el padrón
+              </label>
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="alumnos-q"
+                  name="q"
+                  type="search"
+                  defaultValue={searchQuery}
+                  maxLength={80}
+                  placeholder="Nombre, apellido, RUT, credencial o correo"
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="h-11 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+                  >
+                    Buscar
+                  </button>
+                  {searchQuery ? (
+                    <a
+                      href="/admin/alumnos"
+                      className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      Limpiar
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-white px-4 py-3 text-sm text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
+              {searchQuery ? (
+                <span>
+                  {totalCount} resultado{totalCount === 1 ? "" : "s"} para <strong className="text-text-primary dark:text-white">“{searchQuery}”</strong>
+                </span>
+              ) : (
+                <span>La búsqueda ahora revisa todos los alumnos, no solo la página actual.</span>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <AlumnoTable
+          alumnos={alumnos}
+          emptyMessage={
+            searchQuery
+              ? `No se encontraron alumnos para “${searchQuery}”.`
+              : "No hay alumnos registrados aún."
+          }
+        />
 
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           buildHref={buildHref}
+          totalCount={totalCount}
         />
       </article>
     </section>

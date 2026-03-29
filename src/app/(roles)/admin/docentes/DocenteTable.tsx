@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useTransition } from "react";
 
-import { Pencil, Search } from "lucide-react";
+import { Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import {
   activarDocenteFormAction,
   desactivarDocenteFormAction,
-  editarDocenteFormAction,
+  editarDocenteAction,
+  eliminarDocentePermanenteFormAction,
 } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
-import { SearchInput } from "@/components/shared/SearchInput";
-import { formatearRut } from "@/lib/rut";
+import { formatearIdentificador } from "@/lib/rut";
 
 type DocenteRow = {
   id: string;
@@ -25,33 +27,27 @@ type DocenteRow = {
 
 type DocenteTableProps = {
   docentes: DocenteRow[];
+  emptyMessage?: string;
 };
 
 type PendingAction = {
   userId: string;
   name: string;
-  action: "activate" | "deactivate";
+  action: "activate" | "deactivate" | "delete";
 } | null;
 
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
-export function DocenteTable({ docentes }: DocenteTableProps) {
-  const [search, setSearch] = useState("");
+export function DocenteTable({
+  docentes,
+  emptyMessage = "No hay docentes registrados aún.",
+}: DocenteTableProps) {
   const [pending, setPending] = useState<PendingAction>(null);
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<DocenteRow | null>(null);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return docentes;
-    const q = search.toLowerCase();
-    return docentes.filter(
-      (d) =>
-        `${d.nombre} ${d.apellido}`.toLowerCase().includes(q) ||
-        d.rut?.toLowerCase().includes(q) ||
-        d.email?.toLowerCase().includes(q),
-    );
-  }, [docentes, search]);
+  const [isEditPending, startEditTransition] = useTransition();
+  const router = useRouter();
 
   const handleConfirm = () => {
     if (!pending) return;
@@ -60,40 +56,49 @@ export function DocenteTable({ docentes }: DocenteTableProps) {
     startTransition(async () => {
       if (pending.action === "deactivate") {
         await desactivarDocenteFormAction(formData);
-      } else {
+      } else if (pending.action === "activate") {
         await activarDocenteFormAction(formData);
+      } else if (pending.action === "delete") {
+        await eliminarDocentePermanenteFormAction(formData);
       }
       setPending(null);
     });
   };
 
+  const handleEditSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startEditTransition(async () => {
+      const result = await editarDocenteAction({
+        userId: formData.get("userId") as string,
+        nombre: formData.get("nombre") as string,
+        apellido: formData.get("apellido") as string,
+        email: formData.get("email") as string,
+      });
+      if (result.ok) {
+        toast.success("Docente actualizado correctamente.");
+        setEditing(null);
+        router.refresh();
+      } else {
+        toast.error(result.message ?? "No fue posible actualizar el docente.");
+      }
+    });
+  };
+
   return (
     <>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="w-full sm:max-w-xs">
-          <SearchInput
-            placeholder="Buscar por nombre, RUT o correo…"
-            value={search}
-            onChange={setSearch}
-          />
-        </div>
-        <p className="text-sm text-text-secondary dark:text-gray-400">
-          {filtered.length} de {docentes.length} docentes
-        </p>
-      </div>
-
-      {filtered.length === 0 ? (
+      {docentes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 px-6 py-10 text-center dark:border-gray-700">
           <Search className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
           <p className="mt-3 text-sm text-text-secondary dark:text-gray-400">
-            {search ? "No se encontraron coincidencias." : "No hay docentes registrados aún."}
+            {emptyMessage}
           </p>
         </div>
       ) : (
         <>
           {/* Mobile: cards */}
           <div className="space-y-3 sm:hidden">
-            {filtered.map((d) => (
+            {docentes.map((d) => (
               <div key={d.id} className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
@@ -101,7 +106,7 @@ export function DocenteTable({ docentes }: DocenteTableProps) {
                       {d.nombre} {d.apellido}
                     </p>
                     <p className="mt-0.5 text-sm text-text-secondary dark:text-gray-400">
-                      {d.rut ? formatearRut(d.rut) : "-"}
+                      {formatearIdentificador(d.rut)}
                     </p>
                     <p className="mt-0.5 truncate text-sm text-text-secondary dark:text-gray-400">
                       {d.email ?? "-"}
@@ -145,13 +150,13 @@ export function DocenteTable({ docentes }: DocenteTableProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
-                {filtered.map((d) => (
+                {docentes.map((d) => (
                   <tr key={d.id} className="transition-colors hover:bg-primary/[0.03] dark:hover:bg-primary/5">
                     <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
                       {d.nombre} {d.apellido}
                     </td>
                     <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
-                      {d.rut ? formatearRut(d.rut) : "-"}
+                      {formatearIdentificador(d.rut)}
                     </td>
                     <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
                       {d.email ?? "-"}
@@ -191,12 +196,12 @@ export function DocenteTable({ docentes }: DocenteTableProps) {
       {/* Edit Modal */}
       <Modal
         open={editing !== null}
-        onClose={() => setEditing(null)}
+        onClose={() => !isEditPending && setEditing(null)}
         title={editing ? `Editar ${editing.nombre} ${editing.apellido}` : ""}
         size="max-w-lg"
       >
         {editing && (
-          <form action={editarDocenteFormAction} className="space-y-4">
+          <form onSubmit={handleEditSubmit} className="space-y-4">
             <input type="hidden" name="userId" value={editing.id} />
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -256,15 +261,24 @@ export function DocenteTable({ docentes }: DocenteTableProps) {
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                disabled={isEditPending}
+                className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+                disabled={isEditPending}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
               >
-                Guardar cambios
+                {isEditPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Guardando…
+                  </>
+                ) : (
+                  "Guardar cambios"
+                )}
               </button>
             </div>
           </form>
@@ -276,14 +290,24 @@ export function DocenteTable({ docentes }: DocenteTableProps) {
         onClose={() => setPending(null)}
         onConfirm={handleConfirm}
         isPending={isPending}
-        title={pending?.action === "deactivate" ? "Desactivar docente" : "Activar docente"}
+        title={
+          pending?.action === "deactivate" ? "Desactivar docente" :
+          pending?.action === "delete" ? "Eliminar docente definitivamente" :
+          "Activar docente"
+        }
         description={
           pending?.action === "deactivate"
             ? `¿Seguro que deseas desactivar a ${pending?.name}? Perderá acceso a la plataforma.`
+            : pending?.action === "delete"
+            ? `¿Estás seguro de eliminar a ${pending?.name}? Esta acción es IRREVERSIBLE y borrará su cuenta definitivamente.`
             : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
         }
-        confirmLabel={pending?.action === "deactivate" ? "Desactivar" : "Activar"}
-        variant={pending?.action === "deactivate" ? "danger" : "primary"}
+        confirmLabel={
+          pending?.action === "deactivate" ? "Desactivar" :
+          pending?.action === "delete" ? "Eliminar definitivamente" :
+          "Activar"
+        }
+        variant={pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
       />
     </>
   );
@@ -302,9 +326,7 @@ function ActionButton({
     return (
       <button
         type="button"
-        onClick={() =>
-          onAction({ userId: docente.id, name, action: "deactivate" })
-        }
+        onClick={() => onAction({ userId: docente.id, name, action: "deactivate" })}
         className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-danger transition-colors hover:bg-danger/10 active:bg-danger/20 dark:text-red-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
       >
         Desactivar
@@ -313,14 +335,22 @@ function ActionButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() =>
-        onAction({ userId: docente.id, name, action: "activate" })
-      }
-      className="h-10 flex-1 rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 active:bg-success/20 dark:text-green-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
-    >
-      Activar
-    </button>
+    <div className="flex flex-1 gap-2 sm:flex-none">
+      <button
+        type="button"
+        onClick={() => onAction({ userId: docente.id, name, action: "activate" })}
+        className="h-10 flex-1 rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 active:bg-success/20 dark:text-green-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
+      >
+        Activar
+      </button>
+      <button
+        type="button"
+        onClick={() => onAction({ userId: docente.id, name, action: "delete" })}
+        title="Eliminar permanentemente"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-danger/20 text-danger/70 transition-colors hover:border-danger/50 hover:bg-danger/10 hover:text-danger active:bg-danger/20 dark:text-red-400/60 dark:hover:text-red-400 sm:h-auto sm:w-auto sm:px-2.5 sm:py-1.5"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }

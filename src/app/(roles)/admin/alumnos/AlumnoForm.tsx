@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import { crearAlumnoFormAction } from "@/actions/usuarios";
+import { RutInput } from "@/components/shared/RutInput";
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary/30";
 
 export function AlumnoForm() {
   const [credencialTipo, setCredencialTipo] = useState<"rut" | "extranjera">("rut");
+  const [rut, setRut] = useState("");
+  const [isRutValid, setIsRutValid] = useState(false);
+  const [credencialExtranjera, setCredencialExtranjera] = useState("");
 
   return (
     <form action={crearAlumnoFormAction} className="mt-4 space-y-4">
@@ -61,17 +65,22 @@ export function AlumnoForm() {
                 : "border-gray-200 text-text-secondary hover:border-gray-300 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-600"
             }`}
           >
-            <input
-              type="radio"
-              inputMode="text"
-              name="credencialTipoRadio"
-              value="rut"
-              checked={credencialTipo === "rut"}
-              onChange={() => setCredencialTipo("rut")}
-              className="sr-only"
-            />
-            RUT chileno
-          </label>
+              <input
+                type="radio"
+                inputMode="text"
+                name="credencialTipoRadio"
+                value="rut"
+                checked={credencialTipo === "rut"}
+                onChange={() => {
+                  setCredencialTipo("rut");
+                  setRut("");
+                  setIsRutValid(false);
+                  setCredencialExtranjera("");
+                }}
+                className="sr-only"
+              />
+              RUT chileno
+            </label>
           <label
             className={`flex cursor-pointer items-center rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
               credencialTipo === "extranjera"
@@ -79,36 +88,35 @@ export function AlumnoForm() {
                 : "border-gray-200 text-text-secondary hover:border-gray-300 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-600"
             }`}
           >
-            <input
-              type="radio"
-              inputMode="text"
-              name="credencialTipoRadio"
-              value="extranjera"
-              checked={credencialTipo === "extranjera"}
-              onChange={() => setCredencialTipo("extranjera")}
-              className="sr-only"
-            />
-            Credencial extranjera
-          </label>
+              <input
+                type="radio"
+                inputMode="text"
+                name="credencialTipoRadio"
+                value="extranjera"
+                checked={credencialTipo === "extranjera"}
+                onChange={() => {
+                  setCredencialTipo("extranjera");
+                  setRut("");
+                  setIsRutValid(false);
+                  setCredencialExtranjera("");
+                }}
+                className="sr-only"
+              />
+              Credencial extranjera
+            </label>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {credencialTipo === "rut" ? (
-          <div className="space-y-1.5">
-            <label htmlFor="alumno-rut" className="text-sm font-medium text-text-primary dark:text-gray-200">
-              RUT <span className="text-danger">*</span>
-            </label>
-            <input
+          <div>
+            <RutInput
               id="alumno-rut"
               name="rut"
-              type="text"
-              inputMode="numeric"
+              value={rut}
               required
-              minLength={8}
-              maxLength={12}
-              placeholder="12.345.678-5"
-              className={inputClass}
+              onChange={setRut}
+              onValidityChange={setIsRutValid}
             />
           </div>
         ) : (
@@ -126,6 +134,15 @@ export function AlumnoForm() {
               maxLength={24}
               placeholder="Ej: A12345678"
               className={inputClass}
+              value={credencialExtranjera}
+              onChange={(event) =>
+                setCredencialExtranjera(
+                  event.currentTarget.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9-]/g, "")
+                    .slice(0, 24),
+                )
+              }
             />
             <p className="text-xs text-text-muted dark:text-gray-500">
               Pasaporte, DNI u otro documento de identidad extranjero.
@@ -152,7 +169,8 @@ export function AlumnoForm() {
 
       <button
         type="submit"
-        className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] sm:w-auto"
+        disabled={credencialTipo === "rut" ? !isRutValid : credencialExtranjera.trim().length < 4}
+        className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md sm:w-auto"
       >
         Crear Alumno
       </button>

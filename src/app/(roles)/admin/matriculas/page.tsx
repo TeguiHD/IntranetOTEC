@@ -9,6 +9,7 @@ import {
 } from "@/actions/matriculas";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { formatearIdentificador } from "@/lib/rut";
 import { AlumnoCombobox } from "./AlumnoCombobox";
 import { AsignaturaCombobox } from "./AsignaturaCombobox";
 import { DesmatricularButton } from "./DesmatricularButton";
@@ -36,6 +37,22 @@ type AdminMatriculasPageProps = {
 
 const estaPagado = (estadoPago: string | null | undefined): boolean =>
   estadoPago === "pagado" || estadoPago === "becado";
+
+const formatCurrency = (value: string | null): string => {
+  if (!value) return "-";
+
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return value;
+  }
+
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: numeric % 1 === 0 ? 0 : 2,
+  }).format(numeric);
+};
 
 const ESTADO_PAGO_LABELS: Record<string, string> = {
   pendiente: "Pendiente",
@@ -214,7 +231,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                         {matricula.alumnoNombre} {matricula.alumnoApellido}
                       </p>
                       <p className="text-xs text-text-secondary dark:text-gray-400">
-                        {matricula.alumnoRut ?? "Sin RUT"}
+                        {formatearIdentificador(matricula.alumnoRut)}
                       </p>
                     </div>
                     <span
@@ -239,7 +256,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                     </span>
                     {matricula.montoArancel && (
                       <span className="text-xs text-text-secondary dark:text-gray-400">
-                        ${matricula.montoArancel}
+                        {formatCurrency(matricula.montoArancel)}
                       </span>
                     )}
                   </div>
@@ -289,7 +306,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                           {matricula.alumnoNombre} {matricula.alumnoApellido}
                         </p>
                         <p className="text-xs text-text-secondary dark:text-gray-400">
-                          {matricula.alumnoRut ?? "Sin RUT"}
+                          {formatearIdentificador(matricula.alumnoRut)}
                         </p>
                       </td>
                       <td className="px-3 py-3">
@@ -304,7 +321,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                         </span>
                       </td>
                       <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
-                        {matricula.montoArancel ? `$${matricula.montoArancel}` : "-"}
+                        {formatCurrency(matricula.montoArancel)}
                       </td>
                       <td className="px-3 py-3">
                         <span
@@ -349,6 +366,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
               currentPage={currentPage}
               totalPages={totalPages}
               buildHref={buildHref}
+              totalCount={totalCount}
             />
           </>
         )}

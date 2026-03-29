@@ -1,166 +1,218 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Smartphone, Monitor, CheckCircle, Download } from "lucide-react";
+import {
+  CheckCircle,
+  Download,
+  EllipsisVertical,
+  Share2,
+} from "lucide-react";
 import Image from "next/image";
 
-type Platform = "android" | "ios" | "desktop" | null;
-
-function detectPlatform(): Platform {
-  if (typeof navigator === "undefined") return null;
-  const ua = navigator.userAgent;
-  if (/iphone|ipad|ipod/i.test(ua) && !("MSStream" in window)) return "ios";
-  if (/android/i.test(ua)) return "android";
-  return "desktop";
-}
-
-function isInstalled(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true)
-  );
-}
+import { usePwaInstall } from "@/components/shared/PwaInstallProvider";
 
 export default function InstalarPage() {
-  const [platform, setPlatform] = useState<Platform>(null);
-  const [installed, setInstalled] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
-  const [installing, setInstalling] = useState(false);
-
-  useEffect(() => {
-    setPlatform(detectPlatform());
-    setInstalled(isInstalled());
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> });
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  const { platform, isIosSafari, isInstallable, isInstalled, promptInstall } =
+    usePwaInstall();
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    setInstalling(true);
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") setInstalled(true);
-    setInstalling(false);
+    await promptInstall();
   };
 
-  if (installed) {
+  const isAndroidManual = platform === "android" && !isInstallable;
+  const isIosManual = platform === "ios";
+
+  const platformLabel =
+    platform === "android"
+      ? "Android"
+      : platform === "ios"
+        ? "iPhone / iPad"
+        : platform === "desktop"
+          ? "Escritorio"
+          : "Detectando dispositivo";
+
+  const steps =
+    platform === "ios"
+      ? [
+          isIosSafari
+            ? 'Toca el boton Compartir de Safari.'
+            : "Abre esta misma pagina en Safari.",
+          'Selecciona "Agregar a pantalla de inicio".',
+          'Activa "Abrir como app" si Safari muestra esa opcion.',
+          'Confirma con "Agregar" para abrir Mi OTEC como app.',
+        ]
+      : platform === "desktop"
+        ? [
+            "Abre esta intranet en Chrome o Edge.",
+            'Usa el icono de instalar del navegador o el menu correspondiente.',
+            "Confirma la instalacion y se abrira en una ventana propia.",
+          ]
+        : [
+            'Abre el menu ⋮ de Chrome.',
+            'Toca "Instalar aplicacion" o "Agregar a pantalla de inicio".',
+            "Confirma la instalacion para crear el icono de Mi OTEC.",
+          ];
+
+  const statusTitle = isInstallable
+    ? "Instalacion directa disponible"
+    : isIosManual
+      ? "Instalacion guiada"
+      : platform === "desktop"
+        ? "Instalacion segun navegador"
+        : "Instalacion desde el menu del navegador";
+
+  const statusText = isInstallable
+    ? "El boton verde de esta pagina y el del aviso inferior hacen exactamente lo mismo: abrir el instalador real del navegador."
+    : isIosManual
+      ? "En iPhone no aparece un instalador web directo. Esta pagina solo te deja los pasos claros para Safari."
+      : platform === "desktop"
+        ? "Si tu navegador lo permite, veras el boton de instalacion directa. Si no, usa el menu del navegador."
+        : "Si Chrome aun no muestra el instalador directo, usa el menu y se instalara la misma app.";
+
+  if (isInstalled) {
     return (
-      <section className="flex flex-col items-center justify-center space-y-4 py-16 text-center">
-        <CheckCircle className="h-16 w-16 text-emerald-500" />
-        <h1 className="text-2xl font-bold text-text-primary dark:text-white">
-          ¡App instalada!
-        </h1>
-        <p className="text-sm text-text-secondary dark:text-gray-400">
-          Mi OTEC ya está en tu pantalla de inicio.
-        </p>
+      <section className="mx-auto max-w-2xl">
+        <div className="overflow-hidden rounded-[32px] border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 text-center shadow-lg shadow-emerald-100/40 dark:border-emerald-500/20 dark:bg-gray-950 dark:shadow-none">
+          <CheckCircle className="mx-auto h-16 w-16 text-emerald-500" />
+          <h1 className="mt-5 text-3xl font-bold text-text-primary dark:text-white">
+            La app ya esta instalada
+          </h1>
+          <p className="mt-3 text-sm text-text-secondary dark:text-gray-400">
+            Abrela desde tu pantalla de inicio. Veras la misma intranet, pero en
+            una ventana independiente y sin la barra del navegador.
+          </p>
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="mx-auto max-w-md space-y-6">
-      <header className="flex items-center gap-3">
-        <span className="rounded-xl bg-primary/10 p-2 text-primary">
-          <Smartphone className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Instalar App
-          </h1>
-          <p className="text-sm text-text-secondary dark:text-gray-400">
-            Accede rápido desde tu dispositivo, sin App Store.
-          </p>
-        </div>
+    <section className="mx-auto max-w-3xl space-y-5">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold text-text-primary dark:text-white sm:text-3xl">
+          Instalar app
+        </h1>
+        <p className="max-w-2xl text-sm leading-6 text-text-secondary dark:text-gray-400">
+          La app instalada y la intranet web son la misma cosa. Si ves el boton
+          <span className="font-semibold text-text-primary dark:text-gray-200">
+            {" "}Instalar ahora{" "}
+          </span>
+          ese boton si abre el instalador real.
+        </p>
       </header>
 
-      <article className="flex flex-col items-center gap-5 rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <Image
-          src="/icon-192.png"
-          alt="Mi OTEC"
-          width={80}
-          height={80}
-          className="rounded-2xl shadow-md"
-        />
-        <div className="text-center">
-          <p className="font-semibold text-text-primary dark:text-white">Mi OTEC Intranet</p>
-          <p className="text-sm text-text-secondary dark:text-gray-400">Impulsate & Emprende</p>
-        </div>
-
-        {platform === "android" && (
-          <div className="w-full space-y-4">
-            {deferredPrompt ? (
-              <button
-                onClick={handleInstall}
-                disabled={installing}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 disabled:opacity-60"
-              >
-                <Download className="h-4 w-4" />
-                {installing ? "Instalando…" : "Instalar en este dispositivo"}
-              </button>
-            ) : (
-              <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                <p className="font-medium">Instala desde el navegador</p>
-                <p className="mt-1">Toca el menú <strong>⋮</strong> de Chrome y selecciona <strong>&ldquo;Instalar aplicación&rdquo;</strong> o <strong>&ldquo;Agregar a pantalla de inicio&rdquo;</strong>.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {platform === "ios" && (
-          <div className="w-full space-y-3 text-sm">
-            <p className="text-center font-medium text-text-primary dark:text-white">
-              Sigue estos pasos en Safari:
-            </p>
-            <ol className="space-y-3">
-              {[
-                { n: 1, text: 'Toca el botón Compartir (□↑) en la barra inferior de Safari' },
-                { n: 2, text: 'Desplázate hacia abajo y toca "Agregar a pantalla de inicio"' },
-                { n: 3, text: 'Confirma tocando "Agregar"' },
-              ].map((step) => (
-                <li key={step.n} className="flex items-start gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                    {step.n}
-                  </span>
-                  <span className="text-text-secondary dark:text-gray-400">{step.text}</span>
-                </li>
-              ))}
-            </ol>
-            <p className="rounded-xl bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-              Solo funciona desde Safari. Chrome en iOS no permite instalar PWA.
-            </p>
-          </div>
-        )}
-
-        {platform === "desktop" && (
-          <div className="w-full space-y-3 text-sm">
-            <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
-              <Monitor className="h-8 w-8 text-gray-400" />
-              <div>
-                <p className="font-medium text-text-primary dark:text-white">Estás en escritorio</p>
-                <p className="mt-0.5 text-text-secondary dark:text-gray-400">
-                  Abre esta página desde tu celular para instalar la app.
-                </p>
-              </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
+        <article className="rounded-3xl border border-gray-200/80 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex items-center gap-4">
+            <Image
+              src="/icon-192.png"
+              alt="Mi OTEC"
+              width={68}
+              height={68}
+              className="rounded-2xl shadow-sm"
+            />
+            <div>
+              <p className="text-lg font-bold text-text-primary dark:text-white">
+                Mi OTEC Intranet
+              </p>
+              <p className="text-sm text-text-secondary dark:text-gray-400">
+                {platformLabel}
+              </p>
             </div>
-            {deferredPrompt && (
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-primary/10 bg-primary/5 p-4 dark:border-primary/15 dark:bg-primary/10">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary dark:text-primary-light">
+              {statusTitle}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-text-secondary dark:text-gray-300">
+              {statusText}
+            </p>
+          </div>
+
+          {isInstallable ? (
+            <div className="mt-5 space-y-3">
               <button
                 onClick={handleInstall}
-                disabled={installing}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-colors hover:bg-cta-dark"
               >
                 <Download className="h-4 w-4" />
-                {installing ? "Instalando…" : "Instalar en este equipo"}
+                {platform === "desktop"
+                  ? "Instalar ahora en este equipo"
+                  : "Instalar ahora"}
               </button>
+              <p className="text-xs leading-5 text-text-secondary dark:text-gray-400">
+                Si ves este mismo boton en el aviso inferior, hace exactamente lo
+                mismo que aqui.
+              </p>
+            </div>
+          ) : null}
+
+          {isAndroidManual ? (
+            <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+              Si el instalador directo aun no aparece, usa el menu del navegador.
+              El resultado final es el mismo.
+            </div>
+          ) : null}
+
+          {platform === "ios" ? (
+            <div className="mt-5 rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+              {isIosSafari
+                ? "Estas en Safari, asi que solo sigue los pasos de la derecha."
+                : "Abre esta misma pagina en Safari para poder agregar la app al inicio."}
+            </div>
+          ) : null}
+
+          {!isInstallable && platform === "desktop" ? (
+            <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700 dark:bg-gray-800 dark:text-gray-300">
+              Chrome y Edge suelen permitir instalacion directa. Si no aparece,
+              usa el menu del navegador.
+            </div>
+          ) : null}
+        </article>
+
+        <article className="rounded-3xl border border-gray-200/80 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <h2 className="text-base font-bold text-text-primary dark:text-white">
+            Pasos
+          </h2>
+          <ol className="mt-4 space-y-4">
+            {steps.map((step, index) => (
+              <li key={step} className="flex items-start gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  {index + 1}
+                </span>
+                <span className="text-sm leading-6 text-text-secondary dark:text-gray-400">
+                  {step}
+                </span>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-5 rounded-2xl bg-gray-50 p-4 text-sm leading-6 text-text-secondary dark:bg-gray-800/80 dark:text-gray-300">
+            {platform === "ios" ? (
+              <div className="flex items-start gap-3">
+                <Share2 className="mt-0.5 h-5 w-5 shrink-0 text-primary dark:text-primary-light" />
+                <span>
+                  En iPhone la instalacion se hace desde Compartir en Safari y,
+                  si aparece, activando &ldquo;Abrir como app&rdquo;.
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-3">
+                <EllipsisVertical className="mt-0.5 h-5 w-5 shrink-0 text-primary dark:text-primary-light" />
+                <span>
+                  Si no ves <strong>Instalar ahora</strong>, usa el menu del navegador.
+                  No cambia la app que se instala.
+                </span>
+              </div>
             )}
           </div>
-        )}
-      </article>
+
+          <div className="mt-4 rounded-2xl border border-gray-200/80 px-4 py-3 text-sm leading-6 text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            Una vez instalada, se abre sin la barra del navegador y mantiene el
+            mismo contenido de la intranet.
+          </div>
+        </article>
+      </div>
     </section>
   );
 }

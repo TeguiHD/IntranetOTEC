@@ -6,6 +6,7 @@ import { Eye, EyeOff, Plus } from "lucide-react";
 
 import { crearAdministradorFormAction } from "@/actions/usuarios";
 import { Modal } from "@/components/shared/Modal";
+import { RutInput } from "@/components/shared/RutInput";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
@@ -13,6 +14,15 @@ const inputClass =
 export function AdminCreateModal() {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rut, setRut] = useState("");
+  const [isRutValid, setIsRutValid] = useState(false);
+
+  const handleClose = () => {
+    setOpen(false);
+    setRut("");
+    setIsRutValid(false);
+    setShowPassword(false);
+  };
 
   return (
     <>
@@ -27,7 +37,7 @@ export function AdminCreateModal() {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={handleClose}
         title="Crear Administrador"
         description="Ingresa los datos del admin. La contraseña debe cumplir con la política de seguridad."
         size="max-w-xl"
@@ -84,20 +94,15 @@ export function AdminCreateModal() {
                 className={inputClass}
               />
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="modal-admin-rut" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                RUT <span className="text-danger">*</span>
-              </label>
-              <input
+            <div>
+              <RutInput
                 id="modal-admin-rut"
                 name="rut"
-                type="text"
-                inputMode="numeric"
+                value={rut}
                 required
-                minLength={8}
-                maxLength={12}
-                placeholder="12.345.678-5"
-                className={inputClass}
+                allowForeign
+                onChange={setRut}
+                onValidityChange={setIsRutValid}
               />
             </div>
           </div>
@@ -136,14 +141,15 @@ export function AdminCreateModal() {
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              disabled={!isRutValid}
+              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
             >
               Crear Administrador
             </button>

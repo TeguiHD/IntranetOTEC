@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import {
   countUsuariosPorRol,
   listarUsuariosPorRol,
@@ -18,17 +20,17 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   already_inactive: { tone: "success", text: "El docente ya estaba inactivo." },
   already_active: { tone: "success", text: "El docente ya estaba activo." },
   must_deactivate_first: { tone: "error", text: "Debes desactivar el docente antes de eliminarlo." },
-  delete_failed: { tone: "error", text: "No fue posible eliminar el docente. Puede tener datos históricos." },
-  invalid_input: { tone: "error", text: "Datos inválidos. Verifica RUT, correo y política de contraseña." },
-  invalid_rut: { tone: "error", text: "RUT inválido. Revisa formato y dígito verificador." },
-  invalid_email: { tone: "error", text: "Correo inválido. Verifica el formato ingresado." },
-  invalid_password_policy: { tone: "error", text: "La contraseña no cumple política: mínimo 12 caracteres, mayúscula, minúscula, número y símbolo." },
-  invalid_name: { tone: "error", text: "Nombre o apellido inválido. Deben tener al menos 2 caracteres." },
-  email_conflict: { tone: "error", text: "El correo ya está registrado por otro usuario." },
-  rut_conflict: { tone: "error", text: "El RUT ya está asociado a otro tipo de usuario." },
+  delete_failed: { tone: "error", text: "No fue posible eliminar el docente. Puede tener datos historicos." },
+  invalid_input: { tone: "error", text: "Datos invalidos. Verifica RUT, correo y politica de contrasena." },
+  invalid_rut: { tone: "error", text: "RUT invalido. Revisa formato y digito verificador." },
+  invalid_email: { tone: "error", text: "Correo invalido. Verifica el formato ingresado." },
+  invalid_password_policy: { tone: "error", text: "La contrasena no cumple politica: minimo 12 caracteres, mayuscula, minuscula, numero y simbolo." },
+  invalid_name: { tone: "error", text: "Nombre o apellido invalido. Deben tener al menos 2 caracteres." },
+  email_conflict: { tone: "error", text: "El correo ya esta registrado por otro usuario." },
+  rut_conflict: { tone: "error", text: "El RUT ya esta asociado a otro tipo de usuario." },
   docente_mutation_failed: { tone: "error", text: "No fue posible crear/actualizar el docente por un error interno." },
-  forbidden: { tone: "error", text: "Tu sesión no tiene permisos de administrador para esta acción." },
-  error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
+  forbidden: { tone: "error", text: "Tu sesion no tiene permisos de administrador para esta accion." },
+  error: { tone: "error", text: "No fue posible completar la accion. Revisa los datos e intenta nuevamente." },
 };
 
 type AdminDocentesPageProps = {
@@ -63,22 +65,20 @@ export default async function AdminDocentesPage({
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const buildHref = (page: number): string => {
     const qs = new URLSearchParams({ page: String(page) });
-
-    if (searchQuery) {
-      qs.set("q", searchQuery);
-    }
-
+    if (searchQuery) qs.set("q", searchQuery);
     return `/admin/docentes?${qs.toString()}`;
   };
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={params.state} map={STATUS_MAP} />
+      <Suspense>
+        <RouteStateToast state={params.state} map={STATUS_MAP} />
+      </Suspense>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Gestión de Docentes
+            Gestion de Docentes
           </h1>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
             Crea cuentas docentes seguras y administra su estado operativo.
@@ -103,7 +103,7 @@ export default async function AdminDocentesPage({
           <form action="/admin/docentes" method="get" className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div className="w-full xl:max-w-xl">
               <label htmlFor="docentes-q" className="text-sm font-medium text-text-primary dark:text-gray-200">
-                Buscar en todo el padrón docente
+                Buscar en todo el padron docente
               </label>
               <div className="mt-1 flex flex-col gap-2 sm:flex-row">
                 <input
@@ -112,7 +112,7 @@ export default async function AdminDocentesPage({
                   type="search"
                   defaultValue={searchQuery}
                   maxLength={80}
-                  placeholder="Nombre, apellido, RUT, credencial o correo"
+                  placeholder="Nombre, apellido, RUT o correo"
                   className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500"
                 />
                 <div className="flex gap-2">
@@ -134,15 +134,11 @@ export default async function AdminDocentesPage({
               </div>
             </div>
 
-            <div className="rounded-xl bg-white px-4 py-3 text-sm text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
-              {searchQuery ? (
-                <span>
-                  {totalCount} resultado{totalCount === 1 ? "" : "s"} para <strong className="text-text-primary dark:text-white">“{searchQuery}”</strong>
-                </span>
-              ) : (
-                <span>La búsqueda revisa todos los docentes y mantiene la paginación estable.</span>
-              )}
-            </div>
+            {searchQuery && (
+              <p className="rounded-xl bg-white px-4 py-2.5 text-sm text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
+                {totalCount} resultado{totalCount === 1 ? "" : "s"} para &ldquo;{searchQuery}&rdquo;
+              </p>
+            )}
           </form>
         </div>
 
@@ -150,8 +146,8 @@ export default async function AdminDocentesPage({
           docentes={docentes}
           emptyMessage={
             searchQuery
-              ? `No se encontraron docentes para “${searchQuery}”.`
-              : "No hay docentes registrados aún."
+              ? `No se encontraron docentes para "${searchQuery}".`
+              : "No hay docentes registrados aun."
           }
         />
 

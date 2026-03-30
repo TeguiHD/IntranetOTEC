@@ -1736,3 +1736,75 @@ export async function cambiarPinAlumnoAction(input: {
 
   return { ok: true, code: "pin_changed" };
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ADMIN: Restablecer contraseña / PIN de un usuario
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function resetearPasswordAdminAction(input: {
+  userId: string;
+  rol: "alumno" | "docente" | "admin";
+}): Promise<MutationResult & { nuevaPassword?: string }> {
+  const actorResult = await requireActionActor("admin_reset_password", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!input.userId) {
+    return { ok: false, code: "invalid_input", message: "ID de usuario requerido." };
+  }
+
+  const db = getDb();
+
+  const [user] = await db
+    .select({ id: usuarios.id, rut: usuarios.rut, rol: usuarios.rol, nombre: usuarios.nombre, activo: usuarios.activo })
+    .from(usuarios)
+    .where(and(eq(usuarios.id, input.userId), isNull(usuarios.eliminadoAt)))
+    .limit(1);
+
+  if (!user) {
+    return { ok: false, code: "not_found", message: "Usuario no encontrado." };
+  }
+
+  let nuevaPassword: string;
+
+  if (user.rol === "alumno") {
+    // Restore default PIN derived from RUT
+    nuevaPassword = user.rut ? derivarPinPredeterminado(user.rut) : "0000";
+  } else {
+    // Generate a random 10-character temporary password for docente/admin
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!";
+    nuevaPassword = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
+
+  const hash = await bcrypt.hash(nuevaPassword, 12);
+
+  await db
+    .update(usuarios)
+    .set({
+      password: hash,
+      pinCambiado: false,
+      updatedAt: new Date(),
+    })
+    .where(eq(usuarios.id, input.userId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "cambiar_password",
+    entidad: "usuarios",
+    entidadId: input.userId,
+    payload: { metodo: "admin_reset", targetRol: user.rol },
+    exitoso: true,
+  });
+
+  logEvent({
+    correlationId: actorResult.actor.correlationId,
+    action: "admin_password_reset",
+    result: "success",
+    userId: actorResult.actor.userId,
+    role: actorResult.actor.userRol,
+    details: { targetUserId: input.userId, targetRol: user.rol },
+  });
+
+  return { ok: true, code: "password_reset", nuevaPassword };
+}

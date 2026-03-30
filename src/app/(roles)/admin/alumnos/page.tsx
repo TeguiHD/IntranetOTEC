@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import {
   countUsuariosPorRol,
   listarUsuariosPorRol,
@@ -6,6 +8,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { AlumnoCreateModal } from "./AlumnoCreateModal";
 import { AlumnoTable } from "./AlumnoTable";
+import { ImportarAlumnosModal } from "./ImportarAlumnosModal";
 
 const PAGE_SIZE = 20;
 
@@ -17,14 +20,14 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   user_deleted: { tone: "success", text: "Alumno eliminado permanentemente." },
   already_inactive: { tone: "success", text: "El alumno ya estaba inactivo." },
   already_active: { tone: "success", text: "El alumno ya estaba activo." },
-  invalid_input: { tone: "error", text: "Datos inválidos. Verifica los campos e intenta nuevamente." },
-  email_conflict: { tone: "error", text: "El correo ya está registrado por otro usuario." },
+  invalid_input: { tone: "error", text: "Datos invalidos. Verifica los campos e intenta nuevamente." },
+  email_conflict: { tone: "error", text: "El correo ya esta registrado por otro usuario." },
   must_deactivate_first: { tone: "error", text: "Debes desactivar el alumno antes de eliminarlo." },
-  has_active_records: { tone: "error", text: "El alumno tiene matrículas activas. Desmatrícula primero." },
-  delete_failed: { tone: "error", text: "No fue posible eliminar el alumno. Puede tener datos históricos." },
+  has_active_records: { tone: "error", text: "El alumno tiene matriculas activas. Desmatricula primero." },
+  delete_failed: { tone: "error", text: "No fue posible eliminar el alumno. Puede tener datos historicos." },
   alumno_mutation_failed: { tone: "error", text: "No fue posible crear/actualizar el alumno por un error interno." },
-  forbidden: { tone: "error", text: "Tu sesión no tiene permisos de administrador para esta acción." },
-  error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
+  forbidden: { tone: "error", text: "Tu sesion no tiene permisos de administrador para esta accion." },
+  error: { tone: "error", text: "No fue posible completar la accion. Revisa los datos e intenta nuevamente." },
 };
 
 type AdminAlumnosPageProps = {
@@ -59,28 +62,29 @@ export default async function AdminAlumnosPage({
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const buildHref = (page: number): string => {
     const qs = new URLSearchParams({ page: String(page) });
-
-    if (searchQuery) {
-      qs.set("q", searchQuery);
-    }
-
+    if (searchQuery) qs.set("q", searchQuery);
     return `/admin/alumnos?${qs.toString()}`;
   };
 
   return (
     <section className="space-y-5">
-      <RouteStateToast state={params.state} map={STATUS_MAP} />
+      <Suspense>
+        <RouteStateToast state={params.state} map={STATUS_MAP} />
+      </Suspense>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Gestión de Alumnos
+            Gestion de Alumnos
           </h1>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
             Registra alumnos con RUT o credencial extranjera y controla su estado de acceso.
           </p>
         </header>
-        <AlumnoCreateModal />
+        <div className="flex flex-wrap gap-2">
+          <ImportarAlumnosModal />
+          <AlumnoCreateModal />
+        </div>
       </div>
 
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
@@ -99,7 +103,7 @@ export default async function AdminAlumnosPage({
           <form action="/admin/alumnos" method="get" className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div className="w-full xl:max-w-xl">
               <label htmlFor="alumnos-q" className="text-sm font-medium text-text-primary dark:text-gray-200">
-                Buscar en todo el padrón
+                Buscar en todo el padron
               </label>
               <div className="mt-1 flex flex-col gap-2 sm:flex-row">
                 <input
@@ -130,15 +134,11 @@ export default async function AdminAlumnosPage({
               </div>
             </div>
 
-            <div className="rounded-xl bg-white px-4 py-3 text-sm text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
-              {searchQuery ? (
-                <span>
-                  {totalCount} resultado{totalCount === 1 ? "" : "s"} para <strong className="text-text-primary dark:text-white">“{searchQuery}”</strong>
-                </span>
-              ) : (
-                <span>La búsqueda ahora revisa todos los alumnos, no solo la página actual.</span>
-              )}
-            </div>
+            {searchQuery && (
+              <p className="rounded-xl bg-white px-4 py-2.5 text-sm text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
+                {totalCount} resultado{totalCount === 1 ? "" : "s"} para &ldquo;{searchQuery}&rdquo;
+              </p>
+            )}
           </form>
         </div>
 
@@ -146,8 +146,8 @@ export default async function AdminAlumnosPage({
           alumnos={alumnos}
           emptyMessage={
             searchQuery
-              ? `No se encontraron alumnos para “${searchQuery}”.`
-              : "No hay alumnos registrados aún."
+              ? `No se encontraron alumnos para "${searchQuery}".`
+              : "No hay alumnos registrados aun."
           }
         />
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import { KeyRound, Loader2, Pencil, Search, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import {
   desactivarAlumnoFormAction,
   editarAlumnoAction,
   eliminarAlumnoPermanenteFormAction,
+  resetearPasswordAdminAction,
 } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
@@ -47,6 +48,8 @@ export function AlumnoTable({
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<AlumnoRow | null>(null);
   const [isEditPending, startEditTransition] = useTransition();
+  const [isResetPending, startResetTransition] = useTransition();
+  const [resetResult, setResetResult] = useState<string | null>(null);
   const router = useRouter();
 
   const handleConfirm = () => {
@@ -62,6 +65,17 @@ export function AlumnoTable({
         await eliminarAlumnoPermanenteFormAction(formData);
       }
       setPending(null);
+    });
+  };
+
+  const handleResetPin = (userId: string) => {
+    startResetTransition(async () => {
+      const result = await resetearPasswordAdminAction({ userId, rol: "alumno" });
+      if (result.ok && result.nuevaPassword) {
+        setResetResult(result.nuevaPassword);
+      } else {
+        toast.error(!result.ok ? result.message : "No se pudo restablecer el PIN.");
+      }
     });
   };
 
@@ -198,13 +212,48 @@ export function AlumnoTable({
       {/* Edit Modal */}
       <Modal
         open={editing !== null}
-        onClose={() => !isEditPending && setEditing(null)}
+        onClose={() => { if (!isEditPending) { setEditing(null); setResetResult(null); } }}
         title={editing ? `Editar ${editing.nombre} ${editing.apellido}` : ""}
         size="max-w-lg"
       >
         {editing && (
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <input type="hidden" name="userId" value={editing.id} />
+
+            {/* PIN Reset section */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 dark:border-gray-800 dark:bg-gray-800/40">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-text-primary dark:text-gray-200">
+                    Restablecer PIN de acceso
+                  </p>
+                  <p className="text-xs text-text-muted dark:text-gray-500">
+                    Vuelve al PIN predeterminado (últimos 4 dígitos del RUT).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleResetPin(editing.id)}
+                  disabled={isResetPending || !!resetResult}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400"
+                >
+                  {isResetPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <KeyRound className="h-3 w-3" />
+                  )}
+                  Restablecer PIN
+                </button>
+              </div>
+              {resetResult && (
+                <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                    Nuevo PIN: <strong className="font-mono text-sm tracking-widest">{resetResult}</strong>
+                    <span className="ml-2 text-emerald-600/70 dark:text-emerald-500/70">— Informa al alumno.</span>
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  Bell,
   BookOpen,
   Brain,
   CalendarDays,
@@ -20,6 +21,7 @@ import {
 
 import { obtenerMetricasGlobales, obtenerMetricasPorAsignatura } from "@/actions/admin-metricas";
 import { obtenerResumenDatosDocentes } from "@/actions/admin-resumen";
+import { listarNotificacionesAdmin } from "@/actions/notificaciones";
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
 import { AccordionItem } from "@/components/shared/Accordion";
 import { MessageToast } from "@/components/shared/MessageToast";
@@ -39,22 +41,23 @@ const GRADIENT_COLORS: Record<string, string> = {
 };
 
 const MODULE_CARDS: { href: string; title: string; description: string; gradient: string; Icon: LucideIcon }[] = [
-  { href: "/admin/asignaturas",      title: "Asignaturas",           description: "Crear asignaturas y asignar docentes.",               gradient: "grad-blue",    Icon: BookOpen },
-  { href: "/admin/clases",           title: "Clases",                description: "Programar sesiones y publicar contenido.",             gradient: "grad-cyan",    Icon: CalendarDays },
-  { href: "/admin/evaluaciones",     title: "Evaluaciones",          description: "Administrar formularios y revisar resultados.",         gradient: "grad-violet",  Icon: ClipboardList },
-  { href: "/admin/notas",            title: "Notas",                 description: "Revisar y gestionar calificaciones.",                  gradient: "grad-gold",    Icon: ClipboardList },
-  { href: "/admin/asistencias",      title: "Asistencias",           description: "Revisar registros de asistencia.",                    gradient: "grad-emerald", Icon: ClipboardCheck },
-  { href: "/admin/encuestas",        title: "Encuestas Docente",     description: "Habilitar encuestas de evaluación y ver resultados.", gradient: "grad-amber",   Icon: Star },
-  { href: "/admin/test-estilos",     title: "Test Estilos",          description: "Ver resultados de test de estilos de aprendizaje.",   gradient: "grad-violet",  Icon: Brain },
+  { href: "/admin/asignaturas",       title: "Asignaturas",           description: "Crear asignaturas y asignar docentes.",               gradient: "grad-blue",    Icon: BookOpen },
+  { href: "/admin/clases",            title: "Clases",                description: "Programar sesiones y publicar contenido.",             gradient: "grad-cyan",    Icon: CalendarDays },
+  { href: "/admin/evaluaciones",      title: "Evaluaciones",          description: "Administrar formularios y revisar resultados.",         gradient: "grad-violet",  Icon: ClipboardList },
+  { href: "/admin/notas",             title: "Notas",                 description: "Revisar y gestionar calificaciones.",                  gradient: "grad-gold",    Icon: ClipboardList },
+  { href: "/admin/asistencias",       title: "Asistencias",           description: "Revisar registros de asistencia.",                    gradient: "grad-emerald", Icon: ClipboardCheck },
+  { href: "/admin/encuestas",         title: "Encuestas Docente",     description: "Habilitar encuestas de evaluación y ver resultados.", gradient: "grad-amber",   Icon: Star },
+  { href: "/admin/test-estilos",      title: "Test Estilos",          description: "Ver resultados de test de estilos de aprendizaje.",   gradient: "grad-violet",  Icon: Brain },
   { href: "/admin/encuestas-builder", title: "Constructor Encuestas", description: "Diseñar encuestas personalizadas.",                   gradient: "grad-indigo",  Icon: MessageSquare },
-  { href: "/admin/administradores",  title: "Administradores",       description: "Gestionar cuentas con acceso total al panel.",         gradient: "grad-purple",  Icon: Shield },
-  { href: "/admin/docentes",         title: "Docentes",              description: "Crear y desactivar cuentas docentes.",                 gradient: "grad-amber",   Icon: UserCog },
-  { href: "/admin/alumnos",          title: "Alumnos",               description: "Registrar alumnos y controlar su acceso.",             gradient: "grad-emerald", Icon: Users },
-  { href: "/admin/matriculas",       title: "Matrículas",            description: "Vincular alumnos a asignaturas.",                     gradient: "grad-pink",    Icon: Wallet },
-  { href: "/admin/solicitudes",      title: "Solicitudes",           description: "Gestionar solicitudes de documentos.",                gradient: "grad-violet",  Icon: FileText },
-  { href: "/admin/importar",         title: "Importar Alumnos",      description: "Carga masiva de alumnos desde archivo.",              gradient: "grad-emerald", Icon: Upload },
-  { href: "/admin/finanzas",         title: "Finanzas",              description: "Registros de ingresos y gastos del OTEC.",            gradient: "grad-emerald", Icon: TrendingUp },
-  { href: "/admin/auditoria",        title: "Auditoría",             description: "Revisión de acciones y eventos del sistema.",         gradient: "grad-slate",   Icon: ClipboardList },
+  { href: "/admin/administradores",   title: "Administradores",       description: "Gestionar cuentas con acceso total al panel.",         gradient: "grad-purple",  Icon: Shield },
+  { href: "/admin/docentes",          title: "Docentes",              description: "Crear y desactivar cuentas docentes.",                 gradient: "grad-amber",   Icon: UserCog },
+  { href: "/admin/alumnos",           title: "Alumnos",               description: "Registrar alumnos y controlar su acceso.",             gradient: "grad-emerald", Icon: Users },
+  { href: "/admin/matriculas",        title: "Matrículas",            description: "Vincular alumnos a asignaturas.",                     gradient: "grad-pink",    Icon: Wallet },
+  { href: "/admin/solicitudes",       title: "Solicitudes",           description: "Gestionar solicitudes de documentos.",                gradient: "grad-violet",  Icon: FileText },
+  { href: "/admin/importar",          title: "Importar Alumnos",      description: "Carga masiva de alumnos desde archivo.",              gradient: "grad-emerald", Icon: Upload },
+  { href: "/admin/finanzas",          title: "Finanzas",              description: "Registros de ingresos y gastos del OTEC.",            gradient: "grad-emerald", Icon: TrendingUp },
+  { href: "/admin/notificaciones",    title: "Notificaciones",        description: "Enviar avisos a alumnos y docentes.",                 gradient: "grad-amber",   Icon: Bell },
+  { href: "/admin/auditoria",         title: "Auditoría",             description: "Revisión de acciones y eventos del sistema.",         gradient: "grad-slate",   Icon: ClipboardList },
 ];
 
 type AdminDashboardPageProps = {
@@ -86,11 +89,12 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   const params = await (searchParams ?? Promise.resolve({} as { rut?: string }));
   const rutConsulta = typeof params.rut === "string" ? params.rut.trim() : "";
 
-  const [resultadoBusqueda, resumenDocentes, metricas, asigMetricas] = await Promise.all([
+  const [resultadoBusqueda, resumenDocentes, metricas, asigMetricas, notificacionesRecientes] = await Promise.all([
     rutConsulta ? buscarPersonaPorRutAdmin({ rut: rutConsulta }) : null,
     obtenerResumenDatosDocentes(),
     obtenerMetricasGlobales(),
     obtenerMetricasPorAsignatura(),
+    listarNotificacionesAdmin(),
   ]);
 
   return (
@@ -146,6 +150,53 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
           </Link>
         ))}
       </div>
+
+      {/* Notificaciones recientes */}
+      {notificacionesRecientes.length > 0 && (
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              <Bell className="h-5 w-5 text-amber-500" />
+              Notificaciones Enviadas
+            </h2>
+            <Link
+              href="/admin/notificaciones"
+              className="text-xs font-medium text-primary hover:underline dark:text-primary-light"
+            >
+              Gestionar →
+            </Link>
+          </div>
+          <div className="mt-3 space-y-2">
+            {notificacionesRecientes.slice(0, 5).map((n) => (
+              <div
+                key={n.id}
+                className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-text-primary dark:text-white">{n.titulo}</p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-text-secondary dark:text-gray-400">{n.contenido}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                    n.tipo === "general"
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                      : n.tipo === "curso"
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                      : "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                  }`}>
+                    {n.tipo}
+                  </span>
+                  {n.createdAt && (
+                    <p className="mt-0.5 text-[10px] text-text-muted dark:text-gray-500">
+                      {new Date(n.createdAt).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
 
       {/* Asignatura metrics */}
       {asigMetricas.length > 0 && (

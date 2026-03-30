@@ -1808,3 +1808,73 @@ export async function resetearPasswordAdminAction(input: {
 
   return { ok: true, code: "password_reset", nuevaPassword };
 }
+
+export async function establecerPasswordDocenteAction(input: {
+  userId: string;
+  nuevaPassword: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_establecer_password_docente", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const { userId, nuevaPassword } = input;
+
+  if (!userId) {
+    return { ok: false, code: "invalid_input", message: "ID de usuario requerido." };
+  }
+
+  // Validación de política mínima: mínimo 8 caracteres, al menos una letra y un número
+  if (!nuevaPassword || nuevaPassword.length < 8) {
+    return { ok: false, code: "invalid_password_policy", message: "La contraseña debe tener al menos 8 caracteres." };
+  }
+  if (!/[a-zA-Z]/.test(nuevaPassword)) {
+    return { ok: false, code: "invalid_password_policy", message: "La contraseña debe contener al menos una letra." };
+  }
+  if (!/[0-9]/.test(nuevaPassword)) {
+    return { ok: false, code: "invalid_password_policy", message: "La contraseña debe contener al menos un número." };
+  }
+
+  const db = getDb();
+
+  const [user] = await db
+    .select({ id: usuarios.id, rol: usuarios.rol, activo: usuarios.activo })
+    .from(usuarios)
+    .where(and(eq(usuarios.id, userId), eq(usuarios.rol, "docente"), isNull(usuarios.eliminadoAt)))
+    .limit(1);
+
+  if (!user) {
+    return { ok: false, code: "not_found", message: "Docente no encontrado." };
+  }
+
+  const hash = await bcrypt.hash(nuevaPassword, 12);
+
+  await db
+    .update(usuarios)
+    .set({
+      password: hash,
+      pinCambiado: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(usuarios.id, userId));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "cambiar_password",
+    entidad: "usuarios",
+    entidadId: userId,
+    payload: { metodo: "admin_set_custom", targetRol: "docente" },
+    exitoso: true,
+  });
+
+  logEvent({
+    correlationId: actorResult.actor.correlationId,
+    action: "admin_set_docente_password",
+    result: "success",
+    userId: actorResult.actor.userId,
+    role: actorResult.actor.userRol,
+    details: { targetUserId: userId },
+  });
+
+  return { ok: true, code: "password_set" };
+}

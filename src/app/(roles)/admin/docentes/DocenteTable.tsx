@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { KeyRound, Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Pencil, Search, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import {
   desactivarDocenteFormAction,
   editarDocenteAction,
   eliminarDocentePermanenteFormAction,
+  establecerPasswordDocenteAction,
   resetearPasswordAdminAction,
 } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -50,6 +51,10 @@ export function DocenteTable({
   const [isEditPending, startEditTransition] = useTransition();
   const [isResetPending, startResetTransition] = useTransition();
   const [resetResult, setResetResult] = useState<string | null>(null);
+  // Contraseña personalizada
+  const [nuevaPassword, setNuevaPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isSetPassPending, startSetPassTransition] = useTransition();
   const router = useRouter();
 
   const handleConfirm = () => {
@@ -73,8 +78,26 @@ export function DocenteTable({
       const result = await resetearPasswordAdminAction({ userId, rol: "docente" });
       if (result.ok && result.nuevaPassword) {
         setResetResult(result.nuevaPassword);
+        toast.success("Contraseña restablecida aleatoriamente.");
       } else {
-        toast.error(!result.ok ? result.message : "No se pudo restablecer la contrasena.");
+        toast.error(!result.ok ? result.message : "No se pudo restablecer la contraseña.");
+      }
+    });
+  };
+
+  const handleSetCustomPassword = (userId: string) => {
+    if (!nuevaPassword) {
+      toast.error("Ingresa una nueva contraseña.");
+      return;
+    }
+    startSetPassTransition(async () => {
+      const result = await establecerPasswordDocenteAction({ userId, nuevaPassword });
+      if (result.ok) {
+        toast.success("Contraseña actualizada correctamente.");
+        setNuevaPassword("");
+        setShowNewPassword(false);
+      } else {
+        toast.error(result.message ?? "No se pudo establecer la contraseña.");
       }
     });
   };
@@ -218,20 +241,57 @@ export function DocenteTable({
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <input type="hidden" name="userId" value={editing.id} />
 
-            {/* Password Reset section */}
-            <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 dark:border-gray-800 dark:bg-gray-800/40">
-              <div className="flex items-center justify-between gap-3">
+            {/* Password section */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
+              <p className="text-xs font-semibold text-text-primary dark:text-gray-200">Contraseña de acceso</p>
+
+              {/* Campo de contraseña personalizada */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-primary dark:text-gray-200">
+                  Definir nueva contraseña (mín. 8 chars, 1 letra y 1 número)
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      value={nuevaPassword}
+                      onChange={(e) => setNuevaPassword(e.target.value)}
+                      placeholder="Nueva contraseña..."
+                      minLength={8}
+                      maxLength={60}
+                      disabled={isSetPassPending}
+                      className={inputClass + " pr-10"}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-text-primary dark:text-gray-500"
+                      aria-label={showNewPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSetCustomPassword(editing!.id)}
+                    disabled={isSetPassPending || !nuevaPassword}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-60 dark:border-primary/30 dark:bg-primary/10 dark:text-primary-light"
+                  >
+                    {isSetPassPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
+                    Guardar
+                  </button>
+                </div>
+              </div>
+
+              {/* Restablecer aleatorio como alternativa */}
+              <div className="flex items-center justify-between gap-3 border-t border-gray-200/60 pt-2.5 dark:border-gray-700/40">
                 <div>
-                  <p className="text-xs font-semibold text-text-primary dark:text-gray-200">
-                    Restablecer contraseña
-                  </p>
-                  <p className="text-xs text-text-muted dark:text-gray-500">
-                    Genera una contraseña temporal segura. El docente debe cambiarla.
-                  </p>
+                  <p className="text-xs font-medium text-text-muted dark:text-gray-500">O restablecer con clave temporal aleatoria</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleResetPassword(editing.id)}
+                  onClick={() => handleResetPassword(editing!.id)}
                   disabled={isResetPending || !!resetResult}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400"
                 >
@@ -240,13 +300,13 @@ export function DocenteTable({
                   ) : (
                     <KeyRound className="h-3 w-3" />
                   )}
-                  Restablecer
+                  Clave aleatoria
                 </button>
               </div>
               {resetResult && (
-                <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                <div className="mt-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
                   <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    Nueva contraseña temporal:{" "}
+                    Contraseña temporal:{" "}
                     <strong className="font-mono tracking-wider">{resetResult}</strong>
                     <span className="ml-2 text-emerald-600/70 dark:text-emerald-500/70">— Informa al docente.</span>
                   </p>

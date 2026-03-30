@@ -1,4 +1,4 @@
-import { Bell } from "lucide-react";
+import { AlertCircle, Bell } from "lucide-react";
 
 import {
   listarNotificacionesAlumno,
@@ -14,10 +14,37 @@ const TIPO_BADGE: Record<string, string> = {
 };
 
 export default async function AlumnoNotificacionesPage() {
-  const notificaciones = await listarNotificacionesAlumno();
+  let notificaciones: Awaited<ReturnType<typeof listarNotificacionesAlumno>> = [];
+  let loadError = false;
 
-  // Marcar como leidas al abrir la pagina
-  await marcarNotificacionesLeidasAlumnoAction();
+  try {
+    notificaciones = await listarNotificacionesAlumno();
+    // Marcar como leidas al abrir la pagina (fire-and-forget — no bloquea render)
+    marcarNotificacionesLeidasAlumnoAction().catch(() => {});
+  } catch {
+    loadError = true;
+  }
+
+  if (loadError) {
+    return (
+      <section className="space-y-5">
+        <header className="flex items-center gap-3">
+          <span className="rounded-xl bg-primary/10 p-2 text-primary">
+            <Bell className="h-5 w-5" />
+          </span>
+          <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
+            Notificaciones
+          </h1>
+        </header>
+        <article className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/60 p-5 dark:border-amber-800/30 dark:bg-amber-950/20">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            No fue posible cargar tus notificaciones. Intenta recargar la página.
+          </p>
+        </article>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-5">

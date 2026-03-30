@@ -375,13 +375,23 @@ function ActionButton({
 
   if (alumno.activo) {
     return (
-      <button
-        type="button"
-        onClick={() => onAction({ userId: alumno.id, name, action: "deactivate" })}
-        className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-danger transition-colors hover:bg-danger/10 active:bg-danger/20 dark:text-red-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
-      >
-        Desactivar
-      </button>
+      <div className="flex flex-1 gap-2 sm:flex-none">
+        <button
+          type="button"
+          onClick={() => onAction({ userId: alumno.id, name, action: "deactivate" })}
+          className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-danger transition-colors hover:bg-danger/10 active:bg-danger/20 dark:text-red-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
+        >
+          Desactivar
+        </button>
+        <button
+          type="button"
+          onClick={() => onAction({ userId: alumno.id, name, action: "delete" })}
+          title="Eliminar permanentemente"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-danger/20 text-danger/70 transition-colors hover:border-danger/50 hover:bg-danger/10 hover:text-danger active:bg-danger/20 dark:text-red-400/60 dark:hover:text-red-400 sm:h-auto sm:w-auto sm:px-2.5 sm:py-1.5"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     );
   }
 

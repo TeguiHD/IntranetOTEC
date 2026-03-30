@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-import { crearAlumnoFormAction } from "@/actions/usuarios";
+import { crearAlumnoAction } from "@/actions/usuarios";
 import { Modal } from "@/components/shared/Modal";
 import { RutInput } from "@/components/shared/RutInput";
 
@@ -12,23 +14,74 @@ const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 export function AlumnoCreateModal() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [credencialTipo, setCredencialTipo] = useState<"rut" | "extranjera">("rut");
   const [rut, setRut] = useState("");
   const [isRutValid, setIsRutValid] = useState(false);
   const [credencialExtranjera, setCredencialExtranjera] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
+  const [email, setEmail] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const resetFormState = () => {
     setCredencialTipo("rut");
     setRut("");
     setIsRutValid(false);
     setCredencialExtranjera("");
+    setNombre("");
+    setApellido("");
+    setEmail("");
   };
 
   const handleClose = () => {
+    if (isPending) return;
     setOpen(false);
     resetFormState();
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    startTransition(async () => {
+      const result = await crearAlumnoAction({
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        credencialTipo,
+        rut: credencialTipo === "rut" ? rut : undefined,
+        credencialExtranjera: credencialTipo === "extranjera" ? credencialExtranjera : undefined,
+        email: email.trim() || undefined,
+      });
+
+      if (result.ok) {
+        const msg =
+          result.code === "alumno_updated"
+            ? "Alumno actualizado/reactivado correctamente."
+            : "Alumno creado correctamente.";
+        toast.success(msg);
+        setOpen(false);
+        resetFormState();
+        router.refresh();
+      } else {
+        const errorMessages: Record<string, string> = {
+          invalid_input: "Datos inválidos. Verifica los campos.",
+          email_conflict: "El correo ya está registrado por otro usuario.",
+          invalid_name: "Nombre y apellido deben tener al menos 2 caracteres.",
+          invalid_credential: "Debes indicar una credencial válida.",
+          forbidden: "Tu sesión no tiene permisos de administrador.",
+          conflict_race_condition: "El usuario fue registrado simultáneamente. Intenta de nuevo.",
+        };
+        toast.error(result.message ?? errorMessages[result.code] ?? "No fue posible crear el alumno.");
+      }
+    });
+  };
+
+  const isSubmitDisabled =
+    isPending ||
+    nombre.trim().length < 2 ||
+    apellido.trim().length < 2 ||
+    (credencialTipo === "rut" ? !isRutValid : credencialExtranjera.trim().length < 4);
 
   return (
     <>
@@ -48,9 +101,7 @@ export function AlumnoCreateModal() {
         description="Ingresa los datos del alumno con RUT chileno o credencial extranjera."
         size="max-w-xl"
       >
-        <form action={crearAlumnoFormAction} className="space-y-4">
-          <input type="hidden" name="credencialTipo" value={credencialTipo} />
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label htmlFor="modal-alumno-nombre" className="block text-sm font-medium text-text-primary dark:text-gray-200">
@@ -58,7 +109,6 @@ export function AlumnoCreateModal() {
               </label>
               <input
                 id="modal-alumno-nombre"
-                name="nombre"
                 type="text"
                 required
                 minLength={2}
@@ -66,6 +116,9 @@ export function AlumnoCreateModal() {
                 placeholder="Ej: Juan"
                 className={inputClass}
                 autoFocus
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                disabled={isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -74,13 +127,15 @@ export function AlumnoCreateModal() {
               </label>
               <input
                 id="modal-alumno-apellido"
-                name="apellido"
                 type="text"
                 required
                 minLength={2}
                 maxLength={80}
                 placeholder="Ej: Pérez"
                 className={inputClass}
+                value={apellido}
+                onChange={(e) => setApellido(e.target.value)}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -102,7 +157,6 @@ export function AlumnoCreateModal() {
                 >
                   <input
                     type="radio"
-                    name="credencialTipoRadio"
                     value={tipo}
                     checked={credencialTipo === tipo}
                     onChange={() => {
@@ -112,6 +166,7 @@ export function AlumnoCreateModal() {
                       setCredencialExtranjera("");
                     }}
                     className="sr-only"
+                    disabled={isPending}
                   />
                   {tipo === "rut" ? "RUT chileno" : "Credencial extranjera"}
                 </label>
@@ -129,6 +184,7 @@ export function AlumnoCreateModal() {
                   required
                   onChange={setRut}
                   onValidityChange={setIsRutValid}
+                  disabled={isPending}
                 />
               </div>
             ) : (
@@ -138,7 +194,6 @@ export function AlumnoCreateModal() {
                 </label>
                 <input
                   id="modal-alumno-credencial"
-                  name="credencialExtranjera"
                   type="text"
                   required
                   minLength={4}
@@ -154,6 +209,7 @@ export function AlumnoCreateModal() {
                         .slice(0, 24),
                     )
                   }
+                  disabled={isPending}
                 />
                 <p className="text-xs text-text-muted dark:text-gray-500">
                   Pasaporte, DNI u otro documento extranjero.
@@ -166,13 +222,15 @@ export function AlumnoCreateModal() {
               </label>
               <input
                 id="modal-alumno-email"
-                name="email"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
                 maxLength={180}
                 placeholder="alumno@ejemplo.cl"
                 className={inputClass}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isPending}
               />
             </div>
           </div>
@@ -185,16 +243,17 @@ export function AlumnoCreateModal() {
             <button
               type="button"
               onClick={handleClose}
-              className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              disabled={isPending}
+              className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={credencialTipo === "rut" ? !isRutValid : credencialExtranjera.trim().length < 4}
+              disabled={isSubmitDisabled}
               className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
             >
-              Crear Alumno
+              {isPending ? "Creando..." : "Crear Alumno"}
             </button>
           </div>
         </form>

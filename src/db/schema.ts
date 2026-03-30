@@ -265,6 +265,7 @@ export const evaluaciones = pgTable(
     obligatoria: boolean("obligatoria").default(false),
     estadoEncuesta: estadoEncuestaEnum("estado_encuesta").default("borrador"),
     plantillaOrigen: text("plantilla_origen"), // e.g. "docente_otec", "estilos_aprendizaje"
+    grupoId: uuid("grupo_id"), // groups multiple encuestas into one campaign
     creadoPor: uuid("creado_por").references(() => usuarios.id),
     // ---
     eliminadoAt: tstz("eliminado_at"),

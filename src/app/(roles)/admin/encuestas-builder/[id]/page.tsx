@@ -1,4 +1,4 @@
-import { BarChart3, CheckCircle2, ChevronLeft, Clock, GripVertical, Lock, Plus, Rocket, Trash2, Users, X, Zap } from "lucide-react";
+import { BarChart3, CheckCircle2, ChevronLeft, Clock, GripVertical, Lock, Plus, Rocket, Users, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 

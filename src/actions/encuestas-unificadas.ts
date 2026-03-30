@@ -1,6 +1,8 @@
 "use server";
 
-import { and, asc, count, eq, isNull } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+
+import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -15,6 +17,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { buildOpcionesJson, type PlantillaPregunta } from "@/lib/encuesta-plantillas";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
 
@@ -31,6 +34,9 @@ const getStringField = (formData: FormData, field: string): string => {
 
 export type EncuestaListItem = {
   id: string;
+  asignaturaId: string;
+  asignaturaNombre: string;
+  grupoId: string | null;
   titulo: string;
   instrucciones: string | null;
   audiencia: "alumnos" | "docentes" | "todos" | null;
@@ -142,6 +148,113 @@ export async function crearEncuestaFormAction(formData: FormData): Promise<void>
     redirect(`/admin/encuestas-builder/${result.id}?state=encuesta_created`);
   } else {
     redirect(`/admin/encuestas-builder?state=${result.ok ? result.code : "error"}`);
+  }
+}
+
+// ----------------------------------------------------------------
+// ADMIN: Crear encuestas en batch (multi-asignatura + plantilla)
+// ----------------------------------------------------------------
+
+export async function crearEncuestaBatchAction(input: {
+  titulo: string;
+  instrucciones?: string;
+  audiencia: "alumnos" | "docentes" | "todos";
+  obligatoria: boolean;
+  asignaturaIds: string[];
+  plantillaId?: string;
+  preguntas: PlantillaPregunta[];
+}): Promise<MutationResult & { singleId?: string; grupoId?: string }> {
+  const actorResult = await requireActionActor("admin_encuesta_batch_crear", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const titulo = sanitizeText(input.titulo).trim();
+  if (!titulo) return { ok: false, code: "invalid_input", message: "El título es requerido." };
+  if (!input.asignaturaIds.length) return { ok: false, code: "invalid_input", message: "Selecciona al menos una asignatura." };
+
+  const db = getDb();
+  const grupoId = input.asignaturaIds.length > 1 ? randomUUID() : null;
+  const createdIds: string[] = [];
+
+  try {
+    for (const asignaturaId of input.asignaturaIds) {
+      const [created] = await db
+        .insert(evaluaciones)
+        .values({
+          asignaturaId,
+          titulo,
+          tipo: "formulario",
+          instrucciones: input.instrucciones ? sanitizeText(input.instrucciones).trim() : null,
+          publicada: false,
+          esEncuesta: true,
+          audiencia: input.audiencia,
+          obligatoria: input.obligatoria,
+          estadoEncuesta: "borrador",
+          plantillaOrigen: input.plantillaId ?? null,
+          grupoId,
+          creadoPor: actorResult.actor.userId,
+          createdAt: new Date(),
+        })
+        .returning({ id: evaluaciones.id });
+
+      if (!created) continue;
+      createdIds.push(created.id);
+
+      // Insert template questions
+      if (input.preguntas.length > 0) {
+        for (let i = 0; i < input.preguntas.length; i++) {
+          const p = input.preguntas[i];
+          await db.insert(preguntas).values({
+            evaluacionId: created.id,
+            enunciado: sanitizeText(p.enunciado).trim(),
+            tipo: p.tipo,
+            opciones: buildOpcionesJson(p),
+            puntaje: "1",
+            orden: i + 1,
+          });
+        }
+      }
+    }
+
+    if (createdIds.length === 0) {
+      return { ok: false, code: "error", message: "No se pudo crear ninguna encuesta." };
+    }
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "crear",
+      entidad: "encuestas",
+      entidadId: createdIds[0],
+      payload: {
+        titulo,
+        audiencia: input.audiencia,
+        obligatoria: input.obligatoria,
+        asignaturas: input.asignaturaIds.length,
+        plantilla: input.plantillaId ?? "en_blanco",
+        grupoId,
+      },
+      exitoso: true,
+    });
+
+    revalidatePath("/admin/encuestas-builder");
+    return {
+      ok: true,
+      code: "encuesta_created",
+      singleId: createdIds.length === 1 ? createdIds[0] : undefined,
+      grupoId: grupoId ?? undefined,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "encuesta_batch_create_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "error", message: "No fue posible crear la encuesta." };
   }
 }
 
@@ -447,7 +560,7 @@ export async function eliminarEncuestaFormAction(formData: FormData): Promise<vo
 // ADMIN: List all surveys
 // ----------------------------------------------------------------
 
-export async function listarEncuestasAdmin(asignaturaId?: string): Promise<EncuestaListItem[]> {
+export async function listarEncuestasAdmin(): Promise<EncuestaListItem[]> {
   const actorResult = await requireActionActor("admin_encuestas_list", ["admin"]);
   if (!actorResult.ok) return [];
 
@@ -456,6 +569,9 @@ export async function listarEncuestasAdmin(asignaturaId?: string): Promise<Encue
   const rows = await db
     .select({
       id: evaluaciones.id,
+      asignaturaId: evaluaciones.asignaturaId,
+      asignaturaNombre: asignaturas.nombre,
+      grupoId: evaluaciones.grupoId,
       titulo: evaluaciones.titulo,
       instrucciones: evaluaciones.instrucciones,
       audiencia: evaluaciones.audiencia,
@@ -465,14 +581,9 @@ export async function listarEncuestasAdmin(asignaturaId?: string): Promise<Encue
       createdAt: evaluaciones.createdAt,
     })
     .from(evaluaciones)
-    .where(
-      and(
-        eq(evaluaciones.esEncuesta, true),
-        isNull(evaluaciones.eliminadoAt),
-        ...(asignaturaId ? [eq(evaluaciones.asignaturaId, asignaturaId)] : []),
-      ),
-    )
-    .orderBy(asc(evaluaciones.createdAt));
+    .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+    .where(and(eq(evaluaciones.esEncuesta, true), isNull(evaluaciones.eliminadoAt)))
+    .orderBy(desc(evaluaciones.createdAt));
 
   if (rows.length === 0) return [];
 
@@ -482,7 +593,7 @@ export async function listarEncuestasAdmin(asignaturaId?: string): Promise<Encue
     db
       .select({ evaluacionId: preguntas.evaluacionId, total: count() })
       .from(preguntas)
-      .where(isNull(preguntas.eliminadoAt))
+      .where(and(isNull(preguntas.eliminadoAt), inArray(preguntas.evaluacionId, evalIds)))
       .groupBy(preguntas.evaluacionId),
     db
       .select({
@@ -491,6 +602,7 @@ export async function listarEncuestasAdmin(asignaturaId?: string): Promise<Encue
         completados: count(encuestaAsignaciones.completadaAt),
       })
       .from(encuestaAsignaciones)
+      .where(inArray(encuestaAsignaciones.evaluacionId, evalIds))
       .groupBy(encuestaAsignaciones.evaluacionId),
   ]);
 
@@ -502,14 +614,13 @@ export async function listarEncuestasAdmin(asignaturaId?: string): Promise<Encue
     ]),
   );
 
-  return rows
-    .filter((r) => evalIds.includes(r.id))
-    .map((r) => ({
-      ...r,
-      totalPreguntas: pregMap.get(r.id) ?? 0,
-      totalAsignados: asigMap.get(r.id)?.total ?? 0,
-      totalCompletados: asigMap.get(r.id)?.completados ?? 0,
-    }));
+  return rows.map((r) => ({
+    ...r,
+    grupoId: r.grupoId ?? null,
+    totalPreguntas: pregMap.get(r.id) ?? 0,
+    totalAsignados: asigMap.get(r.id)?.total ?? 0,
+    totalCompletados: asigMap.get(r.id)?.completados ?? 0,
+  }));
 }
 
 // ----------------------------------------------------------------

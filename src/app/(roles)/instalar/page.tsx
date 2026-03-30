@@ -13,6 +13,7 @@ import {
   Wifi,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 import { usePwaInstall } from "@/components/shared/PwaInstallProvider";
 
@@ -181,13 +182,13 @@ export default function InstalarPage() {
             Funciona igual que la intranet web, pero sin la barra del navegador.
           </p>
           <div className="mt-6 flex justify-center gap-3">
-            <a
+            <Link
               href="/"
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
             >
               Ir al inicio
               <ArrowRight className="h-4 w-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </section>

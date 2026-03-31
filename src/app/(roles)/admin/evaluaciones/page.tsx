@@ -279,9 +279,17 @@ export default async function AdminEvaluacionesPage({
         </div>
 
         {evaluaciones.length === 0 ? (
-          <p className="py-8 text-center text-sm text-text-secondary dark:text-gray-400">
-            No hay evaluaciones para esta asignatura.
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+              <ClipboardList className="h-7 w-7 text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="mt-3 text-sm font-medium text-text-primary dark:text-white">
+              No hay evaluaciones para esta asignatura
+            </p>
+            <p className="mt-1 max-w-xs text-xs text-text-secondary dark:text-gray-400">
+              Usa el formulario &quot;Nueva Evaluación&quot; o las plantillas rápidas de arriba para comenzar.
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {evaluaciones.map((ev) => (
@@ -416,9 +424,13 @@ export default async function AdminEvaluacionesPage({
           </form>
 
           {resultados.length === 0 ? (
-            <p className="text-sm text-text-secondary dark:text-gray-400">
-              Aún no hay respuestas registradas para esta evaluación.
-            </p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Eye className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+              <p className="mt-2 text-sm font-medium text-text-primary dark:text-white">Sin respuestas todavía</p>
+              <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                Los alumnos aún no han respondido esta evaluación.
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">

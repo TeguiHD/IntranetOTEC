@@ -1,4 +1,6 @@
 import { and, count, desc, eq } from "drizzle-orm";
+import { ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
@@ -118,8 +120,16 @@ export default async function AuditoriaPage({ searchParams }: AuditoriaPageProps
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-text-secondary dark:text-gray-400">
-                    No hay registros de auditoría.
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                        <ClipboardList className="h-7 w-7 text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <p className="mt-3 text-sm font-medium text-text-primary dark:text-white">Sin registros de auditoría</p>
+                      <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                        Las acciones del sistema se registrarán aquí automáticamente.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -181,20 +191,20 @@ export default async function AuditoriaPage({ searchParams }: AuditoriaPageProps
           </p>
           <div className="flex gap-2">
             {page > 1 && (
-              <a
+              <Link
                 href={buildHref(page - 1)}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
               >
                 Anterior
-              </a>
+              </Link>
             )}
             {page < totalPages && (
-              <a
+              <Link
                 href={buildHref(page + 1)}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
               >
                 Siguiente
-              </a>
+              </Link>
             )}
           </div>
         </nav>

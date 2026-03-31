@@ -4,6 +4,9 @@ import {
   listarFinanzasAction,
   resumenFinanzasAction,
 } from "@/actions/finanzas";
+import { DollarSign } from "lucide-react";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
@@ -114,6 +117,8 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
             categoria: String(formData.get("categoria") ?? "") || undefined,
             fecha: String(formData.get("fecha") ?? ""),
           });
+          revalidatePath("/admin/finanzas");
+          redirect("/admin/finanzas?state=finanza_created");
         }}
         className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6"
       >
@@ -237,9 +242,19 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
       {/* Transactions table */}
       <article className="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         {transacciones.length === 0 ? (
-          <p className="p-8 text-center text-sm text-text-secondary dark:text-gray-400">
-            No hay transacciones registradas.
-          </p>
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+              <DollarSign className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="mt-4 text-sm font-medium text-text-primary dark:text-white">
+              {tipoFilter || q ? "Sin transacciones con esos filtros" : "Aún no hay transacciones registradas"}
+            </p>
+            <p className="mt-1.5 max-w-xs text-xs text-text-secondary dark:text-gray-400">
+              {tipoFilter || q
+                ? "Prueba cambiando los filtros o limpiando la búsqueda."
+                : "Usa el formulario de arriba para registrar ingresos y gastos del OTEC."}
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

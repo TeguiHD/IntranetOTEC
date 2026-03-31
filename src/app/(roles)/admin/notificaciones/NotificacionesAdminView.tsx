@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 
 import {
   Bell,
@@ -9,9 +9,11 @@ import {
   ChevronDown,
   ChevronUp,
   Globe,
+  Search,
   Send,
   Users,
   UserCheck,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -210,6 +212,64 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
   const [buscar, setBuscar] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // Combobox de curso
+  const [cursoQuery, setCursoQuery] = useState("");
+  const [cursoOpen, setCursoOpen] = useState(false);
+  const [cursoHighlight, setCursoHighlight] = useState(0);
+  const comboboxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const cursosFiltrados = cursoQuery.trim()
+    ? asignaturas.filter((a) =>
+        a.nombre.toLowerCase().includes(cursoQuery.toLowerCase()),
+      )
+    : asignaturas;
+
+  const cursoSeleccionado = asignaturas.find((a) => a.id === asignaturaId);
+
+  const handleSelectCurso = useCallback((a: { id: string; nombre: string }) => {
+    setAsignaturaId(a.id);
+    setCursoQuery("");
+    setCursoOpen(false);
+    setCursoHighlight(0);
+  }, []);
+
+  const handleClearCurso = useCallback(() => {
+    setAsignaturaId("");
+    setCursoQuery("");
+    setCursoHighlight(0);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
+  // Cierra al click fuera
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setCursoOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleComboboxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!cursoOpen && (e.key === "ArrowDown" || e.key === "Enter")) {
+      setCursoOpen(true);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      setCursoHighlight((h) => Math.min(h + 1, cursosFiltrados.length - 1));
+    } else if (e.key === "ArrowUp") {
+      setCursoHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const item = cursosFiltrados[cursoHighlight];
+      if (item) handleSelectCurso(item);
+    } else if (e.key === "Escape") {
+      setCursoOpen(false);
+    }
+  };
+
   const usuariosFiltrados = buscar.trim()
     ? usuarios.filter(
         (u) =>
@@ -222,6 +282,16 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (tipo === "curso" && !asignaturaId) {
+      toast.error("Debes seleccionar un curso antes de enviar.");
+      inputRef.current?.focus();
+      return;
+    }
+    if (tipo === "individual" && selectedIds.length === 0) {
+      toast.error("Debes seleccionar al menos una persona.");
+      return;
+    }
 
     startTransition(async () => {
       const result = await enviarNotificacionAction({
@@ -236,6 +306,8 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
         toast.success("Notificación enviada correctamente.");
         setTitulo("");
         setContenido("");
+        setAsignaturaId("");
+        setCursoQuery("");
         setSelectedIds([]);
         setBuscar("");
       } else {
@@ -337,24 +409,170 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
               <p className="text-[11px] text-text-muted dark:text-gray-500">{tipoInfo.label}</p>
             </div>
 
-            {/* Selector de curso */}
+            {/* Selector de curso — Combobox con búsqueda */}
             {tipo === "curso" && (
               <div className="space-y-1.5">
-                <label htmlFor="notif-asignatura" className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                <label className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
                   Curso
+                  {asignaturas.length > 0 && (
+                    <span className="ml-1.5 font-normal normal-case text-text-muted dark:text-gray-500">
+                      ({asignaturas.length} disponibles)
+                    </span>
+                  )}
                 </label>
-                <select
-                  id="notif-asignatura"
-                  value={asignaturaId}
-                  onChange={(e) => setAsignaturaId(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                >
-                  <option value="">Selecciona un curso...</option>
-                  {asignaturas.map((a) => (
-                    <option key={a.id} value={a.id}>{a.nombre}</option>
-                  ))}
-                </select>
+
+                {/* Input oculto para validación nativa */}
+                <input type="hidden" name="asignaturaId" value={asignaturaId} required />
+
+                <div ref={comboboxRef} className="relative">
+                  {/* Trigger / Input */}
+                  {cursoSeleccionado ? (
+                    /* Chip del curso seleccionado */
+                    <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 dark:border-amber-700/60 dark:bg-amber-950/30">
+                      <BookOpen className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span className="flex-1 truncate text-sm font-medium text-amber-800 dark:text-amber-200">
+                        {cursoSeleccionado.nombre}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleClearCurso}
+                        aria-label="Cambiar curso"
+                        className="shrink-0 rounded-full p-0.5 text-amber-500 transition-colors hover:bg-amber-200/60 hover:text-amber-700 dark:hover:bg-amber-800/40"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    /* Campo de búsqueda */
+                    <div
+                      className={`flex items-center gap-2 rounded-xl border bg-white px-3 py-2.5 transition-all dark:bg-gray-800 ${
+                        cursoOpen
+                          ? "border-primary ring-2 ring-primary/20"
+                          : "border-gray-200 dark:border-gray-700"
+                      }`}
+                    >
+                      <Search className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                      <input
+                        ref={inputRef}
+                        id="notif-asignatura"
+                        type="text"
+                        value={cursoQuery}
+                        onChange={(e) => {
+                          setCursoQuery(e.target.value);
+                          setCursoOpen(true);
+                          setCursoHighlight(0);
+                        }}
+                        onFocus={() => setCursoOpen(true)}
+                        onKeyDown={handleComboboxKeyDown}
+                        placeholder="Buscar curso por nombre…"
+                        autoComplete="off"
+                        role="combobox"
+                        className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-gray-400 focus:outline-none dark:text-gray-100"
+                        aria-haspopup="listbox"
+                        aria-expanded={cursoOpen}
+                        aria-autocomplete="list"
+                      />
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${
+                          cursoOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Dropdown de resultados */}
+                  {cursoOpen && !cursoSeleccionado && (
+                    <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                      {/* Contador */}
+                      <div className="border-b border-gray-100 px-3 py-1.5 dark:border-gray-700">
+                        <span className="text-[11px] text-text-muted dark:text-gray-500">
+                          {cursosFiltrados.length === 0
+                            ? "Sin resultados"
+                            : `${cursosFiltrados.length} curso${cursosFiltrados.length !== 1 ? "s" : ""}`}
+                          {cursoQuery && ` para "${cursoQuery}"`}
+                        </span>
+                      </div>
+
+                      <ul
+                        role="listbox"
+                        aria-label="Cursos disponibles"
+                        className="max-h-56 overflow-y-auto overscroll-contain"
+                      >
+                        {cursosFiltrados.length === 0 ? (
+                          <li className="flex flex-col items-center gap-1 px-4 py-6 text-center">
+                            <Search className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+                            <span className="text-sm text-text-muted dark:text-gray-500">
+                              No se encontró ningún curso
+                            </span>
+                          </li>
+                        ) : (
+                          cursosFiltrados.map((a, idx) => {
+                            const isHighlighted = idx === cursoHighlight;
+                            // Resaltar el texto coincidente
+                            const q = cursoQuery.trim();
+                            const matchIdx = q
+                              ? a.nombre.toLowerCase().indexOf(q.toLowerCase())
+                              : -1;
+
+                            return (
+                              <li
+                                key={a.id}
+                                role="option"
+                                aria-selected={isHighlighted}
+                                onMouseEnter={() => setCursoHighlight(idx)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleSelectCurso(a);
+                                }}
+                                className={`flex cursor-pointer items-center gap-2.5 px-3 py-2.5 transition-colors ${
+                                  isHighlighted
+                                    ? "bg-amber-50 dark:bg-amber-950/30"
+                                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                }`}
+                              >
+                                <div
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+                                    isHighlighted
+                                      ? "bg-amber-100 dark:bg-amber-900/40"
+                                      : "bg-gray-100 dark:bg-gray-700"
+                                  }`}
+                                >
+                                  <BookOpen
+                                    className={`h-3 w-3 ${
+                                      isHighlighted
+                                        ? "text-amber-600 dark:text-amber-400"
+                                        : "text-gray-400 dark:text-gray-500"
+                                    }`}
+                                  />
+                                </div>
+                                <span className="flex-1 truncate text-sm text-text-primary dark:text-gray-100">
+                                  {matchIdx >= 0 && q ? (
+                                    <>
+                                      {a.nombre.slice(0, matchIdx)}
+                                      <mark className="rounded bg-amber-200/70 font-semibold not-italic text-amber-800 dark:bg-amber-700/40 dark:text-amber-200">
+                                        {a.nombre.slice(matchIdx, matchIdx + q.length)}
+                                      </mark>
+                                      {a.nombre.slice(matchIdx + q.length)}
+                                    </>
+                                  ) : (
+                                    a.nombre
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Hint */}
+                {!cursoSeleccionado && (
+                  <p className="text-[11px] text-text-muted dark:text-gray-500">
+                    Escribe para filtrar · ↑↓ navegar · Enter para seleccionar
+                  </p>
+                )}
               </div>
             )}
 

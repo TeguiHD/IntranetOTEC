@@ -219,7 +219,7 @@ export async function listarNotificacionesAdmin() {
     .filter((r) => r.tipo === "individual")
     .map((r) => r.id);
 
-  let destinatariosPreviewMap = new Map<string, string[]>();
+  const destinatariosPreviewMap = new Map<string, string[]>();
 
   if (individualIds.length > 0) {
     const previews = await db

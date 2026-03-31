@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { countSolicitudesPendientesAdmin } from "@/actions/solicitudes-documentos";
+import { countMisNotificacionesNoLeidas } from "@/actions/notificaciones";
 import { EncuestaObligatoriaBlocker } from "@/components/shared/EncuestaObligatoriaBlocker";
 import { InstallAppBanner } from "@/components/shared/InstallAppBanner";
 import { PushNotificationSetup } from "@/components/shared/PushNotificationSetup";
@@ -36,19 +37,23 @@ export default async function RolesLayout({ children }: RolesLayoutProps) {
   // so users can actually respond to surveys
   const isEncuestaResponsePath = pathname.startsWith("/encuestas/");
 
-  const [pendingSolicitudes, encuestasPendientes] = await Promise.all([
+  const [pendingSolicitudes, encuestasPendientes, unreadNotifs] = await Promise.all([
     role === "admin" ? countSolicitudesPendientesAdmin() : Promise.resolve(0),
     // Only check for blocking if not already on a survey response page
     role === "alumno" || role === "docente"
       ? obtenerEncuestasPendientesObligatorias(userId)
       : Promise.resolve([]),
+    // Conteo de notificaciones no leídas (solo alumno/docente; admin es emisor)
+    role === "alumno" || role === "docente"
+      ? countMisNotificacionesNoLeidas()
+      : Promise.resolve(0),
   ]);
 
   // Block navigation only for non-encuesta paths
   const hasPendingObligatory = !isEncuestaResponsePath && encuestasPendientes.length > 0;
 
   return (
-    <RoleShell role={role} userName={userName} pendingSolicitudes={pendingSolicitudes}>
+    <RoleShell role={role} userName={userName} pendingSolicitudes={pendingSolicitudes} unreadNotifs={unreadNotifs}>
       <PushNotificationSetup />
       <InstallAppBanner />
       {hasPendingObligatory ? (

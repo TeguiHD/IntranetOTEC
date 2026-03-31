@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import {
+  Bell,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -30,6 +31,7 @@ type TopbarProps = {
   userName: string;
   isSidebarCollapsed: boolean;
   navMode: "grid" | "sidebar";
+  unreadNotifs?: number;
   onToggleDesktopSidebar: () => void;
   onToggleMobileSidebar: () => void;
   onToggleNavMode: () => void;
@@ -58,6 +60,7 @@ export function Topbar({
   userName,
   isSidebarCollapsed,
   navMode,
+  unreadNotifs = 0,
   onToggleDesktopSidebar,
   onToggleMobileSidebar,
   onToggleNavMode,
@@ -188,6 +191,21 @@ export function Topbar({
             <LayoutGrid className="h-5 w-5" />
           )}
         </button>
+
+        {/* Notification bell */}
+        <Link
+          href={`/${role}/notificaciones`}
+          aria-label={unreadNotifs > 0 ? `${unreadNotifs} notificaciones sin leer` : "Notificaciones"}
+          title="Notificaciones"
+          className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
+        >
+          <Bell className="h-5 w-5" />
+          {unreadNotifs > 0 && (
+            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white dark:ring-gray-950">
+              {unreadNotifs > 99 ? "99+" : unreadNotifs}
+            </span>
+          )}
+        </Link>
 
         {/* Theme toggle */}
         <button

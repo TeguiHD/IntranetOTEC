@@ -24,9 +24,10 @@ type RoleShellProps = {
   userName: string;
   children: React.ReactNode;
   pendingSolicitudes?: number;
+  unreadNotifs?: number;
 };
 
-export function RoleShell({ role, userName, children, pendingSolicitudes }: RoleShellProps) {
+export function RoleShell({ role, userName, children, pendingSolicitudes, unreadNotifs }: RoleShellProps) {
   const pathname = usePathname();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -67,6 +68,7 @@ export function RoleShell({ role, userName, children, pendingSolicitudes }: Role
         userName={userName}
         isSidebarCollapsed={isSidebarCollapsed}
         navMode={navMode}
+        unreadNotifs={unreadNotifs ?? 0}
         onToggleDesktopSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
         onToggleMobileSidebar={handleToggleMobile}
         onToggleNavMode={() => setNavMode((m) => (m === "grid" ? "sidebar" : "grid"))}

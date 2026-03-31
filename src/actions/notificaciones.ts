@@ -1,6 +1,7 @@
 "use server";
 
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -191,7 +192,10 @@ export async function listarNotificacionesAdmin() {
 
   const db = getDb();
 
-  return db
+  // Alias para emisor con tabla usuarios
+  const emisor = alias(usuarios, "emisor");
+
+  const rows = await db
     .select({
       id: notificaciones.id,
       titulo: notificaciones.titulo,
@@ -199,12 +203,48 @@ export async function listarNotificacionesAdmin() {
       tipo: notificaciones.tipo,
       asignaturaNombre: asignaturas.nombre,
       createdAt: notificaciones.createdAt,
+      emisorNombre: emisor.nombre,
+      emisorApellido: emisor.apellido,
+      totalDestinatarios: sql<number>`(SELECT COUNT(*) FROM notificaciones_destinatarios nd WHERE nd.notificacion_id = ${notificaciones.id})::int`,
     })
     .from(notificaciones)
     .leftJoin(asignaturas, eq(notificaciones.asignaturaId, asignaturas.id))
+    .leftJoin(emisor, eq(notificaciones.emisorId, emisor.id))
     .where(isNull(notificaciones.eliminadoAt))
     .orderBy(desc(notificaciones.createdAt))
     .limit(50);
+
+  // Para tipo "individual", cargar preview de primeros 3 destinatarios
+  const individualIds = rows
+    .filter((r) => r.tipo === "individual")
+    .map((r) => r.id);
+
+  let destinatariosPreviewMap = new Map<string, string[]>();
+
+  if (individualIds.length > 0) {
+    const previews = await db
+      .select({
+        notificacionId: notificacionesDestinatarios.notificacionId,
+        nombre: usuarios.nombre,
+        apellido: usuarios.apellido,
+      })
+      .from(notificacionesDestinatarios)
+      .innerJoin(usuarios, eq(notificacionesDestinatarios.usuarioId, usuarios.id))
+      .where(inArray(notificacionesDestinatarios.notificacionId, individualIds))
+      .orderBy(usuarios.apellido, usuarios.nombre)
+      .limit(individualIds.length * 4); // max 4 por notificacion
+
+    for (const p of previews) {
+      const arr = destinatariosPreviewMap.get(p.notificacionId) ?? [];
+      if (arr.length < 3) arr.push(`${p.nombre} ${p.apellido}`);
+      destinatariosPreviewMap.set(p.notificacionId, arr);
+    }
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    destinatariosPreview: destinatariosPreviewMap.get(r.id) ?? [],
+  }));
 }
 
 // Función genérica para cualquier rol (alumno o docente)

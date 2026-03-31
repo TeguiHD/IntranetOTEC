@@ -2,7 +2,17 @@
 
 import { useState, useTransition } from "react";
 
-import { Bell, Send } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Globe,
+  Send,
+  Users,
+  UserCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { enviarNotificacionAction } from "@/actions/notificaciones";
@@ -16,6 +26,10 @@ type Notificacion = {
   tipo: string | null;
   asignaturaNombre: string | null;
   createdAt: Date | null;
+  emisorNombre: string | null;
+  emisorApellido: string | null;
+  totalDestinatarios: number;
+  destinatariosPreview: string[];
 };
 
 type Props = {
@@ -24,16 +38,168 @@ type Props = {
   historial: Notificacion[];
 };
 
-const TIPO_LABELS: Record<string, string> = {
-  general: "Global (alumnos y docentes)",
-  curso: "Por curso (solo alumnos del curso)",
-  individual: "Personas específicas",
+const TIPO_CONFIG: Record<
+  string,
+  { label: string; shortLabel: string; Icon: React.ElementType; color: string; bg: string; border: string }
+> = {
+  general: {
+    label: "Global (alumnos y docentes)",
+    shortLabel: "Global",
+    Icon: Globe,
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+    border: "border-blue-200/80 dark:border-blue-900/40",
+  },
+  curso: {
+    label: "Por curso (solo alumnos del curso)",
+    shortLabel: "Curso",
+    Icon: BookOpen,
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+    border: "border-amber-200/80 dark:border-amber-900/40",
+  },
+  individual: {
+    label: "Personas específicas",
+    shortLabel: "Individual",
+    Icon: UserCheck,
+    color: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-50 dark:bg-purple-950/30",
+    border: "border-purple-200/80 dark:border-purple-900/40",
+  },
 };
 
 const ROL_BADGE: Record<string, string> = {
   alumno: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   docente: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
 };
+
+function formatRelativeTime(date: Date | null): string {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Ahora mismo";
+  if (mins < 60) return `Hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Ayer";
+  if (days < 7) return `Hace ${days} días`;
+  return new Intl.DateTimeFormat("es-CL", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+function HistorialItem({ n }: { n: Notificacion }) {
+  const [expanded, setExpanded] = useState(false);
+  const tipo = TIPO_CONFIG[n.tipo ?? "general"] ?? TIPO_CONFIG.general;
+  const TipoIcon = tipo.Icon;
+
+  const emisorName =
+    n.emisorNombre && n.emisorApellido
+      ? `${n.emisorNombre} ${n.emisorApellido}`
+      : n.emisorNombre ?? "Administrador";
+
+  const emisorInitials = emisorName
+    .split(" ")
+    .slice(0, 2)
+    .map((w: string) => w[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const destinatariosText =
+    n.tipo === "individual"
+      ? n.destinatariosPreview.length > 0
+        ? n.destinatariosPreview.join(", ") +
+          (n.totalDestinatarios > n.destinatariosPreview.length
+            ? ` +${n.totalDestinatarios - n.destinatariosPreview.length} más`
+            : "")
+        : `${n.totalDestinatarios} persona${n.totalDestinatarios !== 1 ? "s" : ""}`
+      : n.tipo === "curso"
+      ? `${n.totalDestinatarios} alumno${n.totalDestinatarios !== 1 ? "s" : ""} del curso`
+      : `${n.totalDestinatarios} persona${n.totalDestinatarios !== 1 ? "s" : ""}`;
+
+  return (
+    <article
+      className={`rounded-2xl border ${tipo.border} ${tipo.bg} p-4 transition-all`}
+    >
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        {/* Tipo icon */}
+        <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tipo.bg} border ${tipo.border}`}>
+          <TipoIcon className={`h-4 w-4 ${tipo.color}`} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          {/* Title + badge */}
+          <div className="flex flex-wrap items-start gap-2">
+            <h3 className="flex-1 font-semibold text-text-primary dark:text-white">
+              {n.titulo}
+            </h3>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tipo.color} ${tipo.bg}`}>
+              {tipo.shortLabel}
+            </span>
+          </div>
+
+          {/* Preview / expanded content */}
+          <p className={`mt-1 text-sm text-text-secondary dark:text-gray-400 ${!expanded ? "line-clamp-2" : ""}`}>
+            {n.contenido}
+          </p>
+
+          {n.contenido.length > 100 && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className={`mt-1 flex items-center gap-0.5 text-xs font-medium ${tipo.color} hover:underline`}
+            >
+              {expanded ? (
+                <><ChevronUp className="h-3 w-3" /> Ver menos</>
+              ) : (
+                <><ChevronDown className="h-3 w-3" /> Ver más</>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Footer metadata */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-black/5 pt-3 dark:border-white/5">
+        {/* Emisor */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-[8px] font-bold text-white">
+            {emisorInitials}
+          </div>
+          <span className="text-xs text-text-secondary dark:text-gray-400">
+            <span className="font-medium text-text-primary dark:text-white">{emisorName}</span>
+          </span>
+        </div>
+
+        {/* Destinatarios */}
+        <div className="flex items-center gap-1">
+          <Users className="h-3.5 w-3.5 text-text-muted dark:text-gray-500" />
+          <span className="text-xs text-text-secondary dark:text-gray-400">
+            → <span className="font-medium">{destinatariosText}</span>
+          </span>
+        </div>
+
+        {/* Curso name si aplica */}
+        {n.asignaturaNombre && (
+          <div className="flex items-center gap-1">
+            <BookOpen className="h-3.5 w-3.5 text-text-muted dark:text-gray-500" />
+            <span className="text-xs text-text-secondary dark:text-gray-400">{n.asignaturaNombre}</span>
+          </div>
+        )}
+
+        {/* Fecha */}
+        <span className="ml-auto text-xs text-text-muted dark:text-gray-500">
+          {formatRelativeTime(n.createdAt)}
+        </span>
+      </div>
+    </article>
+  );
+}
 
 export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Props) {
   const [tipo, setTipo] = useState<"general" | "curso" | "individual">("general");
@@ -78,204 +244,269 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
     });
   };
 
+  // Stats
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const hoy = historial.filter(
+    (n) => n.createdAt && new Date(n.createdAt) >= today,
+  ).length;
+  const totalDestinatariosTotal = historial.reduce(
+    (acc, n) => acc + (n.totalDestinatarios ?? 0),
+    0,
+  );
+
+  const tipoInfo = TIPO_CONFIG[tipo] ?? TIPO_CONFIG.general;
+
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      {/* Formulario */}
-      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white">
-          <Send className="h-4 w-4 text-primary" />
-          Nueva Notificación
-        </h2>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Tipo */}
-          <div className="space-y-1.5">
-            <label htmlFor="notif-tipo" className="text-sm font-medium text-text-primary dark:text-gray-200">
-              Destinatarios
-            </label>
-            <select
-              id="notif-tipo"
-              value={tipo}
-              onChange={(e) => {
-                setTipo(e.target.value as "general" | "curso" | "individual");
-                setSelectedIds([]);
-                setBuscar("");
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              <option value="general">{TIPO_LABELS.general}</option>
-              <option value="curso">{TIPO_LABELS.curso}</option>
-              <option value="individual">{TIPO_LABELS.individual}</option>
-            </select>
+    <div className="space-y-5">
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3">
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Total enviadas
+          </p>
+          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">
+            {historial.length}
+          </p>
+        </article>
+        <article className="rounded-2xl border border-blue-200/80 bg-blue-50 p-4 shadow-sm dark:border-blue-900/40 dark:bg-blue-950/30">
+          <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+            Hoy
+          </p>
+          <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-200">{hoy}</p>
+        </article>
+        <article className="rounded-2xl border border-emerald-200/80 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+              Alcance
+            </p>
           </div>
+          <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-200">
+            {totalDestinatariosTotal.toLocaleString("es-CL")}
+          </p>
+        </article>
+      </div>
 
-          {/* Selector de curso */}
-          {tipo === "curso" && (
+      {/* Main grid */}
+      <div className="grid gap-5 lg:grid-cols-[420px_1fr]">
+        {/* Left: form */}
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Send className="h-3.5 w-3.5" />
+            </span>
+            Nueva Notificación
+          </h2>
+          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+            Envía mensajes a alumnos y docentes de forma masiva o individual.
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+            {/* Tipo selector — botones */}
             <div className="space-y-1.5">
-              <label htmlFor="notif-asignatura" className="text-sm font-medium text-text-primary dark:text-gray-200">
-                Curso
+              <label className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Destinatarios
               </label>
-              <select
-                id="notif-asignatura"
-                value={asignaturaId}
-                onChange={(e) => setAsignaturaId(e.target.value)}
-                required
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="">Selecciona un curso...</option>
-                {asignaturas.map((a) => (
-                  <option key={a.id} value={a.id}>{a.nombre}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800/50">
+                {(["general", "curso", "individual"] as const).map((t) => {
+                  const cfg = TIPO_CONFIG[t];
+                  const TIcon = cfg.Icon;
+                  const isActive = tipo === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        setTipo(t);
+                        setSelectedIds([]);
+                        setBuscar("");
+                      }}
+                      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 text-center text-xs font-semibold transition-all ${
+                        isActive
+                          ? `${cfg.bg} ${cfg.color} border ${cfg.border} shadow-sm`
+                          : "text-text-secondary hover:bg-white dark:text-gray-400 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <TIcon className="h-4 w-4" />
+                      {cfg.shortLabel}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-text-muted dark:text-gray-500">{tipoInfo.label}</p>
             </div>
-          )}
 
-          {/* Selector de personas (alumnos + docentes) */}
-          {tipo === "individual" && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary dark:text-gray-200">
-                Personas ({selectedIds.length} seleccionadas)
-              </label>
-              <input
-                type="text"
-                value={buscar}
-                onChange={(e) => setBuscar(e.target.value)}
-                placeholder="Buscar por nombre, RUT o rol..."
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              />
-              {usuariosFiltrados.length > 0 && (
-                <ul className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                  {usuariosFiltrados.slice(0, 12).map((u) => (
-                    <li key={u.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedIds((prev) => [...prev, u.id]);
-                          setBuscar("");
-                        }}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-primary/5 dark:hover:bg-primary/10"
-                      >
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${ROL_BADGE[u.rol] ?? ""}`}>
-                          {u.rol}
-                        </span>
-                        <span>{u.nombre} {u.apellido}</span>
-                        {u.rut && <span className="text-xs text-text-muted">{u.rut}</span>}
-                      </button>
-                    </li>
+            {/* Selector de curso */}
+            {tipo === "curso" && (
+              <div className="space-y-1.5">
+                <label htmlFor="notif-asignatura" className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Curso
+                </label>
+                <select
+                  id="notif-asignatura"
+                  value={asignaturaId}
+                  onChange={(e) => setAsignaturaId(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="">Selecciona un curso...</option>
+                  {asignaturas.map((a) => (
+                    <option key={a.id} value={a.id}>{a.nombre}</option>
                   ))}
-                </ul>
-              )}
-              {selectedIds.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {selectedIds.map((id) => {
-                    const u = usuarios.find((x) => x.id === id);
-                    return (
-                      <span
-                        key={id}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary dark:bg-primary/20 dark:text-primary-light"
-                      >
-                        {u ? `${u.nombre} ${u.apellido}` : id.slice(0, 8)}
+                </select>
+              </div>
+            )}
+
+            {/* Selector de personas */}
+            {tipo === "individual" && (
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Personas{" "}
+                  {selectedIds.length > 0 && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                      {selectedIds.length} seleccionadas
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={buscar}
+                  onChange={(e) => setBuscar(e.target.value)}
+                  placeholder="Buscar por nombre, RUT o rol..."
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+                {usuariosFiltrados.length > 0 && (
+                  <ul className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    {usuariosFiltrados.slice(0, 12).map((u) => (
+                      <li key={u.id}>
                         <button
                           type="button"
-                          onClick={() => setSelectedIds((prev) => prev.filter((x) => x !== id))}
-                          className="ml-1 text-primary/60 hover:text-primary"
-                          aria-label="Quitar"
+                          onClick={() => {
+                            setSelectedIds((prev) => [...prev, u.id]);
+                            setBuscar("");
+                          }}
+                          className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-primary/5 dark:hover:bg-primary/10"
                         >
-                          &times;
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${ROL_BADGE[u.rol] ?? ""}`}>
+                            {u.rol}
+                          </span>
+                          <span className="font-medium">{u.nombre} {u.apellido}</span>
+                          {u.rut && <span className="text-xs text-text-muted">{u.rut}</span>}
                         </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {selectedIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedIds.map((id) => {
+                      const u = usuarios.find((x) => x.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary/20 dark:text-primary-light"
+                        >
+                          {u ? `${u.nombre} ${u.apellido}` : id.slice(0, 8)}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedIds((prev) => prev.filter((x) => x !== id))}
+                            className="ml-0.5 text-primary/60 hover:text-primary"
+                            aria-label="Quitar"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Título */}
+            <div className="space-y-1.5">
+              <label htmlFor="notif-titulo" className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Título
+              </label>
+              <input
+                id="notif-titulo"
+                type="text"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                required
+                maxLength={200}
+                placeholder="Ej: Información importante sobre clases"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+
+            {/* Mensaje */}
+            <div className="space-y-1.5">
+              <label htmlFor="notif-contenido" className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Mensaje
+              </label>
+              <textarea
+                id="notif-contenido"
+                value={contenido}
+                onChange={(e) => setContenido(e.target.value)}
+                required
+                maxLength={2000}
+                rows={4}
+                placeholder="Escribe el mensaje para los destinatarios..."
+                className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <p className="text-right text-[11px] text-text-muted dark:text-gray-500">
+                {contenido.length}/2000
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isPending || !titulo.trim() || !contenido.trim()}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              {isPending ? "Enviando…" : "Enviar Notificación"}
+            </button>
+          </form>
+        </article>
+
+        {/* Right: historial */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-primary" />
+            <h2 className="text-base font-semibold text-text-primary dark:text-white">
+              Historial de Notificaciones
+            </h2>
+            {historial.length > 0 && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                {historial.length}
+              </span>
+            )}
+          </div>
+
+          {historial.length === 0 ? (
+            <article className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                <Bell className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-text-primary dark:text-white">
+                Sin notificaciones enviadas
+              </h3>
+              <p className="mt-1.5 max-w-xs text-sm text-text-secondary dark:text-gray-400">
+                Las notificaciones que envíes aparecerán aquí con el detalle de destinatarios y emisor.
+              </p>
+            </article>
+          ) : (
+            <div className="space-y-3">
+              {historial.map((n) => (
+                <HistorialItem key={n.id} n={n} />
+              ))}
             </div>
           )}
-
-          {/* Titulo */}
-          <div className="space-y-1.5">
-            <label htmlFor="notif-titulo" className="text-sm font-medium text-text-primary dark:text-gray-200">
-              Título
-            </label>
-            <input
-              id="notif-titulo"
-              type="text"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              required
-              maxLength={200}
-              placeholder="Ej: Información importante sobre clases"
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            />
-          </div>
-
-          {/* Contenido */}
-          <div className="space-y-1.5">
-            <label htmlFor="notif-contenido" className="text-sm font-medium text-text-primary dark:text-gray-200">
-              Mensaje
-            </label>
-            <textarea
-              id="notif-contenido"
-              value={contenido}
-              onChange={(e) => setContenido(e.target.value)}
-              required
-              maxLength={2000}
-              rows={4}
-              placeholder="Escribe el mensaje para los destinatarios..."
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isPending || !titulo.trim() || !contenido.trim()}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-            {isPending ? "Enviando…" : "Enviar Notificación"}
-          </button>
-        </form>
-      </article>
-
-      {/* Historial */}
-      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white">
-          <Bell className="h-4 w-4 text-primary" />
-          Notificaciones Enviadas
-        </h2>
-
-        {historial.length === 0 ? (
-          <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-            Aún no has enviado notificaciones.
-          </p>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {historial.map((n) => (
-              <div
-                key={n.id}
-                className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-text-primary dark:text-white">{n.titulo}</h3>
-                  <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-primary dark:bg-primary/20 dark:text-primary-light">
-                    {TIPO_LABELS[n.tipo ?? "general"] ?? n.tipo}
-                  </span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-sm text-text-secondary dark:text-gray-400">
-                  {n.contenido}
-                </p>
-                <div className="mt-2 flex items-center gap-3 text-xs text-text-muted dark:text-gray-500">
-                  {n.createdAt && (
-                    <span>{new Date(n.createdAt).toLocaleDateString("es-CL", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                  )}
-                  {n.asignaturaNombre && (
-                    <span className="text-primary dark:text-primary-light">Curso: {n.asignaturaNombre}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
+        </div>
+      </div>
     </div>
   );
 }

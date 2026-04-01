@@ -15,6 +15,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
+import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
 
 export async function enviarPushADestinatarios(
@@ -26,13 +27,19 @@ export async function enviarPushADestinatarios(
   const vapidPublic = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
 
-  if (!vapidSubject || !vapidPublic || !vapidPrivate || usuarioIds.length === 0) return;
+  if (usuarioIds.length === 0) return;
+
+  if (!vapidSubject || !vapidPublic || !vapidPrivate) {
+    logEvent({ correlationId: "", action: "push_send_skipped", result: "error", details: { reason: "VAPID_not_configured" } });
+    return;
+  }
 
   let webpush: typeof import("web-push") | null = null;
   try {
     webpush = (await import("web-push")).default as unknown as typeof import("web-push");
     webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
-  } catch {
+  } catch (err) {
+    logEvent({ correlationId: "", action: "push_init_failed", result: "error", details: { reason: String(err) } });
     return;
   }
 
@@ -49,13 +56,17 @@ export async function enviarPushADestinatarios(
 
   const filteredSubs = subs.filter((s) => usuarioIds.includes(s.usuarioId));
 
+  if (filteredSubs.length === 0) {
+    return;
+  }
+
   const payload = JSON.stringify({
     title: titulo,
     body: contenido.slice(0, 120),
     url: "/notificaciones",
   });
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     filteredSubs.map((sub) =>
       webpush!.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -63,6 +74,48 @@ export async function enviarPushADestinatarios(
       ),
     ),
   );
+
+  // Observabilidad: contar éxitos/fallos y limpiar endpoints vencidos
+  const expiredEndpoints: string[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const sub = filteredSubs[i];
+    if (result.status === "fulfilled") {
+      sent++;
+    } else {
+      failed++;
+      const err = result.reason as { statusCode?: number; body?: string } | undefined;
+      const statusCode = err?.statusCode ?? 0;
+      // 410 Gone o 404 = endpoint vencido, eliminar suscripción
+      if (statusCode === 410 || statusCode === 404) {
+        expiredEndpoints.push(sub.endpoint);
+      }
+      logEvent({
+        correlationId: "",
+        action: "push_send_failed",
+        result: "error",
+        details: { endpoint: sub.endpoint.slice(-20), statusCode, usuarioId: sub.usuarioId },
+      });
+    }
+  }
+
+  logEvent({
+    correlationId: "",
+    action: "push_send_complete",
+    result: failed === 0 ? "success" : "error",
+    details: { total: filteredSubs.length, sent, failed, expiredCleaned: expiredEndpoints.length },
+  });
+
+  // Limpiar endpoints vencidos
+  if (expiredEndpoints.length > 0) {
+    await db
+      .delete(pushSubscriptions)
+      .where(inArray(pushSubscriptions.endpoint, expiredEndpoints))
+      .catch(() => {});
+  }
 }
 
 import { requireActionActor, type MutationResult } from "./_security";
@@ -395,4 +448,83 @@ export async function listarUsuariosActivosAdmin() {
 
 export async function listarAlumnosActivosAdmin() {
   return listarUsuariosActivosAdmin();
+}
+
+export async function eliminarNotificacionAction(id: string): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_notificacion_eliminar", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  if (!id) {
+    return { ok: false, code: "invalid_input", message: "ID inválido." };
+  }
+
+  const db = getDb();
+
+  const [existing] = await db
+    .select({ id: notificaciones.id, titulo: notificaciones.titulo, eliminadoAt: notificaciones.eliminadoAt })
+    .from(notificaciones)
+    .where(eq(notificaciones.id, id))
+    .limit(1);
+
+  if (!existing) {
+    return { ok: false, code: "not_found", message: "Notificación no encontrada." };
+  }
+
+  if (existing.eliminadoAt) {
+    return { ok: true, code: "already_deleted" };
+  }
+
+  await db
+    .update(notificaciones)
+    .set({ eliminadoAt: new Date() })
+    .where(eq(notificaciones.id, id));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "editar",
+    entidad: "notificaciones",
+    entidadId: id,
+    payload: { titulo: existing.titulo, accion: "soft_delete" },
+    exitoso: true,
+  });
+
+  revalidatePath("/admin/notificaciones");
+  revalidatePath("/alumno/notificaciones");
+  revalidatePath("/docente/notificaciones");
+
+  return { ok: true, code: "notificacion_deleted" };
+}
+
+export async function listarMisNotificacionesRecientes() {
+  const actorResult = await requireActionActor("notificaciones_recientes", ["alumno", "docente"]);
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const db = getDb();
+
+  return db
+    .select({
+      id: notificaciones.id,
+      titulo: notificaciones.titulo,
+      contenido: notificaciones.contenido,
+      createdAt: notificaciones.createdAt,
+      leidoAt: notificacionesDestinatarios.leidoAt,
+    })
+    .from(notificacionesDestinatarios)
+    .innerJoin(notificaciones, eq(notificacionesDestinatarios.notificacionId, notificaciones.id))
+    .where(
+      and(
+        eq(notificacionesDestinatarios.usuarioId, actorResult.actor.userId),
+        isNull(notificaciones.eliminadoAt),
+      ),
+    )
+    .orderBy(desc(notificaciones.createdAt))
+    .limit(5);
 }

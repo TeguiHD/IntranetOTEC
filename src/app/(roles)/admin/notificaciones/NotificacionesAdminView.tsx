@@ -11,13 +11,14 @@ import {
   Globe,
   Search,
   Send,
+  Trash2,
   Users,
   UserCheck,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { enviarNotificacionAction } from "@/actions/notificaciones";
+import { eliminarNotificacionAction, enviarNotificacionAction } from "@/actions/notificaciones";
 
 type Usuario = { id: string; nombre: string; apellido: string; rut: string | null; rol: string };
 type Asignatura = { id: string; nombre: string };
@@ -95,8 +96,10 @@ function formatRelativeTime(date: Date | null): string {
   }).format(d);
 }
 
-function HistorialItem({ n }: { n: Notificacion }) {
+function HistorialItem({ n, onDelete }: { n: Notificacion; onDelete: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, startDelete] = useTransition();
   const tipo = TIPO_CONFIG[n.tipo ?? "general"] ?? TIPO_CONFIG.general;
   const TipoIcon = tipo.Icon;
 
@@ -195,15 +198,60 @@ function HistorialItem({ n }: { n: Notificacion }) {
         )}
 
         {/* Fecha */}
-        <span className="ml-auto text-xs text-text-muted dark:text-gray-500">
+        <span className="text-xs text-text-muted dark:text-gray-500">
           {formatRelativeTime(n.createdAt)}
         </span>
+
+        {/* Borrar */}
+        <div className="ml-auto">
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+            >
+              <Trash2 className="h-3 w-3" />
+              Borrar
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-text-secondary dark:text-gray-400">¿Confirmar?</span>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg px-2 py-1 text-xs text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  startDelete(async () => {
+                    const result = await eliminarNotificacionAction(n.id);
+                    if (result.ok) {
+                      toast.success("Notificación eliminada.");
+                      onDelete(n.id);
+                    } else {
+                      toast.error(result.message ?? "No se pudo eliminar.");
+                    }
+                    setConfirmDelete(false);
+                  });
+                }}
+                className="rounded-lg bg-red-600 px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? "..." : "Sí"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );
 }
 
 export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Props) {
+  const [localHistorial, setLocalHistorial] = useState<Notificacion[]>(historial);
   const [tipo, setTipo] = useState<"general" | "curso" | "individual">("general");
   const [titulo, setTitulo] = useState("");
   const [contenido, setContenido] = useState("");
@@ -319,10 +367,10 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
   // Stats
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const hoy = historial.filter(
+  const hoy = localHistorial.filter(
     (n) => n.createdAt && new Date(n.createdAt) >= today,
   ).length;
-  const totalDestinatariosTotal = historial.reduce(
+  const totalDestinatariosTotal = localHistorial.reduce(
     (acc, n) => acc + (n.totalDestinatarios ?? 0),
     0,
   );
@@ -338,7 +386,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
             Total enviadas
           </p>
           <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">
-            {historial.length}
+            {localHistorial.length}
           </p>
         </article>
         <article className="rounded-2xl border border-blue-200/80 bg-blue-50 p-4 shadow-sm dark:border-blue-900/40 dark:bg-blue-950/30">
@@ -697,14 +745,14 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
             <h2 className="text-base font-semibold text-text-primary dark:text-white">
               Historial de Notificaciones
             </h2>
-            {historial.length > 0 && (
+            {localHistorial.length > 0 && (
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                {historial.length}
+                {localHistorial.length}
               </span>
             )}
           </div>
 
-          {historial.length === 0 ? (
+          {localHistorial.length === 0 ? (
             <article className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
                 <Bell className="h-8 w-8 text-gray-400 dark:text-gray-500" />
@@ -718,8 +766,12 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
             </article>
           ) : (
             <div className="space-y-3">
-              {historial.map((n) => (
-                <HistorialItem key={n.id} n={n} />
+              {localHistorial.map((n) => (
+                <HistorialItem
+                  key={n.id}
+                  n={n}
+                  onDelete={(id) => setLocalHistorial((prev) => prev.filter((x) => x.id !== id))}
+                />
               ))}
             </div>
           )}

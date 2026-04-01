@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
+import { logEvent } from "@/lib/observability/logger";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -44,6 +45,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+  logEvent({
+    correlationId: "",
+    action: "push_subscribe",
+    result: "success",
+    userId: session.user.id,
+    details: { endpoint: body.endpoint.slice(-20) },
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -67,6 +76,14 @@ export async function DELETE(request: NextRequest) {
   await db
     .delete(pushSubscriptions)
     .where(eq(pushSubscriptions.endpoint, body.endpoint));
+
+  logEvent({
+    correlationId: "",
+    action: "push_unsubscribe",
+    result: "success",
+    userId: session.user.id,
+    details: { endpoint: body.endpoint.slice(-20) },
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -14,7 +14,9 @@ import { AlumnoCombobox } from "./AlumnoCombobox";
 import { AsignaturaCombobox } from "./AsignaturaCombobox";
 import { DesmatricularButton } from "./DesmatricularButton";
 import { EditMatriculaButton } from "./EditMatriculaButton";
+import { EliminarMatriculaButton } from "./EliminarMatriculaButton";
 import { ExportCsvButton } from "./ExportCsvButton";
+import { ReactivarMatriculaButton } from "./ReactivarMatriculaButton";
 
 const PAGE_SIZE = 20;
 
@@ -23,7 +25,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   matricula_updated: { tone: "success", text: "Matrícula actualizada/reactivada correctamente." },
   matricula_edited: { tone: "success", text: "Matrícula editada correctamente." },
   matricula_deactivated: { tone: "success", text: "Matrícula desactivada correctamente." },
+  matricula_reactivated: { tone: "success", text: "Matrícula reactivada correctamente." },
+  matricula_deleted: { tone: "success", text: "Matrícula eliminada correctamente." },
   already_inactive: { tone: "success", text: "La matrícula ya estaba inactiva." },
+  already_active: { tone: "success", text: "La matrícula ya estaba activa." },
+  already_deleted: { tone: "success", text: "La matrícula ya estaba eliminada." },
   error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
 };
 
@@ -260,25 +266,44 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                       </span>
                     )}
                   </div>
-                  {matricula.activa && (
-                    <div className="mt-3 flex gap-2">
-                      <EditMatriculaButton
-                        matriculaId={matricula.id}
-                        alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
-                        estadoPago={matricula.estadoPago}
-                        montoArancel={matricula.montoArancel}
-                        asignaturaId={selectedAsignaturaId ?? ""}
-                        currentPage={currentPage}
-                      />
-                      <DesmatricularButton
-                        matriculaId={matricula.id}
-                        alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
-                        asignaturaId={selectedAsignaturaId ?? ""}
-                        currentPage={currentPage}
-                        className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
-                      />
-                    </div>
-                  )}
+                  <div className="mt-3 flex gap-2">
+                    {matricula.activa ? (
+                      <>
+                        <EditMatriculaButton
+                          matriculaId={matricula.id}
+                          alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                          estadoPago={matricula.estadoPago}
+                          montoArancel={matricula.montoArancel}
+                          asignaturaId={selectedAsignaturaId ?? ""}
+                          currentPage={currentPage}
+                        />
+                        <DesmatricularButton
+                          matriculaId={matricula.id}
+                          alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                          asignaturaId={selectedAsignaturaId ?? ""}
+                          currentPage={currentPage}
+                          className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <ReactivarMatriculaButton
+                          matriculaId={matricula.id}
+                          alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                          asignaturaId={selectedAsignaturaId ?? ""}
+                          currentPage={currentPage}
+                          className="h-10 flex-1 rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 dark:text-green-400"
+                        />
+                        <EliminarMatriculaButton
+                          matriculaId={matricula.id}
+                          alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                          asignaturaId={selectedAsignaturaId ?? ""}
+                          currentPage={currentPage}
+                          className="h-10 flex-1 rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -353,7 +378,20 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                             />
                           </div>
                         ) : (
-                          <span className="text-xs text-text-secondary dark:text-gray-400">—</span>
+                          <div className="flex items-center justify-end gap-2">
+                            <ReactivarMatriculaButton
+                              matriculaId={matricula.id}
+                              alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                              asignaturaId={selectedAsignaturaId ?? ""}
+                              currentPage={currentPage}
+                            />
+                            <EliminarMatriculaButton
+                              matriculaId={matricula.id}
+                              alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                              asignaturaId={selectedAsignaturaId ?? ""}
+                              currentPage={currentPage}
+                            />
+                          </div>
                         )}
                       </td>
                     </tr>

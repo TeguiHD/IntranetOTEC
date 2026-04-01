@@ -1672,6 +1672,14 @@ export async function eliminarDocentePermanenteFormAction(formData: FormData): P
   redirect(`/admin/docentes?state=${result.ok ? result.code : result.code}`);
 }
 
+export async function eliminarAdministradorPermanenteFormAction(formData: FormData): Promise<void> {
+  const result = await eliminarUsuarioPermanenteAction({
+    userId: getStringField(formData, "userId"),
+  });
+  revalidatePath("/admin/administradores");
+  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+}
+
 const PIN_REGEX = /^\d{4}$/;
 
 export async function cambiarPinAlumnoAction(input: {
@@ -1822,15 +1830,12 @@ export async function establecerPasswordDocenteAction(input: {
     return { ok: false, code: "invalid_input", message: "ID de usuario requerido." };
   }
 
-  // Validación de política mínima: mínimo 8 caracteres, al menos una letra y un número
+  // Política intermedia: mínimo 8 caracteres, letras y números
   if (!nuevaPassword || nuevaPassword.length < 8) {
     return { ok: false, code: "invalid_password_policy", message: "La contraseña debe tener al menos 8 caracteres." };
   }
-  if (!/[a-zA-Z]/.test(nuevaPassword)) {
-    return { ok: false, code: "invalid_password_policy", message: "La contraseña debe contener al menos una letra." };
-  }
-  if (!/[0-9]/.test(nuevaPassword)) {
-    return { ok: false, code: "invalid_password_policy", message: "La contraseña debe contener al menos un número." };
+  if (!/[a-zA-Z]/.test(nuevaPassword) || !/[0-9]/.test(nuevaPassword)) {
+    return { ok: false, code: "invalid_password_policy", message: "La contraseña debe contener letras y números." };
   }
 
   const db = getDb();

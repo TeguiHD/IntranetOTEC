@@ -177,9 +177,9 @@ export function DocenteCreateModal() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 required
-                minLength={12}
+                minLength={8}
                 maxLength={128}
-                placeholder="Mínimo 12 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 className={`${inputClass} pr-11`}
                 disabled={isPending}
               />
@@ -194,7 +194,7 @@ export function DocenteCreateModal() {
               </button>
             </div>
             <p className="text-xs text-text-muted dark:text-gray-500">
-              Debe incluir mayúscula, minúscula, número, símbolo y mínimo 12 caracteres.
+              Mínimo 8 caracteres, letras y números.
             </p>
           </div>
 

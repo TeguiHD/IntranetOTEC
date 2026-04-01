@@ -102,10 +102,10 @@ export async function listarMatriculasAdmin(
 
   if (options?.incluirInactivas) {
     if (byAsignatura) {
-      return baseQuery.where(byAsignatura);
+      return baseQuery.where(and(byAsignatura, isNull(matriculas.eliminadoAt)));
     }
 
-    return baseQuery;
+    return baseQuery.where(isNull(matriculas.eliminadoAt));
   }
 
   if (byAsignatura) {
@@ -144,8 +144,8 @@ export async function countMatriculasAdmin(
 
   if (options?.incluirInactivas) {
     result = byAsignatura
-      ? await baseQuery.where(byAsignatura)
-      : await baseQuery;
+      ? await baseQuery.where(and(byAsignatura, isNull(matriculas.eliminadoAt)))
+      : await baseQuery.where(isNull(matriculas.eliminadoAt));
   } else if (byAsignatura) {
     result = await baseQuery.where(
       and(byAsignatura, eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
@@ -434,11 +434,7 @@ export async function desmatricularAlumnoAction(input: {
 
     await db
       .update(matriculas)
-      .set({
-        activa: false,
-        eliminadoAt: new Date(),
-        eliminadoPor: actorResult.actor.userId,
-      })
+      .set({ activa: false })
       .where(eq(matriculas.id, row.id));
 
     await registrarAudit({
@@ -616,5 +612,139 @@ export async function desmatricularAlumnoFormAction(
     : "";
   const pageQuery = page ? `&page=${page}` : "";
 
+  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
+}
+
+export async function reactivarMatriculaAction(input: {
+  matriculaId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_matricula_deactivate", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const db = getDb();
+
+  try {
+    const [row] = await db
+      .select({ id: matriculas.id, activa: matriculas.activa })
+      .from(matriculas)
+      .where(eq(matriculas.id, input.matriculaId))
+      .limit(1);
+
+    if (!row) {
+      return { ok: false, code: "matricula_not_found", message: "Matrícula no encontrada." };
+    }
+
+    if (row.activa) {
+      return { ok: true, code: "already_active" };
+    }
+
+    await db
+      .update(matriculas)
+      .set({ activa: true })
+      .where(eq(matriculas.id, row.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "matriculas",
+      entidadId: row.id,
+      payload: { accion: "reactivar" },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "matricula_reactivated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_matricula_reactivate_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      details: { reason: message },
+    });
+    return { ok: false, code: "reactivate_failed", message: "No fue posible reactivar la matrícula." };
+  }
+}
+
+export async function reactivarMatriculaFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
+  const result = await reactivarMatriculaAction({ matriculaId: getStringField(formData, "matriculaId") });
+
+  revalidatePath("/admin/matriculas");
+  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
+  const pageQuery = page ? `&page=${page}` : "";
+  redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
+}
+
+export async function eliminarMatriculaAction(input: {
+  matriculaId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_matricula_deactivate", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const db = getDb();
+
+  try {
+    const [row] = await db
+      .select({ id: matriculas.id, activa: matriculas.activa, eliminadoAt: matriculas.eliminadoAt })
+      .from(matriculas)
+      .where(eq(matriculas.id, input.matriculaId))
+      .limit(1);
+
+    if (!row) {
+      return { ok: false, code: "matricula_not_found", message: "Matrícula no encontrada." };
+    }
+
+    if (row.eliminadoAt) {
+      return { ok: true, code: "already_deleted" };
+    }
+
+    await db
+      .update(matriculas)
+      .set({ activa: false, eliminadoAt: new Date(), eliminadoPor: actorResult.actor.userId })
+      .where(eq(matriculas.id, row.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "matriculas",
+      entidadId: row.id,
+      payload: { accion: "soft_delete" },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "matricula_deleted" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_matricula_delete_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      details: { reason: message },
+    });
+    return { ok: false, code: "delete_failed", message: "No fue posible eliminar la matrícula." };
+  }
+}
+
+export async function eliminarMatriculaFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const page = parsePageField(getStringField(formData, "page"));
+  const result = await eliminarMatriculaAction({ matriculaId: getStringField(formData, "matriculaId") });
+
+  revalidatePath("/admin/matriculas");
+  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
+  const pageQuery = page ? `&page=${page}` : "";
   redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }

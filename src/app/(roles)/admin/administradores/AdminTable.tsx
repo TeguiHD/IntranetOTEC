@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { Loader2, Pencil, Search } from "lucide-react";
+import { Loader2, Pencil, Search, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -10,6 +10,7 @@ import {
   activarAdministradorFormAction,
   desactivarAdministradorFormAction,
   editarAdministradorAction,
+  eliminarAdministradorPermanenteFormAction,
 } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
@@ -32,7 +33,7 @@ type AdminTableProps = {
 type PendingAction = {
   userId: string;
   name: string;
-  action: "activate" | "deactivate";
+  action: "activate" | "deactivate" | "delete";
 } | null;
 
 const inputClass =
@@ -55,6 +56,8 @@ export function AdminTable({
     startTransition(async () => {
       if (pending.action === "deactivate") {
         await desactivarAdministradorFormAction(formData);
+      } else if (pending.action === "delete") {
+        await eliminarAdministradorPermanenteFormAction(formData);
       } else {
         await activarAdministradorFormAction(formData);
       }
@@ -287,14 +290,28 @@ export function AdminTable({
         onClose={() => setPending(null)}
         onConfirm={handleConfirm}
         isPending={isPending}
-        title={pending?.action === "deactivate" ? "Desactivar admin" : "Activar admin"}
+        title={
+          pending?.action === "deactivate"
+            ? "Desactivar admin"
+            : pending?.action === "delete"
+              ? "Eliminar admin"
+              : "Activar admin"
+        }
         description={
           pending?.action === "deactivate"
             ? `¿Seguro que deseas desactivar a ${pending?.name}? Perderá acceso a la plataforma.`
-            : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
+            : pending?.action === "delete"
+              ? `¿Seguro que deseas eliminar permanentemente a ${pending?.name}? Esta acción no se puede deshacer.`
+              : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
         }
-        confirmLabel={pending?.action === "deactivate" ? "Desactivar" : "Activar"}
-        variant={pending?.action === "deactivate" ? "danger" : "primary"}
+        confirmLabel={
+          pending?.action === "deactivate"
+            ? "Desactivar"
+            : pending?.action === "delete"
+              ? "Eliminar"
+              : "Activar"
+        }
+        variant={pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
       />
     </>
   );
@@ -324,14 +341,23 @@ function ActionButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() =>
-        onAction({ userId: admin.id, name, action: "activate" })
-      }
-      className="h-10 flex-1 rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 active:bg-success/20 dark:text-green-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
-    >
-      Activar
-    </button>
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={() => onAction({ userId: admin.id, name, action: "activate" })}
+        className="h-10 flex-1 rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 active:bg-success/20 dark:text-green-400 sm:h-auto sm:flex-none sm:px-3.5 sm:py-1.5 sm:text-xs"
+      >
+        Activar
+      </button>
+      <button
+        type="button"
+        onClick={() => onAction({ userId: admin.id, name, action: "delete" })}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-danger/30 text-danger transition-colors hover:bg-danger/10 active:bg-danger/20 dark:text-red-400 sm:h-8 sm:w-8 sm:rounded-lg"
+        aria-label={`Eliminar ${name}`}
+        title="Eliminar permanentemente"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }

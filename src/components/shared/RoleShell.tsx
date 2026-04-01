@@ -85,6 +85,7 @@ export function RoleShell({ role, userName, children, pendingSolicitudes, unread
       {/* Desktop sidebar + Mobile sidebar (when mode is "sidebar") */}
       <Sidebar
         role={role}
+        userName={userName}
         collapsed={isSidebarCollapsed}
         mobileOpen={isMobileSidebarOpen && navMode === "sidebar"}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}

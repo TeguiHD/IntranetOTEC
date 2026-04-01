@@ -13,6 +13,7 @@ import { GRADIENT_COLORS, ROLE_LABELS, ROLE_SECTIONS } from "./navigationConfig"
 
 type SidebarProps = {
   role: AppRole;
+  userName: string;
   collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -112,7 +113,7 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile, pendingSolicitudes }: SidebarProps) {
+export function Sidebar({ role, userName, collapsed, mobileOpen, onCloseMobile, pendingSolicitudes }: SidebarProps) {
   const widthClass = collapsed ? "w-[4.5rem]" : "w-64";
 
   return (
@@ -138,7 +139,9 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile, pendingSol
             <SidebarLogo collapsed={false} />
             <div>
               <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
-              <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_LABELS[role]}</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">
+                {ROLE_LABELS[role]} · {userName.split(" ")[0]}
+              </p>
             </div>
           </div>
           <button

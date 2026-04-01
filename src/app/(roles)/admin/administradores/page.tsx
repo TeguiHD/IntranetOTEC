@@ -136,9 +136,7 @@ export default async function AdminAdministradoresPage({
                 <span>
                   {totalCount} resultado{totalCount === 1 ? "" : "s"} para <strong className="text-text-primary dark:text-white">“{searchQuery}”</strong>
                 </span>
-              ) : (
-                <span>La búsqueda considera toda la base de administradores y no solo la página visible.</span>
-              )}
+              ) : null}
             </div>
           </form>
         </div>

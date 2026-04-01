@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -147,6 +147,49 @@ export async function listarMatriculasDocente(asignaturaId: string) {
     .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
     .where(and(eq(matriculas.asignaturaId, asignaturaId), eq(matriculas.activa, true)))
     .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+}
+
+/**
+ * Nómina de alumnos con resumen operativo: asistencias presentes, total clases y último estado.
+ * Para control de distribución y seguimiento por docente (Step 15).
+ */
+export async function listarResumenAlumnosDocente(asignaturaId: string) {
+  const actorResult = await requireActionActor("docente_matriculas_list", ["docente"]);
+  if (!actorResult.ok || !asignaturaId) return [];
+
+  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!isOwner) return [];
+
+  const db = getDb();
+
+  // Total clases de la asignatura
+  const [totalClasesRow] = await db
+    .select({ total: count() })
+    .from(clases)
+    .where(and(eq(clases.asignaturaId, asignaturaId), isNull(clases.eliminadoAt)));
+
+  const totalClases = Number(totalClasesRow?.total ?? 0);
+
+  // Por alumno: presentes y notas promedio
+  const rows = await db
+    .select({
+      matriculaId: matriculas.id,
+      alumnoId: usuarios.id,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+      activa: matriculas.activa,
+      presentes: sql<number>`cast(count(case when ${asistencia.estado} = 'presente' or ${asistencia.estado} = 'tardanza' then 1 end) as int)`,
+      ausentes: sql<number>`cast(count(case when ${asistencia.estado} = 'ausente' then 1 end) as int)`,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .leftJoin(asistencia, eq(asistencia.matriculaId, matriculas.id))
+    .where(and(eq(matriculas.asignaturaId, asignaturaId), eq(matriculas.activa, true)))
+    .groupBy(matriculas.id, usuarios.id, usuarios.nombre, usuarios.apellido, usuarios.rut, matriculas.activa)
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+
+  return rows.map((r) => ({ ...r, totalClases }));
 }
 
 export async function listarClasesDocente(asignaturaId: string) {

@@ -630,25 +630,20 @@ export function AsignaturaManager({
 
             {/* Duración */}
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                Duración <span className="text-danger">*</span>
+              <label htmlFor="new-duracion" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                Duración (meses) <span className="text-danger">*</span>
               </label>
-              <div className="flex gap-2">
-                {[2, 4, 6].map((m) => (
-                  <label key={m} className="flex-1">
-                    <input
-                      type="radio"
-                      name="duracionMeses"
-                      value={String(m)}
-                      defaultChecked={m === 4}
-                      className="peer sr-only"
-                    />
-                    <span className="flex h-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-sm font-medium text-text-secondary transition-colors peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary dark:border-gray-700 dark:text-gray-400 dark:peer-checked:border-primary-light dark:peer-checked:bg-primary/10 dark:peer-checked:text-primary-light">
-                      {m}m
-                    </span>
-                  </label>
-                ))}
-              </div>
+              <input
+                id="new-duracion"
+                name="duracionMeses"
+                type="number"
+                required
+                min={1}
+                max={12}
+                defaultValue={4}
+                className={INPUT}
+              />
+              <p className="text-xs text-text-muted dark:text-gray-500">Entre 1 y 12 meses.</p>
             </div>
 
             {/* Máx alumnos */}

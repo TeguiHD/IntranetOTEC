@@ -24,7 +24,7 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   invalid_input: { tone: "error", text: "Datos invalidos. Verifica RUT, correo y politica de contrasena." },
   invalid_rut: { tone: "error", text: "RUT invalido. Revisa formato y digito verificador." },
   invalid_email: { tone: "error", text: "Correo invalido. Verifica el formato ingresado." },
-  invalid_password_policy: { tone: "error", text: "La contrasena no cumple politica: minimo 12 caracteres, mayuscula, minuscula, numero y simbolo." },
+  invalid_password_policy: { tone: "error", text: "La contraseña no cumple la política: mínimo 8 caracteres, letras y números." },
   invalid_name: { tone: "error", text: "Nombre o apellido invalido. Deben tener al menos 2 caracteres." },
   email_conflict: { tone: "error", text: "El correo ya esta registrado por otro usuario." },
   rut_conflict: { tone: "error", text: "El RUT ya esta asociado a otro tipo de usuario." },

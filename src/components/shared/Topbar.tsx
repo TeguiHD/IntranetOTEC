@@ -197,10 +197,6 @@ export function Topbar({
           })}
         </nav>
 
-        {/* Mobile: role badge */}
-        <span className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light sm:hidden">
-          {ROLE_NAMES[role]}
-        </span>
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">

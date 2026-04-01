@@ -10,6 +10,7 @@ import {
   listarMatriculasDocente,
   listarNotasDocente,
   listarObservacionesDocente,
+  listarResumenAlumnosDocente,
   registrarAsistenciaDocenteFormAction,
   registrarNotaDocenteFormAction,
   registrarObservacionDocenteFormAction,
@@ -86,15 +87,16 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
       ? params.asignaturaId
       : asignaturas[0]?.id;
 
-  const [clases, matriculas, notas, observaciones, materiales] = selectedAsignaturaId
+  const [clases, matriculas, notas, observaciones, materiales, resumenAlumnos] = selectedAsignaturaId
     ? await Promise.all([
         listarClasesDocente(selectedAsignaturaId),
         listarMatriculasDocente(selectedAsignaturaId),
         listarNotasDocente(selectedAsignaturaId),
         listarObservacionesDocente(selectedAsignaturaId),
         listarMaterialPorAsignatura(selectedAsignaturaId),
+        listarResumenAlumnosDocente(selectedAsignaturaId),
       ])
-    : [[], [], [], [], []];
+    : [[], [], [], [], [], []];
 
   const anioParam =
     typeof params.anio === "string" && /^\d{4}$/.test(params.anio)
@@ -343,6 +345,84 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                   </div>
                 ))}
               </div>
+            </article>
+          )}
+
+          {/* Nómina de alumnos — Step 15: control operativo docente */}
+          {resumenAlumnos.length > 0 && (
+            <article id="nomina" className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">
+                  Nómina de alumnos
+                </h2>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                  {resumenAlumnos.length} alumno{resumenAlumnos.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                Seguimiento de asistencia por alumno. Clases registradas: {resumenAlumnos[0]?.totalClases ?? 0}.
+              </p>
+
+              {/* Desktop */}
+              <div className="mt-4 hidden overflow-x-auto md:block">
+                <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-700">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                      <th className="py-2 pr-4">Alumno</th>
+                      <th className="py-2 pr-4">RUT</th>
+                      <th className="py-2 pr-4 text-center">Presentes</th>
+                      <th className="py-2 pr-4 text-center">Ausentes</th>
+                      <th className="py-2 text-center">% Asistencia</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {resumenAlumnos.map((a) => {
+                      const totalRegistrado = a.presentes + a.ausentes;
+                      const pct = totalRegistrado > 0 ? Math.round((a.presentes / totalRegistrado) * 100) : null;
+                      const pctColor = pct === null ? "text-text-muted" : pct >= 75 ? "text-success" : pct >= 50 ? "text-warning" : "text-danger";
+                      return (
+                        <tr key={a.matriculaId} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                          <td className="py-2 pr-4 font-medium text-text-primary dark:text-gray-100">
+                            {a.alumnoNombre} {a.alumnoApellido}
+                          </td>
+                          <td className="py-2 pr-4 text-xs text-text-secondary dark:text-gray-400">
+                            {formatRutValue(a.alumnoRut)}
+                          </td>
+                          <td className="py-2 pr-4 text-center text-text-primary dark:text-gray-100">{a.presentes}</td>
+                          <td className="py-2 pr-4 text-center text-text-secondary dark:text-gray-400">{a.ausentes}</td>
+                          <td className={`py-2 text-center text-xs font-semibold ${pctColor}`}>
+                            {pct !== null ? `${pct}%` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile */}
+              <ul className="mt-3 space-y-2 md:hidden">
+                {resumenAlumnos.map((a) => {
+                  const totalRegistrado = a.presentes + a.ausentes;
+                  const pct = totalRegistrado > 0 ? Math.round((a.presentes / totalRegistrado) * 100) : null;
+                  const pctColor = pct === null ? "text-text-muted" : pct >= 75 ? "text-success" : pct >= 50 ? "text-warning" : "text-danger";
+                  return (
+                    <li key={a.matriculaId} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800/50">
+                      <p className="font-medium text-text-primary dark:text-gray-100">
+                        {a.alumnoNombre} {a.alumnoApellido}
+                      </p>
+                      <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">
+                        {formatRutValue(a.alumnoRut)}
+                      </p>
+                      <div className="mt-1.5 flex gap-3 text-xs">
+                        <span className="text-success">{a.presentes} presentes</span>
+                        <span className="text-text-muted dark:text-gray-500">{a.ausentes} ausentes</span>
+                        {pct !== null && <span className={`font-semibold ${pctColor}`}>{pct}% asistencia</span>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </article>
           )}
 

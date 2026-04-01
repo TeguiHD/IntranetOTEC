@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, ilike, isNull, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, ne, or, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -129,7 +129,7 @@ export async function countAsignaturasAdmin(
   }
 
   const db = getDb();
-  const conditions = [];
+  const conditions: (SQL | undefined)[] = [isNull(asignaturas.eliminadoAt)];
 
   if (!options?.incluirArchivadas) {
     conditions.push(ne(asignaturas.estado, "archivado"));
@@ -203,7 +203,7 @@ export async function listarAsignaturasAdmin(
   const db = getDb();
   const { limit, offset } = resolvePagination(pagination);
 
-  const conditions = [];
+  const conditions: (SQL | undefined)[] = [isNull(asignaturas.eliminadoAt)];
 
   if (!options?.incluirArchivadas) {
     conditions.push(ne(asignaturas.estado, "archivado"));
@@ -648,6 +648,132 @@ export async function archivarAsignaturaAction(input: { id: string }): Promise<M
 
 export async function archivarAsignaturaFormAction(formData: FormData): Promise<void> {
   const result = await archivarAsignaturaAction({ id: getStringField(formData, "id") });
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
+export async function desarchivariAsignaturaAction(input: { id: string }): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_desarchivar", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: asignaturas.id, estado: asignaturas.estado, nombre: asignaturas.nombre })
+      .from(asignaturas)
+      .where(and(eq(asignaturas.id, input.id), isNull(asignaturas.eliminadoAt)))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "asignatura_not_found", message: "No se encontró la asignatura." };
+    }
+
+    if (existing.estado !== "archivado") {
+      return { ok: true, code: "not_archived" };
+    }
+
+    await db
+      .update(asignaturas)
+      .set({ estado: "activo", updatedAt: new Date() })
+      .where(eq(asignaturas.id, input.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "asignaturas",
+      entidadId: input.id,
+      payload: { nombre: existing.nombre, accion: "desarchivar", estadoAnterior: "archivado", estadoNuevo: "activo" },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "asignatura_unarchived" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_asignatura_desarchivar_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "error", message: "No fue posible desarchivar la asignatura." };
+  }
+}
+
+export async function desarchivariAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await desarchivariAsignaturaAction({ id: getStringField(formData, "id") });
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
+export async function eliminarAsignaturaAction(input: { id: string }): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_eliminar", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const db = getDb();
+
+  try {
+    const [existing] = await db
+      .select({ id: asignaturas.id, nombre: asignaturas.nombre, eliminadoAt: asignaturas.eliminadoAt })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, input.id))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "asignatura_not_found", message: "No se encontró la asignatura." };
+    }
+
+    if (existing.eliminadoAt) {
+      return { ok: true, code: "already_deleted" };
+    }
+
+    await db
+      .update(asignaturas)
+      .set({
+        eliminadoAt: new Date(),
+        eliminadoPor: actorResult.actor.userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(asignaturas.id, input.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "asignaturas",
+      entidadId: input.id,
+      payload: { nombre: existing.nombre, accion: "soft_delete" },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "asignatura_deleted" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_asignatura_eliminar_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "error", message: "No fue posible eliminar la asignatura." };
+  }
+}
+
+export async function eliminarAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await eliminarAsignaturaAction({ id: getStringField(formData, "id") });
   revalidatePath("/admin/asignaturas");
   redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
 }

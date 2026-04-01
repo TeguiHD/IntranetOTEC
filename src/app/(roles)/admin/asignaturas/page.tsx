@@ -29,6 +29,18 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> =
       tone: "success",
       text: "La asignatura ya estaba archivada.",
     },
+    asignatura_unarchived: {
+      tone: "success",
+      text: "Asignatura desarchivada y reactivada.",
+    },
+    asignatura_deleted: {
+      tone: "success",
+      text: "Asignatura eliminada.",
+    },
+    already_deleted: {
+      tone: "success",
+      text: "La asignatura ya había sido eliminada.",
+    },
     error: {
       tone: "error",
       text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente.",

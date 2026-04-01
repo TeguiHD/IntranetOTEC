@@ -152,6 +152,8 @@ export const asignaturas = pgTable("asignaturas", {
   createdBy: uuid("created_by").references(() => usuarios.id),
   createdAt: tstz("created_at").defaultNow(),
   updatedAt: tstz("updated_at").defaultNow(),
+  eliminadoAt: tstz("eliminado_at"),
+  eliminadoPor: uuid("eliminado_por"),
 });
 
 export const matriculas = pgTable(

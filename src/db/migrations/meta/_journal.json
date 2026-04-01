@@ -34,7 +34,63 @@
       "idx": 4,
       "version": "7",
       "when": 1774481245524,
-      "tag": "0004_romantic_khan",
+      "tag": "0004_encuestas_test_estilos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774490000000,
+      "tag": "0005_encuestas_unificadas",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774500000000,
+      "tag": "0006_qr_asistencia_mensajes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774510000000,
+      "tag": "0007_pin_alumnos",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774520000000,
+      "tag": "0008_notificaciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774530000000,
+      "tag": "0009_push_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774540000000,
+      "tag": "0010_usuario_id_notif_push",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1774550000000,
+      "tag": "0011_encuestas_grupo",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1743505200000,
+      "tag": "0012_asignaturas_soft_delete",
       "breakpoints": true
     }
   ]

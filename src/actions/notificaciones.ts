@@ -359,7 +359,7 @@ export async function listarAsignaturasActivasAdmin() {
   return db
     .select({ id: asignaturas.id, nombre: asignaturas.nombre })
     .from(asignaturas)
-    .where(eq(asignaturas.estado, "activo"))
+    .where(inArray(asignaturas.estado, ["activo", "finalizado"]))
     .orderBy(asignaturas.nombre);
 }
 

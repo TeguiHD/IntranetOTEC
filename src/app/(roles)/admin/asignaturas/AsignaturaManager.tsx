@@ -2,12 +2,14 @@
 
 import { useRef, useMemo, useState, useTransition } from "react";
 
-import { Archive, BookOpen, Plus, RotateCcw, Search, UserCog, X } from "lucide-react";
+import { Archive, BookOpen, Plus, RotateCcw, Search, Trash2, UserCog, Users, X } from "lucide-react";
 
 import {
   archivarAsignaturaFormAction,
   asignarDocenteFormAction,
   crearAsignaturaFormAction,
+  desarchivariAsignaturaFormAction,
+  eliminarAsignaturaFormAction,
 } from "@/actions/asignaturas";
 import { activarUsuarioAction } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -248,9 +250,13 @@ export function AsignaturaManager({
   const [confirmDocente, setConfirmDocente] = useState<Docente | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [archivingAsig, setArchivingAsig] = useState<Asignatura | null>(null);
+  const [unarchivingAsig, setUnarchivingAsig] = useState<Asignatura | null>(null);
+  const [deletingAsig, setDeletingAsig] = useState<Asignatura | null>(null);
   const [isPending, startTransition] = useTransition();
   const assignFormRef = useRef<HTMLFormElement>(null);
   const archiveFormRef = useRef<HTMLFormElement>(null);
+  const unarchiveFormRef = useRef<HTMLFormElement>(null);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
 
   const handleAssignSubmit = () => {
     if (!confirmDocente || !assignFormRef.current) return;
@@ -351,7 +357,14 @@ export function AsignaturaManager({
                       </span>
                     )}
                   </p>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <a
+                      href={`/admin/matriculas?asignaturaId=${a.id}`}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      Alumnos
+                    </a>
                     {(a.estado === "activo" || a.estado === "borrador") && (
                       <button
                         type="button"
@@ -372,6 +385,24 @@ export function AsignaturaManager({
                         Archivar
                       </button>
                     )}
+                    {a.estado === "archivado" && (
+                      <button
+                        type="button"
+                        onClick={() => setUnarchivingAsig(a)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 px-3 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Desarchivar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDeletingAsig(a)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Borrar
+                    </button>
                   </div>
                 </div>
               </div>
@@ -459,7 +490,14 @@ export function AsignaturaManager({
 
                     {/* Acción */}
                     <td className="px-3 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
+                      <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                        <a
+                          href={`/admin/matriculas?asignaturaId=${a.id}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          Alumnos
+                        </a>
                         {canAssign && (
                           <button
                             type="button"
@@ -474,15 +512,30 @@ export function AsignaturaManager({
                           <button
                             type="button"
                             onClick={() => setArchivingAsig(a)}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-amber-200 px-3 text-xs font-semibold text-amber-600 transition-colors hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
                           >
                             <Archive className="h-3.5 w-3.5" />
                             Archivar
                           </button>
                         )}
                         {a.estado === "archivado" && (
-                          <span className="text-xs text-text-muted dark:text-gray-600">—</span>
+                          <button
+                            type="button"
+                            onClick={() => setUnarchivingAsig(a)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-emerald-200 px-3 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Desarchivar
+                          </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setDeletingAsig(a)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Borrar
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -728,10 +781,54 @@ export function AsignaturaManager({
         title="Archivar asignatura"
         description={
           archivingAsig
-            ? `¿Archivar "${archivingAsig.nombre}"? La asignatura quedará inactiva y no aparecerá en las vistas activas. Esta acción no se puede deshacer fácilmente.`
+            ? `¿Archivar "${archivingAsig.nombre}"? La asignatura quedará inactiva y no aparecerá en las vistas activas.`
             : ""
         }
         confirmLabel="Sí, archivar"
+        variant="danger"
+        isPending={isPending}
+      />
+
+      {/* ── Hidden form + confirm dialog for unarchiving ── */}
+      <form ref={unarchiveFormRef} action={desarchivariAsignaturaFormAction} className="hidden">
+        <input type="hidden" name="id" value={unarchivingAsig?.id ?? ""} />
+      </form>
+      <ConfirmDialog
+        open={unarchivingAsig !== null}
+        onClose={() => setUnarchivingAsig(null)}
+        onConfirm={() => {
+          setUnarchivingAsig(null);
+          startTransition(() => { unarchiveFormRef.current?.requestSubmit(); });
+        }}
+        title="Desarchivar asignatura"
+        description={
+          unarchivingAsig
+            ? `¿Reactivar "${unarchivingAsig.nombre}"? La asignatura volverá a estado activo y aparecerá en las vistas operativas.`
+            : ""
+        }
+        confirmLabel="Sí, desarchivar"
+        variant="primary"
+        isPending={isPending}
+      />
+
+      {/* ── Hidden form + confirm dialog for deleting ── */}
+      <form ref={deleteFormRef} action={eliminarAsignaturaFormAction} className="hidden">
+        <input type="hidden" name="id" value={deletingAsig?.id ?? ""} />
+      </form>
+      <ConfirmDialog
+        open={deletingAsig !== null}
+        onClose={() => setDeletingAsig(null)}
+        onConfirm={() => {
+          setDeletingAsig(null);
+          startTransition(() => { deleteFormRef.current?.requestSubmit(); });
+        }}
+        title="Eliminar asignatura"
+        description={
+          deletingAsig
+            ? `¿Eliminar permanentemente "${deletingAsig.nombre}"? Esta acción es irreversible y la asignatura dejará de aparecer en el sistema.`
+            : ""
+        }
+        confirmLabel="Sí, eliminar"
         variant="danger"
         isPending={isPending}
       />

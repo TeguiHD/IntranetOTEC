@@ -42,6 +42,14 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
     tone: "error",
     text: "No fue posible crear la plantilla de encuesta.",
   },
+  asignatura_closed: {
+    tone: "error",
+    text: "La asignatura está archivada o finalizada y no acepta nuevas encuestas.",
+  },
+  asignatura_not_found: {
+    tone: "error",
+    text: "No se encontró la asignatura seleccionada.",
+  },
   error: {
     tone: "error",
     text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente.",

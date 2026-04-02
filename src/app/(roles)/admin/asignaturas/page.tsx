@@ -19,6 +19,9 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> =
       tone: "success",
       text: "Docente asignado correctamente.",
     },
+    asignatura_unarchived: { tone: "success", text: "Asignatura restaurada correctamente." },
+    asignatura_deleted: { tone: "success", text: "Asignatura eliminada correctamente." },
+    already_deleted: { tone: "success", text: "La asignatura ya estaba eliminada." },
     error: {
       tone: "error",
       text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente.",

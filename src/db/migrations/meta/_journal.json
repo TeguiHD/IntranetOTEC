@@ -29,6 +29,13 @@
       "when": 1773723600000,
       "tag": "0003_usuarios_rut_por_rol",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1743505200000,
+      "tag": "0007_asignaturas_soft_delete",
+      "breakpoints": true
     }
   ]
 }

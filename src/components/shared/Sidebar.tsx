@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import {
   Award,
+  Bell,
   BookOpen,
   CalendarDays,
   ClipboardList,
@@ -72,6 +73,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
+      { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-cyan" },
       { href: "/admin/finanzas", label: "Finanzas", Icon: DollarSign, gradient: "grad-emerald" },
       { href: "/admin/certificados", label: "Certificados", Icon: Award, gradient: "grad-cyan" },
     ],
@@ -101,6 +103,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
   {
     title: "Cuenta",
     items: [
+      { href: "/docente/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-violet" },
       { href: "/docente/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-amber" },
     ],
   },
@@ -125,6 +128,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     items: [
       { href: "/alumno/evaluaciones", label: "Mis Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText, gradient: "grad-violet" },
+      { href: "/alumno/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-cyan" },
     ],
   },
 ];
@@ -137,6 +141,7 @@ const ROLE_SECTIONS: Record<AppRole, NavSection[]> = {
 
 type SidebarProps = {
   role: AppRole;
+  userName: string;
   collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -244,7 +249,7 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile, pendingSolicitudes }: SidebarProps) {
+export function Sidebar({ role, userName, collapsed, mobileOpen, onCloseMobile, pendingSolicitudes }: SidebarProps) {
   const widthClass = collapsed ? "w-[4.5rem]" : "w-64";
 
   return (
@@ -270,7 +275,9 @@ export function Sidebar({ role, collapsed, mobileOpen, onCloseMobile, pendingSol
             <SidebarLogo collapsed={false} />
             <div>
               <p className="text-sm font-bold text-text-primary dark:text-white">Mi OTEC</p>
-              <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_LABELS[role]}</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">
+                {ROLE_LABELS[role]} · {userName.split(" ")[0]}
+              </p>
             </div>
           </div>
           <button

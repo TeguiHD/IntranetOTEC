@@ -134,6 +134,8 @@ export const asignaturas = pgTable("asignaturas", {
   estado: estadoAsigEnum("estado").default("borrador"),
   maxAlumnos: integer("max_alumnos").default(30),
   createdBy: uuid("created_by").references(() => usuarios.id),
+  eliminadoAt: tstz("eliminado_at"),
+  eliminadoPor: uuid("eliminado_por"),
   createdAt: tstz("created_at").defaultNow(),
   updatedAt: tstz("updated_at").defaultNow(),
 });
@@ -444,6 +446,68 @@ export const auditLogs = pgTable(
     userIdx: index("audit_user_idx").on(t.userId),
     accionIdx: index("audit_accion_idx").on(t.accion),
     fechaIdx: index("audit_fecha_idx").on(t.createdAt),
+  }),
+);
+
+export const tipoNotificacionEnum = pgEnum("tipo_notificacion", [
+  "general",
+  "curso",
+  "individual",
+]);
+
+export const notificaciones = pgTable(
+  "notificaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    titulo: text("titulo").notNull(),
+    contenido: text("contenido").notNull(),
+    tipo: tipoNotificacionEnum("tipo").default("general"),
+    emisorId: uuid("emisor_id")
+      .notNull()
+      .references(() => usuarios.id),
+    asignaturaId: uuid("asignatura_id").references(() => asignaturas.id),
+    createdAt: tstz("created_at").defaultNow(),
+    eliminadoAt: tstz("eliminado_at"),
+  },
+  (t) => ({
+    emisorIdx: index("notificaciones_emisor_idx").on(t.emisorId),
+    createdAtIdx: index("notificaciones_created_at_idx").on(t.createdAt),
+  }),
+);
+
+export const notificacionesDestinatarios = pgTable(
+  "notificaciones_destinatarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    notificacionId: uuid("notificacion_id")
+      .notNull()
+      .references(() => notificaciones.id),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => usuarios.id),
+    leidoAt: tstz("leido_at"),
+  },
+  (t) => ({
+    notifIdx: index("notif_dest_notificacion_idx").on(t.notificacionId),
+    usuarioIdx: index("notif_dest_usuario_idx").on(t.usuarioId),
+    uniqNotifUsuario: unique("notif_dest_unique").on(t.notificacionId, t.usuarioId),
+  }),
+);
+
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    usuarioId: uuid("usuario_id")
+      .notNull()
+      .references(() => usuarios.id),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    usuarioIdx: index("push_sub_usuario_idx").on(t.usuarioId),
   }),
 );
 

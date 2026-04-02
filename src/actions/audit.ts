@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { auditLogs, usuarios } from "@/db/schema";
@@ -13,6 +13,7 @@ type AuditFilterOptions = {
   userId?: string;
   desde?: string;
   hasta?: string;
+  entidad?: string;
 };
 
 function buildAuditFilters(options?: AuditFilterOptions) {
@@ -34,6 +35,10 @@ function buildAuditFilters(options?: AuditFilterOptions) {
     const hastaDate = new Date(options.hasta);
     hastaDate.setHours(23, 59, 59, 999);
     conditions.push(lte(auditLogs.createdAt, hastaDate));
+  }
+
+  if (options?.entidad) {
+    conditions.push(ilike(auditLogs.entidad, options.entidad));
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;

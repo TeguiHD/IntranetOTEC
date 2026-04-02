@@ -5,8 +5,10 @@ import {
 import {
   countMatriculasAdmin,
   desmatricularAlumnoFormAction,
+  eliminarMatriculaFormAction,
   listarMatriculasAdmin,
   matricularAlumnoFormAction,
+  reactivarMatriculaFormAction,
 } from "@/actions/matriculas";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
@@ -22,7 +24,11 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   matricula_updated: { tone: "success", text: "Matrícula actualizada/reactivada correctamente." },
   matricula_edited: { tone: "success", text: "Matrícula editada correctamente." },
   matricula_deactivated: { tone: "success", text: "Matrícula desactivada correctamente." },
+  matricula_reactivated: { tone: "success", text: "Matrícula reactivada correctamente." },
+  matricula_deleted: { tone: "success", text: "Matrícula eliminada correctamente." },
   already_inactive: { tone: "success", text: "La matrícula ya estaba inactiva." },
+  already_active: { tone: "success", text: "La matrícula ya estaba activa." },
+  already_deleted: { tone: "success", text: "La matrícula ya estaba eliminada." },
   error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
 };
 
@@ -289,29 +295,50 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                       </span>
                     )}
                   </div>
-                  {matricula.activa && (
-                    <div className="mt-3 flex gap-2">
-                      <EditMatriculaButton
-                        matriculaId={matricula.id}
-                        alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
-                        estadoPago={matricula.estadoPago}
-                        montoArancel={matricula.montoArancel}
-                        asignaturaId={selectedAsignaturaId ?? ""}
-                        currentPage={currentPage}
-                      />
-                      <form action={desmatricularAlumnoFormAction} className="flex-1">
-                        <input type="hidden" name="matriculaId" value={matricula.id} />
-                        <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
-                        <input type="hidden" name="page" value={String(currentPage)} />
-                        <button
-                          type="submit"
-                          className="h-10 w-full rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
-                        >
-                          Desmatricular
-                        </button>
-                      </form>
-                    </div>
-                  )}
+                  <div className="mt-3 flex gap-2">
+                    {matricula.activa ? (
+                      <>
+                        <EditMatriculaButton
+                          matriculaId={matricula.id}
+                          alumnoNombre={`${matricula.alumnoNombre} ${matricula.alumnoApellido}`}
+                          estadoPago={matricula.estadoPago}
+                          montoArancel={matricula.montoArancel}
+                          asignaturaId={selectedAsignaturaId ?? ""}
+                          currentPage={currentPage}
+                        />
+                        <form action={desmatricularAlumnoFormAction} className="flex-1">
+                          <input type="hidden" name="matriculaId" value={matricula.id} />
+                          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                          <input type="hidden" name="page" value={String(currentPage)} />
+                          <button
+                            type="submit"
+                            className="h-10 w-full rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
+                          >
+                            Desmatricular
+                          </button>
+                        </form>
+                      </>
+                    ) : (
+                      <>
+                        <form action={reactivarMatriculaFormAction} className="flex-1">
+                          <input type="hidden" name="matriculaId" value={matricula.id} />
+                          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                          <input type="hidden" name="page" value={String(currentPage)} />
+                          <button type="submit" className="h-10 w-full rounded-xl border border-success/30 text-sm font-medium text-green-700 transition-colors hover:bg-success/10 dark:text-green-400">
+                            Reactivar
+                          </button>
+                        </form>
+                        <form action={eliminarMatriculaFormAction} className="flex-1">
+                          <input type="hidden" name="matriculaId" value={matricula.id} />
+                          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                          <input type="hidden" name="page" value={String(currentPage)} />
+                          <button type="submit" className="h-10 w-full rounded-xl border border-danger/30 text-sm font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400">
+                            Eliminar
+                          </button>
+                        </form>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -382,16 +409,30 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
                               <input type="hidden" name="matriculaId" value={matricula.id} />
                               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
                               <input type="hidden" name="page" value={String(currentPage)} />
-                              <button
-                                type="submit"
-                                className="rounded-xl border border-danger/30 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400"
-                              >
+                              <button type="submit" className="rounded-xl border border-danger/30 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400">
                                 Desmatricular
                               </button>
                             </form>
                           </div>
                         ) : (
-                          <span className="text-xs text-text-secondary dark:text-gray-400">—</span>
+                          <div className="flex items-center justify-end gap-2">
+                            <form action={reactivarMatriculaFormAction} className="inline">
+                              <input type="hidden" name="matriculaId" value={matricula.id} />
+                              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                              <input type="hidden" name="page" value={String(currentPage)} />
+                              <button type="submit" className="rounded-xl border border-success/30 px-3 py-1.5 text-xs font-medium text-green-700 transition-colors hover:bg-success/10 dark:text-green-400">
+                                Reactivar
+                              </button>
+                            </form>
+                            <form action={eliminarMatriculaFormAction} className="inline">
+                              <input type="hidden" name="matriculaId" value={matricula.id} />
+                              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                              <input type="hidden" name="page" value={String(currentPage)} />
+                              <button type="submit" className="rounded-xl border border-danger/30 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-danger/10 dark:text-red-400">
+                                Eliminar
+                              </button>
+                            </form>
+                          </div>
                         )}
                       </td>
                     </tr>

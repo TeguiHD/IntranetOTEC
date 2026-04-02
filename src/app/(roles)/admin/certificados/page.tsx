@@ -210,19 +210,29 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {c.valido && (
-                          <form action={invalidarCertificadoFormAction} className="inline">
-                            <input type="hidden" name="id" value={c.id} />
-                            <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
-                            <input type="hidden" name="page" value={String(currentPage)} />
-                            <button
-                              type="submit"
-                              className="rounded-lg px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                            >
-                              Invalidar
-                            </button>
-                          </form>
-                        )}
+                        <div className="inline-flex items-center gap-2">
+                          <a
+                            href={`/api/certificados/${encodeURIComponent(c.codigoUnico)}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                          >
+                            PDF
+                          </a>
+                          {c.valido && (
+                            <form action={invalidarCertificadoFormAction} className="inline">
+                              <input type="hidden" name="id" value={c.id} />
+                              <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
+                              <input type="hidden" name="page" value={String(currentPage)} />
+                              <button
+                                type="submit"
+                                className="rounded-lg px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                              >
+                                Invalidar
+                              </button>
+                            </form>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -257,19 +267,29 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
                     >
                       {c.valido ? "Válido" : "Invalidado"}
                     </span>
-                    {c.valido && (
-                      <form action={invalidarCertificadoFormAction}>
-                        <input type="hidden" name="id" value={c.id} />
-                        <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
-                        <input type="hidden" name="page" value={String(currentPage)} />
-                        <button
-                          type="submit"
-                          className="rounded-lg px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                        >
-                          Invalidar
-                        </button>
-                      </form>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/api/certificados/${encodeURIComponent(c.codigoUnico)}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                      >
+                        PDF
+                      </a>
+                      {c.valido && (
+                        <form action={invalidarCertificadoFormAction}>
+                          <input type="hidden" name="id" value={c.id} />
+                          <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
+                          <input type="hidden" name="page" value={String(currentPage)} />
+                          <button
+                            type="submit"
+                            className="rounded-lg px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                          >
+                            Invalidar
+                          </button>
+                        </form>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

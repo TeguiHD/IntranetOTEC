@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  Bell,
   BookOpen,
   CalendarDays,
   FileText,
@@ -42,17 +43,20 @@ const ADMIN_ITEMS: NavItem[] = [
   { href: "/admin/alumnos",      label: "Alumnos",     Icon: Users,           gradient: "grad-emerald" },
   { href: "/admin/matriculas",   label: "Matrículas",  Icon: Wallet,          gradient: "grad-pink" },
   { href: "/admin/solicitudes",  label: "Solicitudes", Icon: FileText,        gradient: "grad-violet" },
+  { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell,       gradient: "grad-cyan" },
 ];
 
 const DOCENTE_ITEMS: NavItem[] = [
   { href: "/docente",             label: "Panel",           Icon: LayoutDashboard, gradient: "grad-purple" },
   { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen,        gradient: "grad-blue" },
+  { href: "/docente/notificaciones", label: "Notificaciones", Icon: Bell,           gradient: "grad-violet" },
 ];
 
 const ALUMNO_ITEMS: NavItem[] = [
   { href: "/alumno",             label: "Panel",       Icon: LayoutDashboard, gradient: "grad-purple" },
   { href: "/alumno/asignaturas", label: "Mis Cursos",  Icon: GraduationCap,   gradient: "grad-blue" },
   { href: "/alumno/solicitudes", label: "Solicitudes", Icon: ScrollText,      gradient: "grad-violet" },
+  { href: "/alumno/notificaciones", label: "Notificaciones", Icon: Bell,      gradient: "grad-cyan" },
 ];
 
 const ROLE_ITEMS: Record<AppRole, NavItem[]> = {

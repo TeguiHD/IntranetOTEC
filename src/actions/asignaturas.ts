@@ -105,11 +105,11 @@ export async function countAsignaturasAdmin(
   const baseQuery = db.select({ total: count() }).from(asignaturas);
 
   if (options?.incluirArchivadas) {
-    const result = await baseQuery;
+    const result = await baseQuery.where(isNull(asignaturas.eliminadoAt));
     return Number(result[0]?.total ?? 0);
   }
 
-  const result = await baseQuery.where(ne(asignaturas.estado, "archivado"));
+  const result = await baseQuery.where(and(ne(asignaturas.estado, "archivado"), isNull(asignaturas.eliminadoAt)));
   return Number(result[0]?.total ?? 0);
 }
 
@@ -132,6 +132,7 @@ export async function listarAsignaturas(
     return db
       .select()
       .from(asignaturas)
+      .where(isNull(asignaturas.eliminadoAt))
       .orderBy(desc(asignaturas.createdAt))
       .limit(limit)
       .offset(offset);
@@ -140,7 +141,7 @@ export async function listarAsignaturas(
   return db
     .select()
     .from(asignaturas)
-    .where(ne(asignaturas.estado, "archivado"))
+    .where(and(ne(asignaturas.estado, "archivado"), isNull(asignaturas.eliminadoAt)))
     .orderBy(desc(asignaturas.createdAt))
     .limit(limit)
     .offset(offset);
@@ -184,10 +185,10 @@ export async function listarAsignaturasAdmin(
     .offset(offset);
 
   if (options?.incluirArchivadas) {
-    return baseQuery;
+    return baseQuery.where(isNull(asignaturas.eliminadoAt));
   }
 
-  return baseQuery.where(ne(asignaturas.estado, "archivado"));
+  return baseQuery.where(and(ne(asignaturas.estado, "archivado"), isNull(asignaturas.eliminadoAt)));
 }
 
 export async function crearAsignaturaAction(input: {
@@ -534,6 +535,89 @@ export async function asignarDocenteFormAction(formData: FormData): Promise<void
     docenteId: getStringField(formData, "docenteId"),
   });
 
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
+export async function desarchivariAsignaturaAction(input: {
+  id: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_edit", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const db = getDb();
+
+  const [row] = await db
+    .select({ id: asignaturas.id, estado: asignaturas.estado })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, input.id))
+    .limit(1);
+
+  if (!row) return { ok: false, code: "not_found", message: "Asignatura no encontrada." };
+
+  await db
+    .update(asignaturas)
+    .set({ estado: "activo", updatedAt: new Date() })
+    .where(eq(asignaturas.id, row.id));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "editar",
+    entidad: "asignaturas",
+    entidadId: row.id,
+    payload: { accion: "desarchivar" },
+    exitoso: true,
+  });
+
+  return { ok: true, code: "asignatura_unarchived" };
+}
+
+export async function desarchivariAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await desarchivariAsignaturaAction({ id: getStringField(formData, "id") });
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
+export async function eliminarAsignaturaAction(input: {
+  id: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_asignatura_edit", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const db = getDb();
+
+  const [row] = await db
+    .select({ id: asignaturas.id, eliminadoAt: asignaturas.eliminadoAt })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, input.id))
+    .limit(1);
+
+  if (!row) return { ok: false, code: "not_found", message: "Asignatura no encontrada." };
+  if (row.eliminadoAt) return { ok: true, code: "already_deleted" };
+
+  await db
+    .update(asignaturas)
+    .set({ eliminadoAt: new Date(), eliminadoPor: actorResult.actor.userId, updatedAt: new Date() })
+    .where(eq(asignaturas.id, row.id));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "editar",
+    entidad: "asignaturas",
+    entidadId: row.id,
+    payload: { accion: "soft_delete" },
+    exitoso: true,
+  });
+
+  return { ok: true, code: "asignatura_deleted" };
+}
+
+export async function eliminarAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await eliminarAsignaturaAction({ id: getStringField(formData, "id") });
   revalidatePath("/admin/asignaturas");
   redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
 }

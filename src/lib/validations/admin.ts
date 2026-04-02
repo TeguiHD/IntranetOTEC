@@ -7,6 +7,8 @@ const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'.-]+$/;
 const STRONG_PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,128}$/;
 
+const DOCENTE_PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d).{8,128}$/;
+
 const trimAndCollapse = (value: string): string =>
   value
     .trim()
@@ -84,11 +86,11 @@ export const docenteInputSchema = z.object({
     .max(180, "Correo demasiado largo."),
   password: z
     .string()
-    .min(12, "La contraseña debe tener mínimo 12 caracteres.")
+    .min(8, "La contraseña debe tener mínimo 8 caracteres.")
     .max(128, "La contraseña debe tener máximo 128 caracteres.")
     .regex(
-      STRONG_PASSWORD_REGEX,
-      "Debe incluir mayúsculas, minúsculas, números y símbolos.",
+      DOCENTE_PASSWORD_REGEX,
+      "Debe incluir letras y números.",
     ),
 });
 
@@ -191,7 +193,7 @@ export const asignaturaInputSchema = z.object({
       "Código inválido (solo mayúsculas, números y guion).",
     ),
   fechaInicio: isoDate,
-  duracionMeses: z.union([z.literal(2), z.literal(4), z.literal(6)]),
+  duracionMeses: z.number().int().min(1, "Mínimo 1 mes.").max(12, "Máximo 12 meses."),
   maxAlumnos: z
     .number()
     .int("Debe ser un número entero.")
@@ -360,7 +362,7 @@ export const editarAsignaturaInputSchema = z.object({
       "Código inválido (solo mayúsculas, números y guion).",
     ),
   fechaInicio: isoDate,
-  duracionMeses: z.union([z.literal(2), z.literal(4), z.literal(6)]),
+  duracionMeses: z.number().int().min(1, "Mínimo 1 mes.").max(12, "Máximo 12 meses."),
   maxAlumnos: z
     .number()
     .int("Debe ser un número entero.")

@@ -20,7 +20,7 @@ import { getFileSize, getFileStream } from "@/lib/storage";
  */
 export async function GET(
   request: NextRequest,
-  context: { params: { path: string[] } },
+  context: { params: Promise<{ path: string[] }> },
 ) {
   const startedAt = Date.now();
   const correlationId = resolveCorrelationId(request);
@@ -73,7 +73,7 @@ export async function GET(
     );
   }
 
-  const segments = context.params.path;
+  const { path: segments } = await context.params;
 
   // Route: /api/files/download/{materialId}
   if (segments[0] !== "download" || !segments[1]) {

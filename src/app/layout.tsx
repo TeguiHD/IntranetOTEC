@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "sonner";
 
 import { GradientDefs } from "@/components/shared/GradientDefs";
+import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
 import "./globals.css";
@@ -18,15 +19,36 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#7c3aed",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: {
-    default: "Intranet OTEC Impulsate",
-    template: "%s | OTEC Impulsate",
+    default: "Mi OTEC Intranet",
+    template: "%s | Mi OTEC",
   },
-  description: "Plataforma educativa para alumnos, docentes y administración de OTEC Impulsate.",
+  description: "Intranet educativa OTEC - Impulsate & Emprende",
+  manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icon-180.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Mi OTEC",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -46,6 +68,7 @@ export default function RootLayout({
           enableSystem
         >
           <GradientDefs />
+          <ServiceWorkerRegister />
           {children}
           <Toaster
             theme="system"

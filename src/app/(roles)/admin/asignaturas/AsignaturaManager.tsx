@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState, useTransition } from "react";
 
-import { BookOpen, Plus, Search, UserCog, X } from "lucide-react";
+import { BookOpen, Plus, Search, Trash2, UserCog, X } from "lucide-react";
 
 import {
   asignarDocenteFormAction,
   crearAsignaturaFormAction,
+  desarchivariAsignaturaFormAction,
+  eliminarAsignaturaFormAction,
 } from "@/actions/asignaturas";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Pagination } from "@/components/shared/Pagination";
 
@@ -181,6 +184,12 @@ export function AsignaturaManager({
 }: AsignaturaManagerProps) {
   const [openCreate, setOpenCreate] = useState(false);
   const [assigningAsig, setAssigningAsig] = useState<Asignatura | null>(null);
+  const [unarchivingAsig, setUnarchivingAsig] = useState<Asignatura | null>(null);
+  const [deletingAsig, setDeletingAsig] = useState<Asignatura | null>(null);
+  const [isUnarchiving, startUnarchive] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
+  const unarchiveFormRef = useRef<HTMLFormElement>(null);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
 
   return (
     <>
@@ -273,16 +282,35 @@ export function AsignaturaManager({
                       </span>
                     )}
                   </p>
-                  {(a.estado === "activo" || a.estado === "borrador") && (
+                  <div className="flex gap-1.5">
+                    {(a.estado === "activo" || a.estado === "borrador") && (
+                      <button
+                        type="button"
+                        onClick={() => setAssigningAsig(a)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                      >
+                        <UserCog className="h-3.5 w-3.5" />
+                        Asignar
+                      </button>
+                    )}
+                    {a.estado === "archivado" && (
+                      <button
+                        type="button"
+                        onClick={() => setUnarchivingAsig(a)}
+                        className="inline-flex h-8 items-center gap-1 rounded-xl border border-amber-300 px-2.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400"
+                      >
+                        Desarchivar
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setAssigningAsig(a)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                      onClick={() => setDeletingAsig(a)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-danger/30 text-danger transition-colors hover:bg-danger/10 dark:text-red-400"
+                      aria-label="Eliminar asignatura"
                     >
-                      <UserCog className="h-3.5 w-3.5" />
-                      Asignar docente
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             );
@@ -369,20 +397,35 @@ export function AsignaturaManager({
 
                     {/* Acción */}
                     <td className="px-3 py-3 text-right">
-                      {canAssign ? (
+                      <div className="inline-flex items-center gap-2">
+                        {canAssign && (
+                          <button
+                            type="button"
+                            onClick={() => setAssigningAsig(a)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                          >
+                            <UserCog className="h-3.5 w-3.5" />
+                            {docenteLabel ? "Cambiar" : "Asignar"}
+                          </button>
+                        )}
+                        {a.estado === "archivado" && (
+                          <button
+                            type="button"
+                            onClick={() => setUnarchivingAsig(a)}
+                            className="inline-flex h-8 items-center rounded-xl border border-amber-300 px-2.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400"
+                          >
+                            Desarchivar
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => setAssigningAsig(a)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                          onClick={() => setDeletingAsig(a)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-danger/30 text-danger transition-colors hover:bg-danger/10 dark:text-red-400"
+                          aria-label="Eliminar"
                         >
-                          <UserCog className="h-3.5 w-3.5" />
-                          {docenteLabel ? "Cambiar" : "Asignar"}
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      ) : (
-                        <span className="text-xs text-text-muted dark:text-gray-600">
-                          —
-                        </span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -476,25 +519,20 @@ export function AsignaturaManager({
 
             {/* Duración */}
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                Duración <span className="text-danger">*</span>
+              <label htmlFor="new-duracion" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                Duración (meses) <span className="text-danger">*</span>
               </label>
-              <div className="flex gap-2">
-                {[2, 4, 6].map((m) => (
-                  <label key={m} className="flex-1">
-                    <input
-                      type="radio"
-                      name="duracionMeses"
-                      value={String(m)}
-                      defaultChecked={m === 4}
-                      className="peer sr-only"
-                    />
-                    <span className="flex h-11 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-sm font-medium text-text-secondary transition-colors peer-checked:border-primary peer-checked:bg-primary/5 peer-checked:text-primary dark:border-gray-700 dark:text-gray-400 dark:peer-checked:border-primary-light dark:peer-checked:bg-primary/10 dark:peer-checked:text-primary-light">
-                      {m}m
-                    </span>
-                  </label>
-                ))}
-              </div>
+              <input
+                id="new-duracion"
+                name="duracionMeses"
+                type="number"
+                required
+                min={1}
+                max={12}
+                defaultValue={4}
+                className={INPUT}
+              />
+              <p className="text-xs text-text-muted dark:text-gray-500">Entre 1 y 12 meses.</p>
             </div>
 
             {/* Máx alumnos */}
@@ -594,6 +632,44 @@ export function AsignaturaManager({
           </form>
         )}
       </Modal>
+
+      {/* Hidden forms for unarchive and delete */}
+      <form ref={unarchiveFormRef} action={desarchivariAsignaturaFormAction} className="hidden">
+        <input name="id" value={unarchivingAsig?.id ?? ""} readOnly />
+      </form>
+      <form ref={deleteFormRef} action={eliminarAsignaturaFormAction} className="hidden">
+        <input name="id" value={deletingAsig?.id ?? ""} readOnly />
+      </form>
+
+      <ConfirmDialog
+        open={unarchivingAsig !== null}
+        onClose={() => setUnarchivingAsig(null)}
+        onConfirm={() => {
+          startUnarchive(async () => {
+            unarchiveFormRef.current?.requestSubmit();
+          });
+        }}
+        title="Desarchivar asignatura"
+        description={`¿Deseas restaurar "${unarchivingAsig?.nombre}" a estado activo?`}
+        confirmLabel="Desarchivar"
+        variant="primary"
+        isPending={isUnarchiving}
+      />
+
+      <ConfirmDialog
+        open={deletingAsig !== null}
+        onClose={() => setDeletingAsig(null)}
+        onConfirm={() => {
+          startDelete(async () => {
+            deleteFormRef.current?.requestSubmit();
+          });
+        }}
+        title="Eliminar asignatura"
+        description={`¿Eliminar permanentemente "${deletingAsig?.nombre}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        isPending={isDeleting}
+      />
     </>
   );
 }

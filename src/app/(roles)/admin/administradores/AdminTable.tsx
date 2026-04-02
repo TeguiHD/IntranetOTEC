@@ -294,21 +294,21 @@ export function AdminTable({
           pending?.action === "deactivate"
             ? "Desactivar admin"
             : pending?.action === "delete"
-              ? "Eliminar admin"
+              ? "Aplicar baja definitiva al admin"
               : "Activar admin"
         }
         description={
           pending?.action === "deactivate"
             ? `¿Seguro que deseas desactivar a ${pending?.name}? Perderá acceso a la plataforma.`
             : pending?.action === "delete"
-              ? `¿Seguro que deseas eliminar permanentemente a ${pending?.name}? Esta acción no se puede deshacer.`
+              ? `¿Seguro que deseas aplicar baja definitiva a ${pending?.name}? No se borrará físicamente, pero quedará inactivo y oculto en operación normal.`
               : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
         }
         confirmLabel={
           pending?.action === "deactivate"
             ? "Desactivar"
             : pending?.action === "delete"
-              ? "Eliminar"
+              ? "Aplicar baja"
               : "Activar"
         }
         variant={pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
@@ -354,7 +354,7 @@ function ActionButton({
         onClick={() => onAction({ userId: admin.id, name, action: "delete" })}
         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-danger/30 text-danger transition-colors hover:bg-danger/10 active:bg-danger/20 dark:text-red-400 sm:h-8 sm:w-8 sm:rounded-lg"
         aria-label={`Eliminar ${name}`}
-        title="Eliminar permanentemente"
+        title="Aplicar baja definitiva"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>

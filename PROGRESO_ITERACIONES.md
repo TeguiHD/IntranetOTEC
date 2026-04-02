@@ -8,6 +8,43 @@
 
 ---
 
+## Iteración 29 — 2026-04-02
+
+### Objetivo
+Completar al 100% los pendientes del plan de correcciones: paridad root/otec en notificaciones + PWA, cierre de hard-delete en usuarios y ajuste de politica de material por denylist de ejecutables/scripts.
+
+### Estado
+Completada.
+
+### Cambios aplicados (workspace)
+- Paridad notificaciones/PWA en `otec`:
+	- Integracion de campana con modal de recientes + CTA en topbar.
+	- Conteo de no leidas en roles layout y propagacion a shell/topbar.
+	- Navegacion a notificaciones en sidebar y mobile grid (admin/docente/alumno).
+	- Registro de service worker y metadata PWA en layout raiz.
+	- Componente nuevo: `otec/src/components/shared/ServiceWorkerRegister.tsx`.
+- Politica de usuarios sin hard-delete:
+	- `eliminarUsuarioPermanenteAction` en root y `otec` deja de usar `db.delete(usuarios)`.
+	- Se fuerza baja logica (soft-delete) con auditoria y evento de observabilidad.
+	- Ajustes de textos/confirmaciones UI para reflejar "baja definitiva" sin borrado fisico.
+- Politica de material:
+	- Reemplazo de allowlist MIME por denylist de tipos/extensiones riesgosas (scripts/ejecutables) en root y `otec`.
+	- Se mantiene subida amplia para documentos, imagenes, audio/video y formatos comunes no ejecutables.
+- Cierre documental:
+	- `MEJORAS/PARIDAD_ROOT_OTEC_2026_04.md` (matriz de paridad y evidencia por modulo).
+	- `MEJORAS/CHECKLIST_RELEASE_ROOT_OTEC_2026_04.md` (checklist de release + smoke + monitoreo).
+
+### Validacion
+- Verificacion por `get_errors` en todos los archivos editados: sin errores.
+
+### Resultado funcional
+- `otec` queda alineado con root en notificaciones, campana y base PWA/push.
+- Se elimina el borrado fisico de usuarios en acciones administrativas.
+- La carga de material queda abierta por defecto, bloqueando solo ejecutables/scripts de riesgo.
+
+### Proxima iteracion sugerida
+- Ejecutar smoke completo en staging con VAPID real y registrar evidencia de entrega push foreground/background.
+
 ## Iteración 21 — 2026-03-18
 
 ### Objetivo

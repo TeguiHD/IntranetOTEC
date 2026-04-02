@@ -81,6 +81,7 @@
 26. [Iteración 26] Cierre de auditoría de eliminación en admin/docente: cobertura UI de eliminación para clases en admin (móvil/escritorio), `formAction` con estado de retorno y filtrado de soft-delete (`activo(clases)`) en listados y conteos para evitar persistencia visual de clases eliminadas.
 27. [Iteración 27] Certificados PDF programáticos: migración en `otec/` a `@react-pdf/renderer` con endpoint seguro de descarga (`/api/certificados/[codigo]/pdf`) restringido a `admin`, validación estricta de código de certificado, sanitización de snapshot JSON y botón de descarga PDF en la gestión admin de certificados.
 28. [Iteración 28] Cierre de deuda supply-chain en root+otec: actualización de `next`/`eslint-config-next` a `15.5.14`, reemplazo de `xlsx` por `exceljs@4.4.0` en importaciones de alumnos/notas, parser seguro central de planillas (`src/lib/spreadsheet.ts`) con mitigación de prototype pollution y test de seguridad dedicado.
+29. [Iteración 29] Cierre de pendientes del plan de correcciones: paridad root/`otec` en notificaciones + topbar + PWA base (SW/manifest/push subscribe), eliminación de hard-delete de usuarios (baja lógica obligatoria) y política de material por denylist de ejecutables/scripts con documentación de paridad y checklist de release.
 
 ## Pending parts
 
@@ -119,6 +120,8 @@
 - Supply-chain risk por `xlsx` sin fix de severidad alta: mitigado con remoción de dependencia y migración a `exceljs@4.4.0`.
 - Prototype pollution en carga de planillas (headers maliciosos): mitigado con saneamiento estricto de encabezados (`__proto__`, `constructor`, `prototype`) y objetos `Object.create(null)` en parser de planillas.
 - Input abuse por tipo de archivo no permitido en importaciones internas: mitigado con rechazo explícito de extensiones no soportadas en parser central (`.csv`/`.xlsx` únicamente).
+- Pérdida de trazabilidad por hard-delete de usuarios en baja definitiva: mitigado eliminando `db.delete(usuarios)` en root/`otec` y aplicando soft-delete forzado con auditoría.
+- Riesgo de ejecución de payloads por carga de material: mitigado con denylist de extensiones/MIME de ejecutables y scripts de alto riesgo en root/`otec`.
 
 ## Non-negotiable decisions
 

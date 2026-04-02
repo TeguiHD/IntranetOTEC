@@ -1555,7 +1555,7 @@ export async function activarAdministradorFormAction(formData: FormData): Promis
   redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
 }
 
-// ── Hard-delete permanent ──────────────────────────────────────────
+// ── Baja definitiva logica (sin hard-delete) ──────────────────────
 
 export async function eliminarUsuarioPermanenteAction(input: {
   userId: string;
@@ -1590,11 +1590,10 @@ export async function eliminarUsuarioPermanenteAction(input: {
     return { ok: false, code: "user_not_found", message: "Usuario no encontrado." };
   }
 
-  if (target.activo !== false || !target.eliminadoAt) {
+  if (target.activo === false && target.eliminadoAt) {
     return {
-      ok: false,
-      code: "must_deactivate_first",
-      message: "Debes desactivar el usuario antes de eliminarlo definitivamente.",
+      ok: true,
+      code: "already_soft_deleted",
     };
   }
 
@@ -1615,7 +1614,15 @@ export async function eliminarUsuarioPermanenteAction(input: {
   }
 
   try {
-    await db.delete(usuarios).where(eq(usuarios.id, target.id));
+    await db
+      .update(usuarios)
+      .set({
+        activo: false,
+        eliminadoAt: target.eliminadoAt ?? new Date(),
+        eliminadoPor: actorResult.actor.userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(usuarios.id, target.id));
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -1624,25 +1631,29 @@ export async function eliminarUsuarioPermanenteAction(input: {
       accion: "desactivar",
       entidad: "usuarios",
       entidadId: target.id,
-      payload: { rolObjetivo: target.rol, eliminadoPermanentemente: true },
+      payload: {
+        rolObjetivo: target.rol,
+        bajaDefinitivaLogica: true,
+        hardDeleteDeshabilitado: true,
+      },
       exitoso: true,
     });
 
     logEvent({
       correlationId: actorResult.actor.correlationId,
-      action: "admin_user_hard_deleted",
+      action: "admin_user_soft_deleted_enforced",
       result: "success",
       userId: actorResult.actor.userId,
       role: actorResult.actor.userRol,
       details: { targetId: target.id, targetRol: target.rol },
     });
 
-    return { ok: true, code: "user_deleted" };
+    return { ok: true, code: "user_soft_deleted" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown";
     logEvent({
       correlationId: actorResult.actor.correlationId,
-      action: "admin_user_hard_delete_failed",
+      action: "admin_user_soft_delete_enforced_failed",
       result: "error",
       userId: actorResult.actor.userId,
       role: actorResult.actor.userRol,

@@ -402,19 +402,19 @@ export function DocenteTable({
         isPending={isPending}
         title={
           pending?.action === "deactivate" ? "Desactivar docente" :
-          pending?.action === "delete" ? "Eliminar docente definitivamente" :
+          pending?.action === "delete" ? "Aplicar baja definitiva al docente" :
           "Activar docente"
         }
         description={
           pending?.action === "deactivate"
             ? `¿Seguro que deseas desactivar a ${pending?.name}? Perderá acceso a la plataforma.`
             : pending?.action === "delete"
-            ? `¿Estás seguro de eliminar a ${pending?.name}? Esta acción es IRREVERSIBLE y borrará su cuenta definitivamente.`
+            ? `¿Seguro que deseas aplicar baja definitiva a ${pending?.name}? No se borrará físicamente, pero quedará inactivo y oculto en operación normal.`
             : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
         }
         confirmLabel={
           pending?.action === "deactivate" ? "Desactivar" :
-          pending?.action === "delete" ? "Eliminar definitivamente" :
+          pending?.action === "delete" ? "Aplicar baja" :
           "Activar"
         }
         variant={pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
@@ -456,7 +456,7 @@ function ActionButton({
       <button
         type="button"
         onClick={() => onAction({ userId: docente.id, name, action: "delete" })}
-        title="Eliminar permanentemente"
+        title="Aplicar baja definitiva"
         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-danger/20 text-danger/70 transition-colors hover:border-danger/50 hover:bg-danger/10 hover:text-danger active:bg-danger/20 dark:text-red-400/60 dark:hover:text-red-400 sm:h-auto sm:w-auto sm:px-2.5 sm:py-1.5"
       >
         <Trash2 className="h-3.5 w-3.5" />

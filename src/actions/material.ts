@@ -13,26 +13,113 @@ import { deleteFile, uploadFile } from "@/lib/storage";
 
 import { type MutationResult, requireActionActor } from "./_security";
 
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "text/plain",
-  "text/csv",
-  "video/mp4",
-  "video/webm",
-  "application/zip",
+const BLOCKED_MIME_TYPES = new Set([
+  "application/x-msdownload",
+  "application/x-msdos-program",
+  "application/x-dosexec",
+  "application/x-executable",
+  "application/x-elf",
+  "application/x-mach-binary",
+  "application/x-msi",
+  "application/x-sh",
+  "application/x-shellscript",
+  "text/x-shellscript",
+  "application/x-bat",
+  "application/x-httpd-php",
+  "text/x-php",
+  "application/java-archive",
+  "application/vnd.microsoft.portable-executable",
+]);
+
+const BLOCKED_MIME_KEYWORDS = [
+  "javascript",
+  "ecmascript",
+  "powershell",
+  "shellscript",
+  "x-msdownload",
+  "x-msdos-program",
+  "x-dosexec",
+  "x-executable",
+  "x-elf",
+  "x-mach-binary",
+  "x-msi",
+  "x-sh",
+  "x-bat",
+  "x-httpd-php",
+];
+
+const BLOCKED_EXTENSIONS = new Set([
+  "exe",
+  "msi",
+  "msp",
+  "bat",
+  "cmd",
+  "com",
+  "scr",
+  "pif",
+  "ps1",
+  "psm1",
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "ksh",
+  "csh",
+  "js",
+  "mjs",
+  "cjs",
+  "vbs",
+  "vb",
+  "jar",
+  "war",
+  "ear",
+  "apk",
+  "ipa",
+  "appimage",
+  "dmg",
+  "pkg",
+  "deb",
+  "rpm",
+  "dll",
+  "so",
+  "dylib",
+  "elf",
+  "php",
+  "phar",
+  "py",
+  "pl",
+  "rb",
 ]);
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+const getFileExtension = (fileName: string): string => {
+  const normalized = fileName.trim().toLowerCase();
+  const dotIndex = normalized.lastIndexOf(".");
+  if (dotIndex <= 0 || dotIndex === normalized.length - 1) {
+    return "";
+  }
+
+  return normalized.slice(dotIndex + 1);
+};
+
+const isBlockedMaterialFile = (fileName: string, mimeType: string): boolean => {
+  const ext = getFileExtension(fileName);
+  if (ext && BLOCKED_EXTENSIONS.has(ext)) {
+    return true;
+  }
+
+  const normalizedMime = mimeType.trim().toLowerCase();
+  if (!normalizedMime) {
+    return false;
+  }
+
+  if (BLOCKED_MIME_TYPES.has(normalizedMime)) {
+    return true;
+  }
+
+  return BLOCKED_MIME_KEYWORDS.some((keyword) => normalizedMime.includes(keyword));
+};
 
 export type MaterialItem = {
   id: string;
@@ -103,8 +190,12 @@ export async function subirMaterialAction(
     return { ok: false, code: "file_too_large", message: "El archivo excede 50 MB." };
   }
 
-  if (!ALLOWED_MIME.has(file.type)) {
-    return { ok: false, code: "invalid_type", message: "Tipo de archivo no permitido." };
+  if (isBlockedMaterialFile(file.name, file.type)) {
+    return {
+      ok: false,
+      code: "invalid_type",
+      message: "Archivo bloqueado por seguridad (ejecutable o script).",
+    };
   }
 
   const db = getDb();

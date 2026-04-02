@@ -14,6 +14,8 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   admin_updated: { tone: "success", text: "Administrador actualizado/reactivado correctamente." },
   user_deactivated: { tone: "success", text: "Administrador desactivado correctamente." },
   user_activated: { tone: "success", text: "Administrador activado correctamente." },
+  user_soft_deleted: { tone: "success", text: "Baja definitiva aplicada al administrador (sin borrado fisico)." },
+  already_soft_deleted: { tone: "success", text: "El administrador ya tenia baja definitiva logica." },
   already_inactive: { tone: "success", text: "El admin ya estaba inactivo." },
   already_active: { tone: "success", text: "El admin ya estaba activo." },
   invalid_input: { tone: "error", text: "Datos inválidos. Verifica RUT, correo y política de contraseña." },

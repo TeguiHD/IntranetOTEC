@@ -83,7 +83,7 @@ export default function AdminImportarPage() {
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
         <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Importar Alumnos</h1>
         <p className="mt-1 text-sm text-white/80">
-          Sube un archivo .xlsx o .csv para registrar alumnos masivamente.
+          Sube un archivo .xlsx o .csv para registrar alumnos y crear cursos masivamente.
         </p>
       </div>
 
@@ -102,15 +102,15 @@ export default function AdminImportarPage() {
               </tr>
             </thead>
             <tbody className="text-text-primary dark:text-gray-200">
-              <tr><td className="px-2 py-1">rut</td><td className="px-2 py-1">Sí</td><td className="px-2 py-1">12.345.678-5</td></tr>
-              <tr><td className="px-2 py-1">nombre</td><td className="px-2 py-1">Sí</td><td className="px-2 py-1">Juan</td></tr>
-              <tr><td className="px-2 py-1">apellido</td><td className="px-2 py-1">Sí</td><td className="px-2 py-1">Pérez</td></tr>
-              <tr><td className="px-2 py-1">email</td><td className="px-2 py-1">No</td><td className="px-2 py-1">juan@mail.com</td></tr>
+              <tr><td className="px-2 py-1 font-medium">Curso</td><td className="px-2 py-1">Sí</td><td className="px-2 py-1">Computación Básica</td></tr>
+              <tr><td className="px-2 py-1 font-medium">Dias/Hora</td><td className="px-2 py-1">No</td><td className="px-2 py-1">Lunes y Miércoles 18:00</td></tr>
+              <tr><td className="px-2 py-1 font-medium">Nombre</td><td className="px-2 py-1">Sí</td><td className="px-2 py-1">Juan Pérez (nombre completo)</td></tr>
+              <tr><td className="px-2 py-1 font-medium">Rut</td><td className="px-2 py-1">Sí</td><td className="px-2 py-1">12.345.678-5</td></tr>
             </tbody>
           </table>
         </div>
         <p className="mt-3 text-xs text-text-secondary dark:text-gray-400">
-          Los alumnos con RUT ya existente serán actualizados (nombre, apellido, email). No se duplicarán registros.
+          Los cursos se crean automáticamente si no existen (sin docente, listo para asignar). Los alumnos quedan matriculados en su curso. Si el RUT ya existe, se actualiza el nombre.
         </p>
       </article>
 

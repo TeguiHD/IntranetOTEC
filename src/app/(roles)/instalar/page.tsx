@@ -1,194 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import {
-  ArrowRight,
-  CheckCircle2,
-  Chrome,
-  Download,
-  Monitor,
-  Share2,
-  Smartphone,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Download, Share2 } from "lucide-react";
 import Link from "next/link";
 
 import { usePwaInstall } from "@/components/shared/PwaInstallProvider";
 
-type InstallFlow =
-  | "android-native"
-  | "android-manual"
-  | "ios-safari"
-  | "ios-other"
-  | "desktop-native"
-  | "desktop-manual"
-  | "unknown";
-
-type StepItem = {
-  title: string;
-  detail: string;
-  icon: React.ReactNode;
-};
-
-const browserLabel: Record<string, string> = {
-  safari: "Safari",
-  chrome: "Chrome",
-  edge: "Edge",
-  firefox: "Firefox",
-  opera: "Opera",
-  samsung: "Samsung Internet",
-  other: "Navegador",
-};
-
-function resolveFlow(params: {
-  platform: "android" | "ios" | "desktop" | null;
-  isIosSafari: boolean;
-  isInstallable: boolean;
-}): InstallFlow {
-  const { platform, isIosSafari, isInstallable } = params;
-
-  if (platform === "android") {
-    return isInstallable ? "android-native" : "android-manual";
-  }
-
-  if (platform === "ios") {
-    return isIosSafari ? "ios-safari" : "ios-other";
-  }
-
-  if (platform === "desktop") {
-    return isInstallable ? "desktop-native" : "desktop-manual";
-  }
-
-  return "unknown";
-}
-
 export default function InstalarPage() {
-  const { platform, browser, isIosSafari, isInstallable, isInstalled, promptInstall } =
-    usePwaInstall();
+  const { platform, isIosSafari, isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
   const [mounted, setMounted] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [showIosModal, setShowIosModal] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const flow = useMemo(
-    () => resolveFlow({ platform, isIosSafari, isInstallable }),
-    [platform, isIosSafari, isInstallable],
-  );
-
-  const detectionLabel = useMemo(() => {
-    const device =
-      platform === "android"
-        ? "Android"
-        : platform === "ios"
-          ? "iPhone / iPad"
-          : platform === "desktop"
-            ? "Escritorio"
-            : "Dispositivo";
-
-    const browserText = browser ? (browserLabel[browser] ?? "Navegador") : "Navegador";
-    return `${device} - ${browserText}`;
-  }, [browser, platform]);
-
-  const steps = useMemo<StepItem[]>(() => {
-    switch (flow) {
-      case "android-native":
-        return [
-          {
-            title: "Toca Instalar ahora",
-            detail: "Se abrira el instalador nativo de Android.",
-            icon: <Download className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-          {
-            title: "Confirma instalacion",
-            detail: "Pulsa Instalar en el cuadro del sistema.",
-            icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-          },
-        ];
-      case "android-manual":
-        return [
-          {
-            title: "Abrir menu del navegador",
-            detail: "Toca los 3 puntos (...) arriba a la derecha.",
-            icon: <Chrome className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-          {
-            title: "Instalar aplicacion",
-            detail: 'Selecciona "Instalar aplicacion" o "Agregar a pantalla de inicio".',
-            icon: <Download className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-        ];
-      case "ios-safari":
-        return [
-          {
-            title: "Abrir Compartir",
-            detail: "Toca el icono de compartir en la barra de Safari.",
-            icon: <Share2 className="h-4 w-4 text-blue-500" />,
-          },
-          {
-            title: "Agregar a pantalla de inicio",
-            detail: 'Toca "Agregar a pantalla de inicio" y luego "Agregar".',
-            icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-          },
-        ];
-      case "ios-other":
-        return [
-          {
-            title: "Abrir Safari",
-            detail: "En iPhone/iPad la instalacion solo funciona en Safari.",
-            icon: <Chrome className="h-4 w-4 text-amber-500" />,
-          },
-          {
-            title: "Entrar a la intranet y agregar",
-            detail: 'En Safari: Compartir > "Agregar a pantalla de inicio".',
-            icon: <Share2 className="h-4 w-4 text-blue-500" />,
-          },
-        ];
-      case "desktop-native":
-        return [
-          {
-            title: "Toca Instalar ahora",
-            detail: "Se abrira el instalador del navegador.",
-            icon: <Download className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-          {
-            title: "Confirma",
-            detail: "Se abrira como app en ventana independiente.",
-            icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-          },
-        ];
-      case "desktop-manual":
-        return [
-          {
-            title: "Usa Chrome o Edge",
-            detail: "Son los navegadores mas confiables para instalar PWA.",
-            icon: <Monitor className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-          {
-            title: "Instalar Mi OTEC",
-            detail: "Busca la opcion de instalar en la barra o en el menu.",
-            icon: <Download className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-        ];
-      default:
-        return [
-          {
-            title: "Abre la intranet desde tu movil",
-            detail: "En Android o iPhone veras instrucciones especificas automaticamente.",
-            icon: <Smartphone className="h-4 w-4 text-primary dark:text-primary-light" />,
-          },
-        ];
-    }
-  }, [flow]);
-
-  const showInstallButton = flow === "android-native" || flow === "desktop-native";
-
   const handleInstall = async () => {
-    setInstalling(true);
-    await promptInstall();
-    setInstalling(false);
+    if (isInstallable) {
+      setInstalling(true);
+      await promptInstall();
+      setInstalling(false);
+    } else if (isIosSafari) {
+      setShowIosModal(true);
+    }
   };
 
   if (!mounted) {
@@ -207,7 +44,7 @@ export default function InstalarPage() {
             <CheckCircle2 className="h-10 w-10 text-emerald-500" />
           </div>
           <h1 className="mt-6 text-2xl font-bold text-text-primary dark:text-white sm:text-3xl">
-            App ya instalada
+            App instalada
           </h1>
           <p className="mt-3 text-sm leading-6 text-text-secondary dark:text-gray-400">
             Abre <strong className="text-text-primary dark:text-white">Mi OTEC</strong> desde tu pantalla de inicio.
@@ -227,45 +64,87 @@ export default function InstalarPage() {
     );
   }
 
+  // iOS en browser que no es Safari
+  if (platform === "ios" && !isIosSafari) {
+    return (
+      <section className="mx-auto max-w-2xl">
+        <div className="rounded-2xl border border-amber-200/70 bg-amber-50 p-8 text-center dark:border-amber-500/20 dark:bg-amber-950/30">
+          <p className="text-base font-semibold text-amber-800 dark:text-amber-300">
+            Abre esta página en Safari para instalar la app
+          </p>
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+            En iPhone e iPad, la instalación solo funciona desde Safari.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="mx-auto max-w-3xl space-y-6">
-      <header className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h1 className="text-2xl font-bold text-text-primary dark:text-white">Instalar app</h1>
-        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-          Detectado: {detectionLabel}
-        </p>
+    <section className="mx-auto max-w-2xl">
+      <div className="flex flex-col items-center gap-6 rounded-[32px] border border-gray-200/80 bg-white p-10 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
+          <Download className="h-10 w-10 text-primary dark:text-primary-light" />
+        </div>
 
-        {showInstallButton ? (
-          <button
-            onClick={handleInstall}
-            disabled={installing}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cta px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cta-dark disabled:opacity-70"
-          >
-            <Download className="h-4 w-4" />
-            {installing ? "Abriendo instalador..." : "Instalar ahora"}
-          </button>
-        ) : null}
-      </header>
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary dark:text-white sm:text-3xl">
+            Instalar Mi OTEC
+          </h1>
+          <p className="mt-2 text-sm text-text-secondary dark:text-gray-400">
+            Accede más rápido desde tu pantalla de inicio, sin abrir el navegador.
+          </p>
+        </div>
 
-      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h2 className="text-base font-semibold text-text-primary dark:text-white">Instrucciones</h2>
-        <ol className="mt-4 space-y-3">
-          {steps.map((step, index) => (
-            <li
-              key={`${step.title}-${index}`}
-              className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-950"
+        <button
+          onClick={handleInstall}
+          disabled={installing}
+          className="inline-flex items-center gap-2 rounded-xl bg-cta px-8 py-3 text-base font-semibold text-white shadow-md shadow-cta/20 transition-all hover:bg-cta-dark hover:shadow-lg disabled:opacity-70"
+        >
+          {installing ? (
+            "Abriendo instalador..."
+          ) : (
+            <>
+              <Download className="h-5 w-5" />
+              Instalar
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Modal iOS */}
+      {showIosModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <h2 className="text-lg font-bold text-text-primary dark:text-white">
+              Instalar en iPhone / iPad
+            </h2>
+            <ol className="mt-4 space-y-3">
+              <li className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+                <div className="text-sm text-text-primary dark:text-gray-200">
+                  Toca el ícono{" "}
+                  <Share2 className="mb-0.5 inline h-4 w-4 text-blue-500" />{" "}
+                  <strong>Compartir</strong> en la barra de Safari
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+                <div className="text-sm text-text-primary dark:text-gray-200">
+                  Selecciona <strong>&quot;Agregar a pantalla de inicio&quot;</strong> y toca{" "}
+                  <strong>Agregar</strong>
+                </div>
+              </li>
+            </ol>
+            <button
+              onClick={() => setShowIosModal(false)}
+              className="mt-6 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
             >
-              <div className="mt-0.5">{step.icon}</div>
-              <div>
-                <p className="text-sm font-semibold text-text-primary dark:text-white">
-                  {index + 1}. {step.title}
-                </p>
-                <p className="text-xs text-text-secondary dark:text-gray-400">{step.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </article>
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

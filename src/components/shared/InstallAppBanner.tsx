@@ -16,6 +16,7 @@ export function InstallAppBanner() {
   const pathname = usePathname();
   const { platform, isInstallable, isInstalled, promptInstall } = usePwaInstall();
   const [show, setShow] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const isDashboardPath = useMemo(
     () => pathname === "/admin" || pathname === "/alumno" || pathname === "/docente",
@@ -23,6 +24,33 @@ export function InstallAppBanner() {
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncFromDom = () => {
+      const open = document.documentElement.dataset.otecMobileNavOpen === "1";
+      setIsMobileNavOpen(open);
+    };
+
+    const handleStateChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ open?: boolean }>;
+      const openFromEvent = Boolean(customEvent.detail?.open);
+      setIsMobileNavOpen(openFromEvent);
+    };
+
+    syncFromDom();
+    window.addEventListener("otec:mobile-nav-state", handleStateChange);
+
+    return () => {
+      window.removeEventListener("otec:mobile-nav-state", handleStateChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobileNavOpen) {
+      setShow(false);
+      return;
+    }
+
     if (!isDashboardPath) {
       setShow(false);
       return;
@@ -64,7 +92,7 @@ export function InstallAppBanner() {
     }, platform === "ios" ? 1800 : 1200);
 
     return () => window.clearTimeout(timer);
-  }, [isDashboardPath, isInstallable, isInstalled, platform]);
+  }, [isDashboardPath, isInstallable, isInstalled, isMobileNavOpen, platform]);
 
   const dismiss = () => {
     setShow(false);
@@ -90,7 +118,7 @@ export function InstallAppBanner() {
     router.push("/instalar");
   };
 
-  if (!show || !platform) return null;
+  if (!show || !platform || isMobileNavOpen) return null;
 
   return (
     <div

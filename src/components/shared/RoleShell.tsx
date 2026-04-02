@@ -54,6 +54,23 @@ export function RoleShell({ role, userName, children, pendingSolicitudes, unread
     globalThis.localStorage.setItem(NAV_MODE_STORAGE_KEY, navMode);
   }, [hydrated, navMode]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    document.documentElement.dataset.otecMobileNavOpen =
+      isMobileSidebarOpen ? "1" : "0";
+
+    window.dispatchEvent(
+      new CustomEvent("otec:mobile-nav-state", {
+        detail: { open: isMobileSidebarOpen },
+      }),
+    );
+
+    return () => {
+      document.documentElement.dataset.otecMobileNavOpen = "0";
+    };
+  }, [isMobileSidebarOpen]);
+
   // Close mobile nav on route change
   useEffect(() => {
     setIsMobileSidebarOpen(false);

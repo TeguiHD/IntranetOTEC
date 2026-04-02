@@ -10,6 +10,15 @@ import {
 } from "react";
 
 type Platform = "android" | "ios" | "desktop" | null;
+type BrowserFamily =
+  | "safari"
+  | "chrome"
+  | "edge"
+  | "firefox"
+  | "opera"
+  | "samsung"
+  | "other"
+  | null;
 type InstallOutcome = "accepted" | "dismissed" | "unavailable";
 
 type BeforeInstallPromptEvent = Event & {
@@ -19,6 +28,7 @@ type BeforeInstallPromptEvent = Event & {
 
 type PwaInstallContextValue = {
   platform: Platform;
+  browser: BrowserFamily;
   isIosSafari: boolean;
   isInstalled: boolean;
   isInstallable: boolean;
@@ -51,6 +61,21 @@ const detectIosSafari = (): boolean => {
   return isIos && isSafari;
 };
 
+const detectBrowser = (): BrowserFamily => {
+  if (typeof navigator === "undefined") return null;
+
+  const ua = navigator.userAgent.toLowerCase();
+
+  if (/samsungbrowser/.test(ua)) return "samsung";
+  if (/edg\//.test(ua) || /edgios/.test(ua)) return "edge";
+  if (/firefox\//.test(ua) || /fxios/.test(ua)) return "firefox";
+  if (/opr\//.test(ua) || /opios/.test(ua)) return "opera";
+  if (/crios/.test(ua) || /chrome\//.test(ua)) return "chrome";
+  if (/safari/.test(ua)) return "safari";
+
+  return "other";
+};
+
 const computeInstalled = (): boolean => {
   if (typeof window === "undefined") return false;
 
@@ -67,6 +92,7 @@ export function PwaInstallProvider({
   children: React.ReactNode;
 }) {
   const [platform, setPlatform] = useState<Platform>(null);
+  const [browser, setBrowser] = useState<BrowserFamily>(null);
   const [isIosSafari, setIsIosSafari] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [deferredPrompt, setDeferredPrompt] =
@@ -74,6 +100,7 @@ export function PwaInstallProvider({
 
   useEffect(() => {
     setPlatform(detectPlatform());
+    setBrowser(detectBrowser());
     setIsIosSafari(detectIosSafari());
     setIsInstalled(computeInstalled());
 
@@ -128,12 +155,13 @@ export function PwaInstallProvider({
   const value = useMemo<PwaInstallContextValue>(
     () => ({
       platform,
+      browser,
       isIosSafari,
       isInstalled,
       isInstallable: deferredPrompt !== null,
       promptInstall,
     }),
-    [deferredPrompt, isInstalled, isIosSafari, platform, promptInstall],
+    [browser, deferredPrompt, isInstalled, isIosSafari, platform, promptInstall],
   );
 
   return (

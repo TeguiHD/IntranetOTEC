@@ -1,35 +1,77 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Download, Smartphone, X } from "lucide-react";
 
 import { usePwaInstall } from "./PwaInstallProvider";
 
+const BANNER_LAST_SHOWN_KEY = "install-banner-last-shown";
+const BANNER_DISMISS_UNTIL_KEY = "install-banner-dismissed-until";
+const BANNER_SHOW_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const BANNER_DISMISS_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function InstallAppBanner() {
   const router = useRouter();
+  const pathname = usePathname();
   const { platform, isInstallable, isInstalled, promptInstall } = usePwaInstall();
   const [show, setShow] = useState(false);
 
+  const isDashboardPath = useMemo(
+    () => pathname === "/admin" || pathname === "/alumno" || pathname === "/docente",
+    [pathname],
+  );
+
   useEffect(() => {
+    if (!isDashboardPath) {
+      setShow(false);
+      return;
+    }
+
     if (isInstalled) {
       setShow(false);
       return;
     }
 
     if (typeof window === "undefined") return;
-    if (sessionStorage.getItem("install-banner-dismissed")) return;
+
+    const isMobileViewport = window.matchMedia("(max-width: 1023px)").matches;
+    if (!isMobileViewport) return;
+
+    const now = Date.now();
+    const dismissedUntil = Number(
+      window.localStorage.getItem(BANNER_DISMISS_UNTIL_KEY) ?? "0",
+    );
+    if (Number.isFinite(dismissedUntil) && dismissedUntil > now) return;
+
+    const lastShownAt = Number(
+      window.localStorage.getItem(BANNER_LAST_SHOWN_KEY) ?? "0",
+    );
+    if (
+      Number.isFinite(lastShownAt) &&
+      lastShownAt > 0 &&
+      now - lastShownAt < BANNER_SHOW_COOLDOWN_MS
+    ) {
+      return;
+    }
 
     const canSurface = platform === "ios" || isInstallable;
     if (!canSurface) return;
 
-    const timer = window.setTimeout(() => setShow(true), platform === "ios" ? 1800 : 900);
+    const timer = window.setTimeout(() => {
+      setShow(true);
+      window.localStorage.setItem(BANNER_LAST_SHOWN_KEY, String(Date.now()));
+    }, platform === "ios" ? 1800 : 1200);
+
     return () => window.clearTimeout(timer);
-  }, [isInstallable, isInstalled, platform]);
+  }, [isDashboardPath, isInstallable, isInstalled, platform]);
 
   const dismiss = () => {
     setShow(false);
-    sessionStorage.setItem("install-banner-dismissed", "1");
+    window.localStorage.setItem(
+      BANNER_DISMISS_UNTIL_KEY,
+      String(Date.now() + BANNER_DISMISS_MS),
+    );
   };
 
   const handleAction = async () => {
@@ -37,6 +79,10 @@ export function InstallAppBanner() {
       const outcome = await promptInstall();
       if (outcome === "accepted") {
         setShow(false);
+        window.localStorage.setItem(
+          BANNER_DISMISS_UNTIL_KEY,
+          String(Date.now() + BANNER_DISMISS_MS),
+        );
       }
       return;
     }
@@ -69,18 +115,17 @@ export function InstallAppBanner() {
           </p>
           {platform === "ios" ? (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              En iPhone se agrega desde Safari. La guia solo te muestra los pasos.
+              En iPhone se instala desde Safari. Te mostramos solo los pasos.
             </p>
           ) : (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               <span className="font-semibold text-text-primary dark:text-gray-200">
                 Instalar ahora
               </span>{" "}
-              abre el instalador real.{" "}
-              <span className="font-semibold text-text-primary dark:text-gray-200">
+              abre el instalador. <span className="font-semibold text-text-primary dark:text-gray-200">
                 Ver ayuda
               </span>{" "}
-              solo explica el proceso.
+              muestra instrucciones.
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">

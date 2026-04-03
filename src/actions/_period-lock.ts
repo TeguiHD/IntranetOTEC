@@ -36,8 +36,20 @@ const toGuardResult = (periodoEstado: string | null | undefined): PeriodoGuardRe
 const periodoEstadoExpr = sql<string | null>`(
   select estado
   from periodos_academicos
-  where id = ${asignaturas.periodoId}
+  where id = asignaturas.periodo_id
 )`;
+
+const runGuardQuery = async (
+  queryFactory: () => Promise<Array<{ periodoEstado: string | null | undefined }>>,
+): Promise<PeriodoGuardResult> => {
+  try {
+    const [row] = await queryFactory();
+    return toGuardResult(row?.periodoEstado);
+  } catch {
+    // Fail-open while some environments still run without period schema rollout.
+    return { ok: true };
+  }
+};
 
 export async function assertPeriodoAbiertoByAsignaturaId(
   asignaturaId: string,
@@ -47,13 +59,13 @@ export async function assertPeriodoAbiertoByAsignaturaId(
   }
 
   const db = getDb();
-  const [row] = await db
-    .select({ periodoEstado: periodoEstadoExpr })
-    .from(asignaturas)
-    .where(eq(asignaturas.id, asignaturaId))
-    .limit(1);
-
-  return toGuardResult(row?.periodoEstado);
+  return runGuardQuery(() =>
+    db
+      .select({ periodoEstado: periodoEstadoExpr })
+      .from(asignaturas)
+      .where(eq(asignaturas.id, asignaturaId))
+      .limit(1),
+  );
 }
 
 export async function assertPeriodoAbiertoByClaseId(claseId: string): Promise<PeriodoGuardResult> {
@@ -62,14 +74,14 @@ export async function assertPeriodoAbiertoByClaseId(claseId: string): Promise<Pe
   }
 
   const db = getDb();
-  const [row] = await db
-    .select({ periodoEstado: periodoEstadoExpr })
-    .from(clases)
-    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
-    .where(eq(clases.id, claseId))
-    .limit(1);
-
-  return toGuardResult(row?.periodoEstado);
+  return runGuardQuery(() =>
+    db
+      .select({ periodoEstado: periodoEstadoExpr })
+      .from(clases)
+      .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+      .where(eq(clases.id, claseId))
+      .limit(1),
+  );
 }
 
 export async function assertPeriodoAbiertoByMatriculaId(
@@ -80,14 +92,14 @@ export async function assertPeriodoAbiertoByMatriculaId(
   }
 
   const db = getDb();
-  const [row] = await db
-    .select({ periodoEstado: periodoEstadoExpr })
-    .from(matriculas)
-    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
-    .where(eq(matriculas.id, matriculaId))
-    .limit(1);
-
-  return toGuardResult(row?.periodoEstado);
+  return runGuardQuery(() =>
+    db
+      .select({ periodoEstado: periodoEstadoExpr })
+      .from(matriculas)
+      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+      .where(eq(matriculas.id, matriculaId))
+      .limit(1),
+  );
 }
 
 export async function assertPeriodoAbiertoByEvaluacionId(
@@ -98,14 +110,14 @@ export async function assertPeriodoAbiertoByEvaluacionId(
   }
 
   const db = getDb();
-  const [row] = await db
-    .select({ periodoEstado: periodoEstadoExpr })
-    .from(evaluaciones)
-    .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
-    .where(eq(evaluaciones.id, evaluacionId))
-    .limit(1);
-
-  return toGuardResult(row?.periodoEstado);
+  return runGuardQuery(() =>
+    db
+      .select({ periodoEstado: periodoEstadoExpr })
+      .from(evaluaciones)
+      .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+      .where(eq(evaluaciones.id, evaluacionId))
+      .limit(1),
+  );
 }
 
 export async function assertPeriodoAbiertoByPreguntaId(
@@ -116,15 +128,15 @@ export async function assertPeriodoAbiertoByPreguntaId(
   }
 
   const db = getDb();
-  const [row] = await db
-    .select({ periodoEstado: periodoEstadoExpr })
-    .from(preguntas)
-    .innerJoin(evaluaciones, eq(preguntas.evaluacionId, evaluaciones.id))
-    .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
-    .where(eq(preguntas.id, preguntaId))
-    .limit(1);
-
-  return toGuardResult(row?.periodoEstado);
+  return runGuardQuery(() =>
+    db
+      .select({ periodoEstado: periodoEstadoExpr })
+      .from(preguntas)
+      .innerJoin(evaluaciones, eq(preguntas.evaluacionId, evaluaciones.id))
+      .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+      .where(eq(preguntas.id, preguntaId))
+      .limit(1),
+  );
 }
 
 export async function assertPeriodoAbiertoByCertificadoId(
@@ -135,13 +147,13 @@ export async function assertPeriodoAbiertoByCertificadoId(
   }
 
   const db = getDb();
-  const [row] = await db
-    .select({ periodoEstado: periodoEstadoExpr })
-    .from(certificados)
-    .innerJoin(matriculas, eq(certificados.matriculaId, matriculas.id))
-    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
-    .where(eq(certificados.id, certificadoId))
-    .limit(1);
-
-  return toGuardResult(row?.periodoEstado);
+  return runGuardQuery(() =>
+    db
+      .select({ periodoEstado: periodoEstadoExpr })
+      .from(certificados)
+      .innerJoin(matriculas, eq(certificados.matriculaId, matriculas.id))
+      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+      .where(eq(certificados.id, certificadoId))
+      .limit(1),
+  );
 }

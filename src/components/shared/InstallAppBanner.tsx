@@ -111,8 +111,8 @@ export function InstallAppBanner() {
           BANNER_DISMISS_UNTIL_KEY,
           String(Date.now() + BANNER_DISMISS_MS),
         );
+        return;
       }
-      return;
     }
 
     router.push("/instalar");

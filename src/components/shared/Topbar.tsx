@@ -141,8 +141,10 @@ export function Topbar({
 
   const handleInstallAction = async () => {
     if (platform !== "ios" && isInstallable) {
-      await promptInstall();
-      return;
+      const outcome = await promptInstall();
+      if (outcome === "accepted") {
+        return;
+      }
     }
 
     router.push("/instalar");

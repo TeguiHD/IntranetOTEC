@@ -13,6 +13,7 @@ export default function InstalarPage() {
   const [mounted, setMounted] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [showIosModal, setShowIosModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -21,10 +22,15 @@ export default function InstalarPage() {
   const handleInstall = async () => {
     if (isInstallable) {
       setInstalling(true);
-      await promptInstall();
+      const outcome = await promptInstall();
       setInstalling(false);
+      if (outcome !== "accepted") {
+        setShowManualModal(true);
+      }
     } else if (isIosSafari) {
       setShowIosModal(true);
+    } else {
+      setShowManualModal(true);
     }
   };
 
@@ -110,6 +116,12 @@ export default function InstalarPage() {
             </>
           )}
         </button>
+
+        {platform !== "ios" && !isInstallable ? (
+          <p className="max-w-md text-xs leading-5 text-text-muted dark:text-gray-500">
+            Si no aparece el instalador automatico, puedes instalar manualmente desde el menu del navegador.
+          </p>
+        ) : null}
       </div>
 
       {/* Modal iOS */}
@@ -138,6 +150,45 @@ export default function InstalarPage() {
             </ol>
             <button
               onClick={() => setShowIosModal(false)}
+              className="mt-6 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <h2 className="text-lg font-bold text-text-primary dark:text-white">
+              Instalar manualmente
+            </h2>
+            <p className="mt-2 text-sm text-text-secondary dark:text-gray-400">
+              Si desinstalaste la app recientemente, el navegador puede tardar un poco en volver a mostrar el instalador automatico.
+            </p>
+            <ol className="mt-4 space-y-3">
+              <li className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+                <div className="text-sm text-text-primary dark:text-gray-200">
+                  Abre el menu del navegador (icono de tres puntos).
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+                <div className="text-sm text-text-primary dark:text-gray-200">
+                  Selecciona <strong>Instalar app</strong> o <strong>Agregar a pantalla de inicio</strong>.
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
+                <div className="text-sm text-text-primary dark:text-gray-200">
+                  Si no aparece la opcion, recarga esta pagina y vuelve a intentar en unos minutos.
+                </div>
+              </li>
+            </ol>
+            <button
+              onClick={() => setShowManualModal(false)}
               className="mt-6 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
             >
               Entendido

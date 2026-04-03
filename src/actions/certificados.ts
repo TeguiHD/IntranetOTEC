@@ -5,12 +5,12 @@ import { randomUUID } from "node:crypto";
 import { and, count, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { getDb } from "@/db";
 import { certificados, matriculas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { logEvent } from "@/lib/observability/logger";
-import { emitirCertificadoInputSchema } from "@/lib/validations/admin";
 
 import {
   assertPeriodoAbiertoByCertificadoId,
@@ -33,6 +33,11 @@ const parsePageField = (value: string): number | null => {
 
   return parsed;
 };
+
+const emitirCertificadoInputSchema = z.object({
+  matriculaId: z.string().uuid(),
+  tipo: z.enum(["alumno_regular", "termino_curso"]),
+});
 
 /* ------------------------------------------------------------------ */
 /*  Existing: per-matricula listing (kept for backwards compatibility) */

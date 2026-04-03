@@ -14,6 +14,7 @@ const RULES: Record<string, Rule> = {
   "/api/auth/callback": { max: 5, windowMs: 60_000, blockMs: 900_000 },
   "/login": { max: 120, windowMs: 60_000, blockMs: 60_000 },
   "/api/files": { max: 300, windowMs: 60_000, blockMs: 60_000 },
+  "/api/internal/import-alumnos": { max: 6, windowMs: 300_000, blockMs: 1_800_000 },
   "/api/sse": { max: 10, windowMs: 60_000, blockMs: 60_000 },
   default: { max: 120, windowMs: 60_000, blockMs: 30_000 },
 };
@@ -38,6 +39,7 @@ function resolveRule(endpoint: string): Rule {
   if (endpoint.startsWith("/api/auth/callback/")) return RULES["/api/auth/callback"];
   if (endpoint.startsWith("/login")) return RULES["/login"];
   if (endpoint.startsWith("/api/files")) return RULES["/api/files"];
+  if (endpoint.startsWith("/api/internal/import-alumnos")) return RULES["/api/internal/import-alumnos"];
   if (endpoint.startsWith("/api/sse")) return RULES["/api/sse"];
   return RULES.default;
 }
@@ -52,6 +54,7 @@ export function checkRateLimitMemory(
   const rule = resolveRule(endpoint);
   const ruleKey = endpoint.startsWith("/api/files") ? "/api/files"
     : endpoint.startsWith("/api/auth/callback") ? "/api/auth/callback"
+    : endpoint.startsWith("/api/internal/import-alumnos") ? "/api/internal/import-alumnos"
     : endpoint;
   const key = `${ip}:${ruleKey}`;
   const entry = store.get(key);

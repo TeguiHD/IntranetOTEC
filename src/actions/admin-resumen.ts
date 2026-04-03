@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
@@ -13,6 +13,28 @@ import {
 } from "@/db/schema";
 
 import { requireActionActor } from "./_security";
+
+type PeriodoScopeOptions = {
+  periodoId?: string | null;
+};
+
+const normalizePeriodoId = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized || normalized.toLowerCase() === "all") {
+    return null;
+  }
+
+  return normalized;
+};
+
+const buildAsignaturasWhere = (periodoId: string | null) => {
+  const activeAsignatura = isNull(asignaturas.eliminadoAt);
+  return periodoId ? and(activeAsignatura, eq(asignaturas.periodoId, periodoId)) : activeAsignatura;
+};
 
 export type ResumenDocenteData = {
   docenteId: string;
@@ -28,7 +50,9 @@ export type ResumenDocenteData = {
   }[];
 };
 
-export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[]> {
+export async function obtenerResumenDatosDocentes(
+  options: PeriodoScopeOptions = {},
+): Promise<ResumenDocenteData[]> {
   const actorResult = await requireActionActor("admin_resumen_docentes", ["admin"]);
 
   if (!actorResult.ok) {
@@ -36,6 +60,8 @@ export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[
   }
 
   const db = getDb();
+  const periodoId = normalizePeriodoId(options.periodoId);
+  const asignaturasWhere = buildAsignaturasWhere(periodoId);
 
   const [clasesAgg, notasAgg, obsAgg] = await Promise.all([
     db.select({
@@ -51,6 +77,7 @@ export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[
     .innerJoin(usuarios, sql`${asignaturas.docenteId} = ${usuarios.id}`)
     .leftJoin(clases, sql`${clases.asignaturaId} = ${asignaturas.id} AND ${clases.eliminadoAt} IS NULL`)
     .leftJoin(asistencia, sql`${asistencia.claseId} = ${clases.id}`)
+    .where(asignaturasWhere)
     .groupBy(asignaturas.docenteId, usuarios.nombre, usuarios.apellido, asignaturas.id, asignaturas.nombre)
     .orderBy(desc(asignaturas.createdAt)),
 
@@ -59,6 +86,8 @@ export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[
       total: sql<number>`count(*)`,
     })
     .from(notasDocente)
+    .innerJoin(asignaturas, eq(notasDocente.asignaturaId, asignaturas.id))
+    .where(asignaturasWhere)
     .groupBy(notasDocente.asignaturaId),
 
     db.select({
@@ -66,6 +95,8 @@ export async function obtenerResumenDatosDocentes(): Promise<ResumenDocenteData[
       total: sql<number>`count(*)`,
     })
     .from(observacionesDocente)
+    .innerJoin(asignaturas, eq(observacionesDocente.asignaturaId, asignaturas.id))
+    .where(asignaturasWhere)
     .groupBy(observacionesDocente.asignaturaId),
   ]);
 

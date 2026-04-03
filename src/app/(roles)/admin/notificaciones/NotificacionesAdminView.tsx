@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, useCallback } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback, useMemo } from "react";
 
 import {
   Bell,
@@ -21,7 +21,13 @@ import { toast } from "sonner";
 import { eliminarNotificacionAction, enviarNotificacionAction } from "@/actions/notificaciones";
 
 type Usuario = { id: string; nombre: string; apellido: string; rut: string | null; rol: string };
-type Asignatura = { id: string; nombre: string };
+type Asignatura = {
+  id: string;
+  nombre: string;
+  codigo: string | null;
+  fechaInicio: string | Date | null;
+  turno: "manana" | "tarde" | "vespertino" | null;
+};
 type Notificacion = {
   id: string;
   titulo: string;
@@ -75,6 +81,60 @@ const ROL_BADGE: Record<string, string> = {
   alumno: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   docente: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
 };
+
+const TURNO_LABEL: Record<"manana" | "tarde" | "vespertino", string> = {
+  manana: "Manana",
+  tarde: "Tarde",
+  vespertino: "Vespertino",
+};
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function toSafeDate(value: string | Date | null): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+}
+
+function formatCourseDate(value: string | Date | null): string {
+  const date = toSafeDate(value);
+  if (!date) return "";
+
+  return new Intl.DateTimeFormat("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildAsignaturaMeta(asignatura: Asignatura): string {
+  const parts: string[] = [];
+
+  if (asignatura.codigo) {
+    parts.push(`Cod: ${asignatura.codigo}`);
+  }
+
+  const formattedDate = formatCourseDate(asignatura.fechaInicio);
+  if (formattedDate) {
+    parts.push(`Inicio: ${formattedDate}`);
+  }
+
+  if (asignatura.turno) {
+    parts.push(`Turno: ${TURNO_LABEL[asignatura.turno]}`);
+  }
+
+  return parts.join(" · ");
+}
 
 function formatRelativeTime(date: Date | null): string {
   if (!date) return "";
@@ -267,15 +327,25 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
   const comboboxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const cursosFiltrados = cursoQuery.trim()
-    ? asignaturas.filter((a) =>
-        a.nombre.toLowerCase().includes(cursoQuery.toLowerCase()),
-      )
-    : asignaturas;
+  const normalizedCourseQuery = normalizeSearchText(cursoQuery);
+
+  const cursosFiltrados = useMemo(() => {
+    if (!normalizedCourseQuery) {
+      return asignaturas;
+    }
+
+    return asignaturas.filter((a) => {
+      const indexableText = normalizeSearchText(
+        `${a.nombre} ${a.codigo ?? ""} ${formatCourseDate(a.fechaInicio)} ${a.turno ? TURNO_LABEL[a.turno] : ""}`,
+      );
+
+      return indexableText.includes(normalizedCourseQuery);
+    });
+  }, [asignaturas, normalizedCourseQuery]);
 
   const cursoSeleccionado = asignaturas.find((a) => a.id === asignaturaId);
 
-  const handleSelectCurso = useCallback((a: { id: string; nombre: string }) => {
+  const handleSelectCurso = useCallback((a: Asignatura) => {
     setAsignaturaId(a.id);
     setCursoQuery("");
     setCursoOpen(false);
@@ -478,9 +548,14 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                     /* Chip del curso seleccionado */
                     <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 dark:border-amber-700/60 dark:bg-amber-950/30">
                       <BookOpen className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                      <span className="flex-1 truncate text-sm font-medium text-amber-800 dark:text-amber-200">
-                        {cursoSeleccionado.nombre}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-amber-800 dark:text-amber-200">
+                          {cursoSeleccionado.nombre}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[11px] text-amber-700/90 dark:text-amber-300/90">
+                          {buildAsignaturaMeta(cursoSeleccionado)}
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={handleClearCurso}
@@ -512,12 +587,13 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                         }}
                         onFocus={() => setCursoOpen(true)}
                         onKeyDown={handleComboboxKeyDown}
-                        placeholder="Buscar curso por nombre…"
+                        placeholder="Buscar por nombre, codigo, fecha o turno…"
                         autoComplete="off"
                         role="combobox"
                         className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-gray-400 focus:outline-none dark:text-gray-100"
                         aria-haspopup="listbox"
                         aria-expanded={cursoOpen}
+                        aria-controls={cursoOpen ? "notif-asignatura-listbox" : undefined}
                         aria-autocomplete="list"
                       />
                       <ChevronDown
@@ -542,6 +618,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                       </div>
 
                       <ul
+                        id="notif-asignatura-listbox"
                         role="listbox"
                         aria-label="Cursos disponibles"
                         className="max-h-56 overflow-y-auto overscroll-contain"
@@ -556,11 +633,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                         ) : (
                           cursosFiltrados.map((a, idx) => {
                             const isHighlighted = idx === cursoHighlight;
-                            // Resaltar el texto coincidente
-                            const q = cursoQuery.trim();
-                            const matchIdx = q
-                              ? a.nombre.toLowerCase().indexOf(q.toLowerCase())
-                              : -1;
+                            const metaText = buildAsignaturaMeta(a);
 
                             return (
                               <li
@@ -593,19 +666,16 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                                     }`}
                                   />
                                 </div>
-                                <span className="flex-1 truncate text-sm text-text-primary dark:text-gray-100">
-                                  {matchIdx >= 0 && q ? (
-                                    <>
-                                      {a.nombre.slice(0, matchIdx)}
-                                      <mark className="rounded bg-amber-200/70 font-semibold not-italic text-amber-800 dark:bg-amber-700/40 dark:text-amber-200">
-                                        {a.nombre.slice(matchIdx, matchIdx + q.length)}
-                                      </mark>
-                                      {a.nombre.slice(matchIdx + q.length)}
-                                    </>
-                                  ) : (
-                                    a.nombre
+                                <div className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm text-text-primary dark:text-gray-100">
+                                    {a.nombre}
+                                  </span>
+                                  {metaText && (
+                                    <span className="mt-0.5 block truncate text-[11px] text-text-muted dark:text-gray-500">
+                                      {metaText}
+                                    </span>
                                   )}
-                                </span>
+                                </div>
                               </li>
                             );
                           })
@@ -618,7 +688,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                 {/* Hint */}
                 {!cursoSeleccionado && (
                   <p className="text-[11px] text-text-muted dark:text-gray-500">
-                    Escribe para filtrar · ↑↓ navegar · Enter para seleccionar
+                    Filtra por nombre/codigo/fecha/turno · ↑↓ navegar · Enter seleccionar
                   </p>
                 )}
               </div>

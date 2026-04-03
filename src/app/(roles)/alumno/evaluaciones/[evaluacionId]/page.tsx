@@ -2,8 +2,10 @@ import { CalendarDays, CheckCircle, ClipboardList, Clock } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { listarEvaluacionesAlumno, listarPreguntasByEvaluacion } from "@/actions/evaluaciones";
+import { obtenerEntregasAlumno } from "@/actions/entregas";
 
 import { EvaluacionForm } from "./EvaluacionForm";
+import { EntregaSection } from "./EntregaSection";
 
 type AlumnoEvaluacionPageProps = {
   params: Promise<{ evaluacionId: string }>;
@@ -30,7 +32,12 @@ export default async function AlumnoEvaluacionPage({
 
   if (!evaluacion) notFound();
 
-  const preguntas = await listarPreguntasByEvaluacion(evaluacionId);
+  const esTareaOProyecto = evaluacion.tipo === "tarea" || evaluacion.tipo === "proyecto";
+
+  const [preguntas, entregasPrevias] = await Promise.all([
+    listarPreguntasByEvaluacion(evaluacionId),
+    esTareaOProyecto ? obtenerEntregasAlumno(evaluacionId) : Promise.resolve([]),
+  ]);
   const isSubmitted = state === "respuestas_enviadas";
   const isOverdue = evaluacion.fechaLimite && new Date(evaluacion.fechaLimite) < new Date();
   const hasError = [
@@ -136,7 +143,18 @@ export default async function AlumnoEvaluacionPage({
         </article>
       )}
 
-      {!isSubmitted && preguntas.length === 0 && (
+      {/* Sección de entrega de archivo (tarea/proyecto) */}
+      {esTareaOProyecto && (
+        <EntregaSection
+          evaluacionId={evaluacionId}
+          entregas={entregasPrevias}
+          intentosMax={evaluacion.intentosMax ?? 1}
+          fechaLimite={evaluacion.fechaLimite ?? null}
+        />
+      )}
+
+      {/* Formulario de preguntas (formulario/examen) */}
+      {!esTareaOProyecto && !isSubmitted && preguntas.length === 0 && (
         <article className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <p className="text-center text-sm text-text-secondary dark:text-gray-400">
             Esta evaluación no tiene preguntas disponibles aún.
@@ -144,7 +162,7 @@ export default async function AlumnoEvaluacionPage({
         </article>
       )}
 
-      {!isSubmitted && preguntas.length > 0 && (
+      {!esTareaOProyecto && !isSubmitted && preguntas.length > 0 && (
         <EvaluacionForm evaluacionId={evaluacionId} preguntas={preguntas} />
       )}
     </section>

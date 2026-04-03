@@ -60,7 +60,7 @@ const normalizeCellValue = (value: unknown): string => {
   return String(value);
 };
 
-const parseCsv = (content: string): string[][] => {
+const parseDelimited = (content: string, delimiter: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -81,7 +81,7 @@ const parseCsv = (content: string): string[][] => {
       continue;
     }
 
-    if (!insideQuotes && char === ",") {
+    if (!insideQuotes && char === delimiter) {
       row.push(cell);
       cell = "";
       continue;
@@ -162,8 +162,11 @@ const parseXlsxBuffer = async (buffer: Buffer): Promise<SpreadsheetRow[]> => {
 
   const parsed: SpreadsheetRow[] = [];
 
-  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
-    const row = worksheet.getRow(rowNumber);
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) {
+      return;
+    }
+
     const rowObject: Record<string, unknown> = Object.create(null);
     let hasData = false;
 
@@ -181,14 +184,26 @@ const parseXlsxBuffer = async (buffer: Buffer): Promise<SpreadsheetRow[]> => {
     if (hasData) {
       parsed.push(rowObject);
     }
-  }
+  });
 
   return parsed;
 };
 
 const parseCsvBuffer = (buffer: Buffer): SpreadsheetRow[] => {
   const content = buffer.toString("utf8").replace(/^\uFEFF/, "");
-  const rows = parseCsv(content);
+
+  const firstNonEmptyLine =
+    content
+      .split(/\r?\n/u)
+      .find((line) => line.trim().length > 0) ?? "";
+
+  const delimiter = firstNonEmptyLine.includes("\t")
+    ? "\t"
+    : firstNonEmptyLine.includes(";")
+      ? ";"
+      : ",";
+
+  const rows = parseDelimited(content, delimiter);
   return rowsToObjects(rows);
 };
 
@@ -202,9 +217,56 @@ export const parseSpreadsheetRowsFromBuffer = async (
     return parseCsvBuffer(buffer);
   }
 
+  if (normalizedName.endsWith(".txt") || normalizedName.endsWith(".tsv")) {
+    return parseCsvBuffer(buffer);
+  }
+
   if (normalizedName.endsWith(".xlsx")) {
     return parseXlsxBuffer(buffer);
   }
 
   throw new Error("unsupported_spreadsheet_type");
+};
+
+export type SpreadsheetExportColumn = {
+  key: string;
+  header: string;
+  width?: number;
+};
+
+export const buildSpreadsheetBuffer = async (
+  sheetName: string,
+  columns: SpreadsheetExportColumn[],
+  rows: Array<Record<string, unknown>>,
+): Promise<Buffer> => {
+  const workbook = new ExcelJS.Workbook();
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet(sheetName.slice(0, 31));
+  worksheet.columns = columns.map((column) => ({
+    header: column.header,
+    key: column.key,
+    width: column.width ?? Math.max(12, column.header.length + 2),
+  }));
+
+  for (const row of rows) {
+    const sanitized: Record<string, unknown> = Object.create(null);
+    for (const column of columns) {
+      const value = row[column.key];
+      if (value instanceof Date) {
+        sanitized[column.key] = value.toISOString();
+      } else if (value === undefined) {
+        sanitized[column.key] = "";
+      } else {
+        sanitized[column.key] = value;
+      }
+    }
+    worksheet.addRow(sanitized);
+  }
+
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  const output = await workbook.xlsx.writeBuffer();
+  return Buffer.from(output as ArrayBuffer);
 };

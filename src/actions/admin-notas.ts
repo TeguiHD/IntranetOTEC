@@ -23,7 +23,7 @@ export type NotaAdminRow = {
 
 const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
 
-export async function listarNotasAdmin(options?: { q?: string; asignaturaId?: string }): Promise<NotaAdminRow[]> {
+export async function listarNotasAdmin(options?: { q?: string; asignaturaId?: string; periodoId?: string }): Promise<NotaAdminRow[]> {
   const actorResult = await requireActionActor("admin_notas_list", ["admin"]);
   if (!actorResult.ok) return [];
 
@@ -62,6 +62,10 @@ export async function listarNotasAdmin(options?: { q?: string; asignaturaId?: st
 
   if (options?.asignaturaId) {
     conditions.push(eq(notasDocente.asignaturaId, options.asignaturaId));
+  }
+
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
   }
 
   if (options?.q) {

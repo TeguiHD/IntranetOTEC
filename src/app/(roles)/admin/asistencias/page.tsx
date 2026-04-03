@@ -1,7 +1,10 @@
 import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 
+import { listarPeriodosDashboard } from "@/actions/admin-metricas";
+import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { listarAsistenciasAdmin } from "@/actions/admin-asistencias";
 import { formatearRut } from "@/lib/rut";
+import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 
 const ESTADO_STYLES: Record<string, string> = {
   presente: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
@@ -30,22 +33,39 @@ export const metadata = {
 type AdminAsistenciasPageProps = {
   searchParams?: Promise<{
     q?: string;
+    periodoId?: string;
     asignaturaId?: string;
   }>;
 };
 
 export default async function AdminAsistenciasPage({ searchParams }: AdminAsistenciasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { q?: string; asignaturaId?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string }));
   const q = typeof params.q === "string" ? params.q.trim() : undefined;
-  const asignaturaId = typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;
+  const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
 
-  const asistencias = await listarAsistenciasAdmin({ q: q || undefined, asignaturaId });
+  const periodos = await listarPeriodosDashboard();
+  const defaultPeriodoId = periodos.find((p) => p.estado === "activo")?.id ?? periodos[0]?.id ?? "";
+  const selectedPeriodoId =
+    requestedPeriodoId && periodos.some((p) => p.id === requestedPeriodoId)
+      ? requestedPeriodoId
+      : defaultPeriodoId;
 
-  // Build asignatura list for dropdown
-  const allAsistencias = (!q && !asignaturaId) ? asistencias : await listarAsistenciasAdmin();
-  const asignaturaOptions = Array.from(
-    new Map(allAsistencias.map((r) => [r.asignaturaId, r.asignaturaNombre])).entries(),
+  const asignaturas = await listarAsignaturasAdmin(
+    { limit: 1000, offset: 0 },
+    { incluirArchivadas: false, periodoId: selectedPeriodoId || undefined },
   );
+
+  const requestedAsignaturaId = typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;
+  const asignaturaId =
+    requestedAsignaturaId && asignaturas.some((a) => a.id === requestedAsignaturaId)
+      ? requestedAsignaturaId
+      : undefined;
+
+  const asistencias = await listarAsistenciasAdmin({ q: q || undefined, asignaturaId, periodoId: selectedPeriodoId || undefined });
+
+  const allAsistencias = (!q && !asignaturaId)
+    ? asistencias
+    : await listarAsistenciasAdmin({ periodoId: selectedPeriodoId || undefined });
 
   // Métricas globales
   const total = allAsistencias.length;
@@ -114,7 +134,20 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
 
       {/* Search & Filter */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_1fr_auto]">
+          <select
+            name="periodoId"
+            defaultValue={selectedPeriodoId}
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+          >
+            {periodos.length === 0 ? (
+              <option value="">Sin periodos</option>
+            ) : (
+              periodos.map((p) => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))
+            )}
+          </select>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
@@ -125,16 +158,16 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
               className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
-          <select
-            name="asignaturaId"
-            defaultValue={asignaturaId ?? ""}
-            className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 sm:w-52"
-          >
-            <option value="">Todas las asignaturas</option>
-            {asignaturaOptions.map(([id, nombre]) => (
-              <option key={id} value={id}>{nombre}</option>
-            ))}
-          </select>
+          <div className="sm:w-64">
+            <AsignaturaFilterSelect
+              options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
+              defaultValue={asignaturaId ?? ""}
+              name="asignaturaId"
+              allowEmpty
+              emptyLabel="Todas las secciones"
+              autoSubmit={false}
+            />
+          </div>
           <button
             type="submit"
             className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
@@ -145,7 +178,7 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
         {(q || asignaturaId) && (
           <div className="mt-2">
             <a
-              href="/admin/asistencias"
+              href={selectedPeriodoId ? `/admin/asistencias?periodoId=${selectedPeriodoId}` : "/admin/asistencias"}
               className="rounded-lg border border-gray-200 px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               Limpiar filtros

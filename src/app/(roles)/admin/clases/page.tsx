@@ -1,9 +1,15 @@
 import { Search } from "lucide-react";
 
+import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
-import { countClasesAdmin, listarClasesAdmin } from "@/actions/clases";
+import {
+  countClasesAdmin,
+  generarClasesDesdeBloquesFormAction,
+  listarClasesAdmin,
+} from "@/actions/clases";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 
 import { ClaseCreateModal } from "./ClaseCreateModal";
 import { ClasesTable } from "./ClasesTable";
@@ -17,12 +23,37 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   clase_updated: { tone: "success", text: "Clase actualizada correctamente." },
   clase_deleted: { tone: "success", text: "Clase eliminada correctamente." },
   already_deleted: { tone: "success", text: "La clase ya estaba eliminada." },
+  clases_autogeneradas: {
+    tone: "success",
+    text: "Clases generadas automáticamente desde bloques horarios.",
+  },
+  clases_autogeneradas_sin_cambios: {
+    tone: "success",
+    text: "No se generaron clases nuevas porque ya existen en ese rango.",
+  },
+  sin_bloques_horario: {
+    tone: "error",
+    text: "La sección no tiene bloques horarios configurados.",
+  },
+  asignatura_range_missing: {
+    tone: "error",
+    text: "La sección debe tener fechas de inicio y término para autogenerar clases.",
+  },
+  asignatura_range_invalid: {
+    tone: "error",
+    text: "La sección tiene un rango de fechas inválido.",
+  },
+  clases_autogeneradas_failed: {
+    tone: "error",
+    text: "No fue posible autogenerar clases. Intenta nuevamente.",
+  },
   error: { tone: "error", text: "No fue posible completar la acción. Revisa los datos e intenta nuevamente." },
 };
 
 type AdminClasesPageProps = {
   searchParams?: Promise<{
     state?: string;
+    periodoId?: string;
     asignaturaId?: string;
     page?: string;
     q?: string;
@@ -34,32 +65,40 @@ export const metadata = {
 };
 
 export default async function AdminClasesPage({ searchParams }: AdminClasesPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string; page?: string; q?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; periodoId?: string; asignaturaId?: string; page?: string; q?: string }));
   const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
   const q = typeof params.q === "string" ? params.q.trim() : "";
+  const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
+
+  const periodos = await listarPeriodosDashboard();
+  const defaultPeriodoId = periodos.find((p) => p.estado === "activo")?.id ?? periodos[0]?.id ?? "";
+  const selectedPeriodoId =
+    requestedPeriodoId && periodos.some((p) => p.id === requestedPeriodoId)
+      ? requestedPeriodoId
+      : defaultPeriodoId;
 
   const asignaturas = await listarAsignaturasAdmin(
-    { limit: 100, offset: 0 },
-    { incluirArchivadas: false },
+    { limit: 1000, offset: 0 },
+    { incluirArchivadas: false, periodoId: selectedPeriodoId || undefined },
   );
 
   const selectedAsignaturaIdRaw =
     typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;
   const selectedAsignaturaId =
-    selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
+    selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw) && asignaturas.some((a) => a.id === selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
       : asignaturas[0]?.id;
 
-
-
-  const [clases, totalCount] = await Promise.all([
-    listarClasesAdmin(
-      { limit: PAGE_SIZE, offset },
-      { asignaturaId: selectedAsignaturaId, incluirArchivadas: true, q: q || undefined },
-    ),
-    countClasesAdmin({ asignaturaId: selectedAsignaturaId, incluirArchivadas: true, q: q || undefined }),
-  ]);
+  const [clases, totalCount] = selectedAsignaturaId
+    ? await Promise.all([
+        listarClasesAdmin(
+          { limit: PAGE_SIZE, offset },
+          { asignaturaId: selectedAsignaturaId, incluirArchivadas: true, q: q || undefined },
+        ),
+        countClasesAdmin({ asignaturaId: selectedAsignaturaId, incluirArchivadas: true, q: q || undefined }),
+      ])
+    : [[], 0];
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const totalPublicadas = clases.filter((c) => c.publicada).length;
@@ -68,6 +107,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
 
   function buildHref(page: number) {
     const urlParams = new URLSearchParams();
+    if (selectedPeriodoId) urlParams.set("periodoId", selectedPeriodoId);
     if (selectedAsignaturaId) urlParams.set("asignaturaId", selectedAsignaturaId);
     if (q) urlParams.set("q", q);
     urlParams.set("page", String(page));
@@ -87,7 +127,29 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
             Programa sesiones por asignatura y publica material audiovisual.
           </p>
         </header>
-        <ClaseCreateModal asignaturaId={selectedAsignaturaId} currentPage={currentPage} />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {selectedAsignaturaId && (
+            <form action={generarClasesDesdeBloquesFormAction}>
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+              <input type="hidden" name="page" value={String(currentPage)} />
+              <input type="hidden" name="q" value={q} />
+              <button
+                type="submit"
+                className="h-11 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:bg-primary-light/10 dark:text-primary-light"
+              >
+                Autogenerar desde bloques
+              </button>
+            </form>
+          )}
+          <ClaseCreateModal
+            asignaturaId={selectedAsignaturaId}
+            currentPage={currentPage}
+            periodoId={selectedPeriodoId || undefined}
+            searchQuery={q || undefined}
+            disabled={!selectedAsignaturaId}
+          />
+        </div>
       </div>
 
       {/* Métricas */}
@@ -112,31 +174,39 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
 
       {/* Filters */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_1fr_auto]">
+          <div className="space-y-1.5">
+            <label htmlFor="clases-periodo" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+              Periodo
+            </label>
+            <select
+              id="clases-periodo"
+              name="periodoId"
+              defaultValue={selectedPeriodoId}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            >
+              {periodos.length === 0 ? (
+                <option value="">Sin periodos</option>
+              ) : (
+                periodos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
           {/* Asignatura selector */}
           <div className="space-y-1.5">
             <label htmlFor="clases-asig" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Asignatura
+              Seccion
             </label>
-            <div className="relative">
-              <select
-                id="clases-asig"
-                name="asignaturaId"
-                defaultValue={selectedAsignaturaId}
-                className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm font-medium text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              >
-                {asignaturas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
+            <AsignaturaFilterSelect
+              options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
+              defaultValue={selectedAsignaturaId}
+              name="asignaturaId"
+            />
           </div>
 
           {/* Text search */}
@@ -150,6 +220,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
                 id="clases-q"
                 name="q"
                 type="text"
+                inputMode="search"
                 defaultValue={q}
                 placeholder="Sesión, fecha (2025-03-15), hora..."
                 className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
@@ -173,7 +244,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
               Mostrando resultados para «<strong>{q}</strong>» · {totalCount} clase{totalCount !== 1 ? "s" : ""}
             </span>
             <a
-              href={selectedAsignaturaId ? `/admin/clases?asignaturaId=${selectedAsignaturaId}` : "/admin/clases"}
+              href={selectedPeriodoId ? `/admin/clases?periodoId=${selectedPeriodoId}${selectedAsignaturaId ? `&asignaturaId=${selectedAsignaturaId}` : ""}` : (selectedAsignaturaId ? `/admin/clases?asignaturaId=${selectedAsignaturaId}` : "/admin/clases")}
               className="rounded-lg border border-gray-200 px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               Limpiar
@@ -195,11 +266,19 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
           )}
         </div>
 
-        <ClasesTable
-          clases={clases}
-          selectedAsignaturaId={selectedAsignaturaId}
-          currentPage={currentPage}
-        />
+        {selectedAsignaturaId ? (
+          <ClasesTable
+            clases={clases}
+            selectedAsignaturaId={selectedAsignaturaId}
+            currentPage={currentPage}
+            selectedPeriodoId={selectedPeriodoId || undefined}
+            searchQuery={q || undefined}
+          />
+        ) : (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-6 py-10 text-center text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            Selecciona una seccion para ver y gestionar sus clases.
+          </div>
+        )}
 
         {totalPages > 1 && (
           <Pagination currentPage={currentPage} totalPages={totalPages} buildHref={buildHref} />

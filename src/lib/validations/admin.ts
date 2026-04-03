@@ -4,8 +4,6 @@ import { esRutExtranjero, normalizarRut, validarRut } from "@/lib/rut";
 import { sanitizeVideoUrl } from "@/lib/sanitizePath";
 
 const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'.-]+$/;
-const STRONG_PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,128}$/;
 
 const DOCENTE_PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d).{8,128}$/;
 
@@ -192,6 +190,11 @@ export const asignaturaInputSchema = z.object({
       (value) => !value || /^[A-Z0-9-]{3,24}$/.test(value),
       "Código inválido (solo mayúsculas, números y guion).",
     ),
+  cursoId: z.string().uuid("Curso invalido."),
+  periodoId: z.string().uuid("Periodo academico invalido."),
+  turno: z.enum(["manana", "tarde", "vespertino"], {
+    message: "Turno invalido.",
+  }),
   fechaInicio: isoDate,
   duracionMeses: z.number().int().min(1, "Mínimo 1 mes.").max(12, "Máximo 12 meses."),
   maxAlumnos: z
@@ -443,3 +446,8 @@ export const comboboxSearchQuerySchema = z
     (value) => !/[<>]/.test(value),
     "La búsqueda contiene caracteres no permitidos.",
   );
+
+export const emitirCertificadoInputSchema = z.object({
+  matriculaId: z.string().uuid("Matrícula inválida."),
+  tipo: z.enum(["alumno_regular", "termino_curso"]),
+});

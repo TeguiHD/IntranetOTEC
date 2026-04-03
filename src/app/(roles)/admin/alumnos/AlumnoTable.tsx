@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import {
   activarAlumnoFormAction,
+  cambiarEstadoAlumno,
   desactivarAlumnoFormAction,
   editarAlumnoAction,
   eliminarAlumnoPermanenteFormAction,
@@ -17,6 +18,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { formatearIdentificador } from "@/lib/rut";
 
+type EstadoAlumno = "activo" | "egresado" | "retirado" | "suspendido" | "desertor";
+
 type AlumnoRow = {
   id: string;
   nombre: string;
@@ -24,6 +27,7 @@ type AlumnoRow = {
   rut: string | null;
   email: string | null;
   activo: boolean | null;
+  estadoAlumno: EstadoAlumno | null;
 };
 
 type AlumnoTableProps = {
@@ -37,6 +41,24 @@ type PendingAction = {
   action: "activate" | "deactivate" | "delete";
 } | null;
 
+const ESTADO_ALUMNO_CONFIG: Record<EstadoAlumno, { label: string; cls: string }> = {
+  activo:     { label: "Activo",      cls: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
+  egresado:   { label: "Egresado",    cls: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
+  retirado:   { label: "Retirado",    cls: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" },
+  suspendido: { label: "Suspendido",  cls: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200" },
+  desertor:   { label: "Desertor",    cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" },
+};
+
+function EstadoBadge({ estado }: { estado: EstadoAlumno | null }) {
+  const cfg = estado ? ESTADO_ALUMNO_CONFIG[estado] : null;
+  if (!cfg) return <span className="text-xs text-text-muted dark:text-gray-500">—</span>;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
@@ -49,6 +71,7 @@ export function AlumnoTable({
   const [editing, setEditing] = useState<AlumnoRow | null>(null);
   const [isEditPending, startEditTransition] = useTransition();
   const [isResetPending, startResetTransition] = useTransition();
+  const [isEstadoPending, startEstadoTransition] = useTransition();
   const [resetResult, setResetResult] = useState<string | null>(null);
   const router = useRouter();
 
@@ -99,6 +122,20 @@ export function AlumnoTable({
     });
   };
 
+  const handleCambiarEstado = (nuevoEstado: EstadoAlumno, motivo?: string) => {
+    if (!editing) return;
+    startEstadoTransition(async () => {
+      const result = await cambiarEstadoAlumno(editing.id, nuevoEstado, motivo);
+      if (result.ok) {
+        toast.success("Estado del alumno actualizado.");
+        setEditing(null);
+        router.refresh();
+      } else {
+        toast.error(result.message ?? "No fue posible cambiar el estado.");
+      }
+    });
+  };
+
   return (
     <>
       {alumnos.length === 0 ? (
@@ -128,15 +165,7 @@ export function AlumnoTable({
                       </p>
                     )}
                   </div>
-                  <span
-                    className={`ml-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      a.activo
-                        ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
-                        : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                    }`}
-                  >
-                    {a.activo ? "Activo" : "Inactivo"}
-                  </span>
+                  <EstadoBadge estado={a.estadoAlumno} />
                 </div>
                 <div className="mt-3 flex gap-2">
                   <button
@@ -178,15 +207,7 @@ export function AlumnoTable({
                       {a.email ?? "-"}
                     </td>
                     <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          a.activo
-                            ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200"
-                            : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                        }`}
-                      >
-                        {a.activo ? "Activo" : "Inactivo"}
-                      </span>
+                      <EstadoBadge estado={a.estadoAlumno} />
                     </td>
                     <td className="px-3 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
@@ -212,127 +233,158 @@ export function AlumnoTable({
       {/* Edit Modal */}
       <Modal
         open={editing !== null}
-        onClose={() => { if (!isEditPending) { setEditing(null); setResetResult(null); } }}
+        onClose={() => { if (!isEditPending && !isEstadoPending) { setEditing(null); setResetResult(null); } }}
         title={editing ? `Editar ${editing.nombre} ${editing.apellido}` : ""}
         size="max-w-lg"
       >
         {editing && (
-          <form onSubmit={handleEditSubmit} className="space-y-4">
-            <input type="hidden" name="userId" value={editing.id} />
-
-            {/* PIN Reset section */}
+          <div className="space-y-5">
+            {/* Estado del alumno */}
             <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 dark:border-gray-800 dark:bg-gray-800/40">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-text-primary dark:text-gray-200">
-                    Restablecer PIN de acceso
-                  </p>
-                  <p className="text-xs text-text-muted dark:text-gray-500">
-                    Vuelve al PIN predeterminado (últimos 4 dígitos del RUT).
-                  </p>
+              <p className="mb-2 text-xs font-semibold text-text-primary dark:text-gray-200">
+                Estado académico
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(ESTADO_ALUMNO_CONFIG) as [EstadoAlumno, { label: string; cls: string }][]).map(([estado, cfg]) => (
+                  <button
+                    key={estado}
+                    type="button"
+                    disabled={isEstadoPending || editing.estadoAlumno === estado}
+                    onClick={() => handleCambiarEstado(estado)}
+                    className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed ${
+                      editing.estadoAlumno === estado
+                        ? `${cfg.cls} ring-2 ring-offset-1 ring-current`
+                        : "border border-gray-200 bg-white text-text-secondary hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+                    }`}
+                    aria-pressed={editing.estadoAlumno === estado}
+                    aria-label={`Cambiar estado a ${cfg.label}`}
+                  >
+                    {isEstadoPending && editing.estadoAlumno !== estado ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : null}
+                    {cfg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <input type="hidden" name="userId" value={editing.id} />
+
+              {/* PIN Reset section */}
+              <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3.5 dark:border-gray-800 dark:bg-gray-800/40">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-text-primary dark:text-gray-200">
+                      Restablecer PIN de acceso
+                    </p>
+                    <p className="text-xs text-text-muted dark:text-gray-500">
+                      Vuelve al PIN predeterminado (últimos 4 dígitos del RUT).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleResetPin(editing.id)}
+                    disabled={isResetPending || !!resetResult}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400"
+                  >
+                    {isResetPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <KeyRound className="h-3 w-3" />
+                    )}
+                    Restablecer PIN
+                  </button>
                 </div>
+                {resetResult && (
+                  <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                      Nuevo PIN: <strong className="font-mono text-sm tracking-widest">{resetResult}</strong>
+                      <span className="ml-2 text-emerald-600/70 dark:text-emerald-500/70">— Informa al alumno.</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-alumno-nombre" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                    Nombre <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="edit-alumno-nombre"
+                    name="nombre"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={80}
+                    defaultValue={editing.nombre}
+                    className={inputClass}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-alumno-apellido" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                    Apellido <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="edit-alumno-apellido"
+                    name="apellido"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={80}
+                    defaultValue={editing.apellido}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="edit-alumno-email" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                  Correo electrónico (opcional)
+                </label>
+                <input
+                  id="edit-alumno-email"
+                  name="email"
+                  type="email"
+                  maxLength={180}
+                  defaultValue={editing.email ?? ""}
+                  placeholder="alumno@ejemplo.cl"
+                  className={inputClass}
+                />
+              </div>
+
+              <p className="text-xs text-text-muted dark:text-gray-500">
+                El RUT / credencial extranjera no se puede modificar desde este formulario.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
                 <button
                   type="button"
-                  onClick={() => handleResetPin(editing.id)}
-                  disabled={isResetPending || !!resetResult}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400"
+                  onClick={() => setEditing(null)}
+                  disabled={isEditPending}
+                  className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
-                  {isResetPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditPending}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {isEditPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Guardando…
+                    </>
                   ) : (
-                    <KeyRound className="h-3 w-3" />
+                    "Guardar cambios"
                   )}
-                  Restablecer PIN
                 </button>
               </div>
-              {resetResult && (
-                <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    Nuevo PIN: <strong className="font-mono text-sm tracking-widest">{resetResult}</strong>
-                    <span className="ml-2 text-emerald-600/70 dark:text-emerald-500/70">— Informa al alumno.</span>
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label htmlFor="edit-alumno-nombre" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                  Nombre <span className="text-danger">*</span>
-                </label>
-                <input
-                  id="edit-alumno-nombre"
-                  name="nombre"
-                  type="text"
-                  required
-                  minLength={2}
-                  maxLength={80}
-                  defaultValue={editing.nombre}
-                  className={inputClass}
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="edit-alumno-apellido" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                  Apellido <span className="text-danger">*</span>
-                </label>
-                <input
-                  id="edit-alumno-apellido"
-                  name="apellido"
-                  type="text"
-                  required
-                  minLength={2}
-                  maxLength={80}
-                  defaultValue={editing.apellido}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="edit-alumno-email" className="block text-sm font-medium text-text-primary dark:text-gray-200">
-                Correo electrónico (opcional)
-              </label>
-              <input
-                id="edit-alumno-email"
-                name="email"
-                type="email"
-                maxLength={180}
-                defaultValue={editing.email ?? ""}
-                placeholder="alumno@ejemplo.cl"
-                className={inputClass}
-              />
-            </div>
-
-            <p className="text-xs text-text-muted dark:text-gray-500">
-              El RUT / credencial extranjera no se puede modificar desde este formulario.
-            </p>
-
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                disabled={isEditPending}
-                className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isEditPending}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
-              >
-                {isEditPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Guardando…
-                  </>
-                ) : (
-                  "Guardar cambios"
-                )}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         )}
       </Modal>
 

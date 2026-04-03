@@ -39,9 +39,24 @@ type Asignatura = {
   docenteApellido: string | null;
 };
 
+type CursoCombo = {
+  id: string;
+  nombre: string;
+  codigo: string;
+};
+
+type PeriodoCombo = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  estado: "planificado" | "activo" | "cerrado";
+};
+
 type AsignaturaManagerProps = {
   asignaturas: Asignatura[];
   docentes: Docente[];
+  cursos: CursoCombo[];
+  periodos: PeriodoCombo[];
   totalCount: number;
   currentPage: number;
   totalPages: number;
@@ -240,6 +255,8 @@ function DocenteCombobox({
 export function AsignaturaManager({
   asignaturas,
   docentes,
+  cursos,
+  periodos,
   totalCount,
   currentPage,
   totalPages,
@@ -561,6 +578,62 @@ export function AsignaturaManager({
         size="max-w-2xl"
       >
         <form action={crearAsignaturaFormAction} className="space-y-4">
+          {/* Curso template (requerido) */}
+          <div className="space-y-1.5">
+            <label htmlFor="new-curso-id" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+              Curso <span className="text-danger">*</span>
+            </label>
+            <select
+              id="new-curso-id"
+              name="cursoId"
+              required
+              className={`${INPUT} appearance-none`}
+            >
+              <option value="">— Selecciona curso —</option>
+              {cursos.map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Periodo academico */}
+          <div className="space-y-1.5">
+            <label htmlFor="new-periodo-id" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+              Periodo academico <span className="text-danger">*</span>
+            </label>
+            <select
+              id="new-periodo-id"
+              name="periodoId"
+              required
+              className={`${INPUT} appearance-none`}
+            >
+              <option value="">— Selecciona periodo —</option>
+              {periodos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.codigo} · {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Turno */}
+          <div className="space-y-1.5">
+            <label htmlFor="new-turno" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+              Turno <span className="text-danger">*</span>
+            </label>
+            <select
+              id="new-turno"
+              name="turno"
+              required
+              className={`${INPUT} appearance-none`}
+            >
+              <option value="">— Selecciona turno —</option>
+              <option value="manana">Mañana</option>
+              <option value="tarde">Tarde</option>
+              <option value="vespertino">Vespertino</option>
+            </select>
+          </div>
+
           {/* Nombre */}
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
@@ -680,11 +753,18 @@ export function AsignaturaManager({
             </button>
             <button
               type="submit"
+              disabled={cursos.length === 0 || periodos.length === 0}
               className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
             >
               Crear asignatura
             </button>
           </div>
+
+          {(cursos.length === 0 || periodos.length === 0) && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Necesitas al menos un curso y un periodo academico para crear una seccion.
+            </p>
+          )}
         </form>
       </Modal>
 

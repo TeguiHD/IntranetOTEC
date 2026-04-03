@@ -23,6 +23,8 @@ type ClasesTableProps = {
   clases: Clase[];
   selectedAsignaturaId: string | undefined;
   currentPage: number;
+  selectedPeriodoId?: string;
+  searchQuery?: string;
 };
 
 const inputClass =
@@ -32,6 +34,8 @@ export function ClasesTable({
   clases,
   selectedAsignaturaId,
   currentPage,
+  selectedPeriodoId,
+  searchQuery,
 }: ClasesTableProps) {
   const [editingClase, setEditingClase] = useState<Clase | null>(null);
 
@@ -91,7 +95,9 @@ export function ClasesTable({
                 <form action={eliminarClaseFormAction} className="inline">
                   <input type="hidden" name="id" value={clase.id} />
                   <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                  <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
                   <input type="hidden" name="page" value={String(currentPage)} />
+                  <input type="hidden" name="q" value={searchQuery ?? ""} />
                   <button
                     type="submit"
                     onClick={(event) => {
@@ -190,7 +196,9 @@ export function ClasesTable({
                     <form action={eliminarClaseFormAction} className="inline">
                       <input type="hidden" name="id" value={clase.id} />
                       <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
                       <input type="hidden" name="page" value={String(currentPage)} />
+                      <input type="hidden" name="q" value={searchQuery ?? ""} />
                       <button
                         type="submit"
                         onClick={(event) => {
@@ -223,7 +231,9 @@ export function ClasesTable({
           <form action={editarClaseFormAction} className="space-y-4">
             <input type="hidden" name="id" value={editingClase.id} />
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+            <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
             <input type="hidden" name="page" value={String(currentPage)} />
+            <input type="hidden" name="q" value={searchQuery ?? ""} />
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-text-primary dark:text-gray-200">

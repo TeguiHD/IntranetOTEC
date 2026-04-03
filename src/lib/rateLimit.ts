@@ -13,6 +13,7 @@ const LIMITS: Record<string, RateLimitRule> = {
   "/api/auth/callback": { max: 5, ventanaMs: 60_000, bloqueoMs: 900_000 },
   "/login": { max: 60, ventanaMs: 60_000, bloqueoMs: 60_000 },
   "/api/files": { max: 30, ventanaMs: 60_000, bloqueoMs: 300_000 },
+  "/api/internal/import-alumnos": { max: 6, ventanaMs: 300_000, bloqueoMs: 1_800_000 },
   "/api/sse": { max: 10, ventanaMs: 60_000, bloqueoMs: 60_000 },
   default: { max: 60, ventanaMs: 60_000, bloqueoMs: 60_000 },
 };
@@ -28,6 +29,10 @@ const resolveRule = (endpoint: string): RateLimitRule => {
 
   if (endpoint.startsWith("/api/files")) {
     return LIMITS["/api/files"];
+  }
+
+  if (endpoint.startsWith("/api/internal/import-alumnos")) {
+    return LIMITS["/api/internal/import-alumnos"];
   }
 
   if (endpoint.startsWith("/api/sse")) {

@@ -5,7 +5,12 @@ import { useState } from "react";
 
 import { formatearRut, esRutExtranjero } from "@/lib/rut";
 
-export function RutBuscador({ defaultValue }: { defaultValue: string }) {
+type RutBuscadorProps = {
+  defaultValue: string;
+  periodoId?: string | null;
+};
+
+export function RutBuscador({ defaultValue, periodoId }: RutBuscadorProps) {
   const router = useRouter();
   const [value, setValue] = useState(defaultValue ? formatDisplay(defaultValue) : "");
 
@@ -33,7 +38,14 @@ export function RutBuscador({ defaultValue }: { defaultValue: string }) {
     e.preventDefault();
     const normalized = value.trim();
     if (!normalized) return;
-    router.push(`/admin?rut=${encodeURIComponent(normalized)}`, { scroll: false } as Parameters<typeof router.push>[1]);
+
+    const params = new URLSearchParams();
+    params.set("rut", normalized);
+    if (periodoId) {
+      params.set("periodoId", periodoId);
+    }
+
+    router.push(`/admin?${params.toString()}`, { scroll: false } as Parameters<typeof router.push>[1]);
   }
 
   return (

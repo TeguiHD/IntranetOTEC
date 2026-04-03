@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  Award,
   Bell,
   BookOpen,
   Brain,
@@ -19,7 +20,11 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { obtenerMetricasGlobales, obtenerMetricasPorAsignatura } from "@/actions/admin-metricas";
+import {
+  listarPeriodosDashboard,
+  obtenerMetricasGlobales,
+  obtenerMetricasPorAsignatura,
+} from "@/actions/admin-metricas";
 import { obtenerResumenDatosDocentes } from "@/actions/admin-resumen";
 import { listarNotificacionesAdmin } from "@/actions/notificaciones";
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
@@ -55,6 +60,7 @@ const MODULE_CARDS: { href: string; title: string; description: string; gradient
   { href: "/admin/alumnos",           title: "Alumnos",               description: "Registrar alumnos y controlar su acceso.",             gradient: "grad-emerald", Icon: Users },
   { href: "/admin/matriculas",        title: "Matrículas",            description: "Vincular alumnos a asignaturas.",                     gradient: "grad-pink",    Icon: Wallet },
   { href: "/admin/solicitudes",       title: "Solicitudes",           description: "Gestionar solicitudes de documentos.",                gradient: "grad-violet",  Icon: FileText },
+  { href: "/admin/certificados",      title: "Certificados",          description: "Emitir, invalidar y descargar certificados.",         gradient: "grad-blue",    Icon: Award },
   { href: "/admin/importar",          title: "Importar Alumnos",      description: "Carga masiva de alumnos desde archivo.",              gradient: "grad-emerald", Icon: Upload },
   { href: "/admin/finanzas",          title: "Finanzas",              description: "Registros de ingresos y gastos del OTEC.",            gradient: "grad-emerald", Icon: TrendingUp },
   { href: "/admin/notificaciones",    title: "Notificaciones",        description: "Enviar avisos a alumnos y docentes.",                 gradient: "grad-amber",   Icon: Bell },
@@ -62,7 +68,7 @@ const MODULE_CARDS: { href: string; title: string; description: string; gradient
 ];
 
 type AdminDashboardPageProps = {
-  searchParams?: Promise<{ rut?: string }>;
+  searchParams?: Promise<{ rut?: string; periodoId?: string }>;
 };
 
 const formatDate = (value: Date | null): string => {
@@ -82,21 +88,49 @@ const ESTADO_COLORS: Record<string, string> = {
   archivado: "text-text-muted dark:text-gray-500",
 };
 
+const ESTADO_PERIODO_LABELS: Record<"planificado" | "activo" | "cerrado", string> = {
+  planificado: "Planificado",
+  activo: "Activo",
+  cerrado: "Cerrado",
+};
+
+const formatIsoDate = (value: string): string => {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
+};
+
 export const metadata = {
   title: "Dashboard",
 };
 
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { rut?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { rut?: string; periodoId?: string }));
   const rutConsulta = typeof params.rut === "string" ? params.rut.trim() : "";
+  const periodoIdRaw = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
+  const periodoSeleccionadoId =
+    periodoIdRaw && periodoIdRaw.toLowerCase() !== "all" ? periodoIdRaw : null;
 
-  const [resultadoBusqueda, resumenDocentes, metricas, asigMetricas, notificacionesRecientes] = await Promise.all([
+  const [periodos, resultadoBusqueda, resumenDocentes, metricas, asigMetricas, notificacionesRecientes] = await Promise.all([
+    listarPeriodosDashboard(),
     rutConsulta ? buscarPersonaPorRutAdmin({ rut: rutConsulta }) : null,
-    obtenerResumenDatosDocentes(),
-    obtenerMetricasGlobales(),
-    obtenerMetricasPorAsignatura(),
+    obtenerResumenDatosDocentes({ periodoId: periodoSeleccionadoId }),
+    obtenerMetricasGlobales({ periodoId: periodoSeleccionadoId }),
+    obtenerMetricasPorAsignatura({ periodoId: periodoSeleccionadoId }),
     listarNotificacionesAdmin(),
   ]);
+
+  const periodoSeleccionado =
+    periodoSeleccionadoId !== null
+      ? periodos.find((periodo) => periodo.id === periodoSeleccionadoId) ?? null
+      : null;
 
   return (
     <section className="space-y-5">
@@ -113,6 +147,41 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
           </div>
         </div>
       </div>
+
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <form action="/admin" method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="w-full sm:max-w-md">
+            <label htmlFor="periodo-dashboard" className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+              Vista por periodo academico
+            </label>
+            <select
+              id="periodo-dashboard"
+              name="periodoId"
+              defaultValue={periodoSeleccionadoId ?? "all"}
+              className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            >
+              <option value="all">Todos los periodos</option>
+              {periodos.map((periodo) => (
+                <option key={periodo.id} value={periodo.id}>
+                  {periodo.codigo} · {periodo.nombre} ({ESTADO_PERIODO_LABELS[periodo.estado]})
+                </option>
+              ))}
+            </select>
+            {periodoSeleccionado && (
+              <p className="mt-2 text-xs text-text-secondary dark:text-gray-400">
+                Ventana: {formatIsoDate(periodoSeleccionado.fechaInicio)} - {formatIsoDate(periodoSeleccionado.fechaFin)}
+              </p>
+            )}
+          </div>
+          <input type="hidden" name="rut" value={rutConsulta} />
+          <button
+            type="submit"
+            className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary-dark"
+          >
+            Aplicar periodo
+          </button>
+        </form>
+      </article>
 
       {/* Global metrics */}
       {metricas && (
@@ -285,7 +354,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
           Consulta histórico de estudiante o docente con métricas operativas.
         </p>
 
-        <RutBuscador defaultValue={rutConsulta} />
+        <RutBuscador defaultValue={rutConsulta} periodoId={periodoSeleccionadoId} />
 
         {resultadoBusqueda && !resultadoBusqueda.ok && (
           <MessageToast message={resultadoBusqueda.message} tone="error" />

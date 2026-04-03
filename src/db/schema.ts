@@ -19,11 +19,27 @@ const tstz = (name: string) => timestamp(name, { withTimezone: true });
 
 export const rolEnum = pgEnum("rol", ["admin", "docente", "alumno"]);
 
+export const estadoAlumnoEnum = pgEnum("estado_alumno", [
+  "activo",
+  "egresado",
+  "retirado",
+  "suspendido",
+  "desertor",
+]);
+
+export const turnoEnum = pgEnum("turno", ["manana", "tarde", "vespertino"]);
+
 export const estadoAsigEnum = pgEnum("estado_asig", [
   "borrador",
   "activo",
   "finalizado",
   "archivado",
+]);
+
+export const estadoPeriodoEnum = pgEnum("estado_periodo", [
+  "planificado",
+  "activo",
+  "cerrado",
 ]);
 
 export const auditAccionEnum = pgEnum("audit_accion", [
@@ -124,9 +140,11 @@ export const usuarios = pgTable(
     nombre: text("nombre").notNull(),
     apellido: text("apellido").notNull(),
     email: text("email").unique(),
+    telefono: text("telefono"),
     password: text("password"),
     rol: rolEnum("rol").notNull(),
     avatarUrl: text("avatar_url"),
+    estadoAlumno: estadoAlumnoEnum("estado_alumno"),
     pinCambiado: boolean("pin_cambiado").default(false),
     activo: boolean("activo").default(true),
     eliminadoAt: tstz("eliminado_at"),
@@ -139,13 +157,57 @@ export const usuarios = pgTable(
   }),
 );
 
+export const periodosAcademicos = pgTable(
+  "periodos_academicos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codigo: text("codigo").notNull().unique(),
+    nombre: text("nombre").notNull(),
+    fechaInicio: date("fecha_inicio").notNull(),
+    fechaFin: date("fecha_fin").notNull(),
+    estado: estadoPeriodoEnum("estado").notNull().default("activo"),
+    createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
+  },
+  (t) => ({
+    rangoIdx: index("periodos_academicos_rango_idx").on(t.fechaInicio, t.fechaFin),
+  }),
+);
+
+// --- Cursos: templates reutilizables (ej: "Lashing", "Operación Grúa") ---
+// Una sección (asignatura) es una oferta concreta de un curso en un periodo+turno.
+export const cursos = pgTable(
+  "cursos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nombre: text("nombre").notNull(),
+    codigo: text("codigo").notNull().unique(),
+    descripcion: text("descripcion"),
+    horasTeoricas: integer("horas_teoricas").default(0),
+    horasPracticas: integer("horas_practicas").default(0),
+    activo: boolean("activo").default(true),
+    createdBy: uuid("created_by").references(() => usuarios.id),
+    createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
+    eliminadoAt: tstz("eliminado_at"),
+    eliminadoPor: uuid("eliminado_por"),
+  },
+  (t) => ({
+    activoIdx: index("cursos_activo_idx").on(t.activo).where(sql`${t.eliminadoAt} IS NULL`),
+  }),
+);
+
 export const asignaturas = pgTable("asignaturas", {
   id: uuid("id").primaryKey().defaultRandom(),
   nombre: text("nombre").notNull(),
   descripcion: text("descripcion"),
   codigo: text("codigo").unique(),
+  cursoId: uuid("curso_id").notNull().references(() => cursos.id),
+  turno: turnoEnum("turno").notNull(),
+  periodoId: uuid("periodo_id").notNull().references(() => periodosAcademicos.id),
   docenteId: uuid("docente_id").references(() => usuarios.id),
   fechaInicio: date("fecha_inicio").notNull(),
+  fechaFin: date("fecha_fin"),
   duracionMeses: integer("duracion_meses").notNull(),
   estado: estadoAsigEnum("estado").default("borrador"),
   maxAlumnos: integer("max_alumnos").default(30),
@@ -155,6 +217,9 @@ export const asignaturas = pgTable("asignaturas", {
   eliminadoAt: tstz("eliminado_at"),
   eliminadoPor: uuid("eliminado_por"),
 });
+
+// Alias semantico: en BD se mantiene "asignaturas", en dominio se usa "secciones".
+export const secciones = asignaturas;
 
 export const matriculas = pgTable(
   "matriculas",
@@ -192,6 +257,8 @@ export const clases = pgTable(
     numeroSesion: integer("numero_sesion").notNull(),
     fecha: date("fecha").notNull(),
     horaInicio: time("hora_inicio"),
+    horaFin: time("hora_fin"),
+    sala: text("sala"),
     urlGrabacion: text("url_grabacion"),
     tipoUrl: tipoVideoEnum("tipo_url"),
     publicada: boolean("publicada").default(false),
@@ -353,6 +420,7 @@ export const notas = pgTable(
     nota: numeric("nota", { precision: 3, scale: 1 }),
     observacion: text("observacion"),
     entregaUrl: text("entrega_url"),
+    entregaId: uuid("entrega_id").references(() => entregas.id),
     calificadoPor: uuid("calificado_por").references(() => usuarios.id),
     fechaNota: tstz("fecha_nota").defaultNow(),
     eliminadoAt: tstz("eliminado_at"),
@@ -636,6 +704,87 @@ export const pushSubscriptions = pgTable(
   },
   (t) => ({
     usuarioIdx: index("push_sub_usuario_idx").on(t.usuarioId),
+  }),
+);
+
+// --- Bloques horarios recurrentes por sección ---
+// Define el patrón semanal: "Lashing Mañana se dicta Lun/Mié 09:00-11:00 en Sala 3"
+export const bloquesHorario = pgTable(
+  "bloques_horario",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    asignaturaId: uuid("asignatura_id").notNull().references(() => asignaturas.id),
+    diaSemana: integer("dia_semana").notNull(), // 0=lun, 1=mar, 2=mié, 3=jue, 4=vie, 5=sáb
+    horaInicio: time("hora_inicio").notNull(),
+    horaFin: time("hora_fin").notNull(),
+    sala: text("sala"),
+    createdAt: tstz("created_at").defaultNow(),
+    eliminadoAt: tstz("eliminado_at"),
+  },
+  (t) => ({
+    asignaturaIdx: index("bloques_horario_asignatura_idx").on(t.asignaturaId),
+  }),
+);
+
+// --- Entregas de tareas/proyectos por alumno ---
+export const estadoEntregaEnum = pgEnum("estado_entrega", [
+  "pendiente",
+  "revisado",
+  "requiere_correccion",
+]);
+
+export const entregas = pgTable(
+  "entregas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    evaluacionId: uuid("evaluacion_id").notNull().references(() => evaluaciones.id),
+    matriculaId: uuid("matricula_id").notNull().references(() => matriculas.id),
+    intento: integer("intento").notNull().default(1),
+    archivoUrl: text("archivo_url"),
+    archivoNombre: text("archivo_nombre"),
+    comentarioAlumno: text("comentario_alumno"),
+    estado: estadoEntregaEnum("estado").default("pendiente"),
+    entregadoAt: tstz("entregado_at").defaultNow(),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    uniq: unique().on(t.evaluacionId, t.matriculaId, t.intento),
+    evalIdx: index("entregas_evaluacion_idx").on(t.evaluacionId),
+    matriculaIdx: index("entregas_matricula_idx").on(t.matriculaId),
+  }),
+);
+
+// --- Retroalimentación del docente sobre una entrega ---
+export const retroalimentacion = pgTable(
+  "retroalimentacion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entregaId: uuid("entrega_id").notNull().references(() => entregas.id),
+    docenteId: uuid("docente_id").notNull().references(() => usuarios.id),
+    comentario: text("comentario").notNull(),
+    archivoUrl: text("archivo_url"),
+    nota: numeric("nota", { precision: 3, scale: 1 }),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    entregaIdx: index("retroalimentacion_entrega_idx").on(t.entregaId),
+  }),
+);
+
+// --- Historial de cambios de estado del alumno ---
+export const historialEstadoAlumno = pgTable(
+  "historial_estado_alumno",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alumnoId: uuid("alumno_id").notNull().references(() => usuarios.id),
+    estadoAnterior: estadoAlumnoEnum("estado_anterior"),
+    estadoNuevo: estadoAlumnoEnum("estado_nuevo").notNull(),
+    motivo: text("motivo"),
+    cambiadoPor: uuid("cambiado_por").notNull().references(() => usuarios.id),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    alumnoIdx: index("historial_estado_alumno_idx").on(t.alumnoId),
   }),
 );
 

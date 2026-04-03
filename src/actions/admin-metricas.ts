@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
@@ -8,11 +8,43 @@ import {
   asistencia,
   clases,
   matriculas,
+  periodosAcademicos,
   solicitudesDocumentos,
   usuarios,
 } from "@/db/schema";
 
 import { requireActionActor } from "./_security";
+
+type PeriodoScopeOptions = {
+  periodoId?: string | null;
+};
+
+export type DashboardPeriodoOption = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  estado: "planificado" | "activo" | "cerrado";
+  fechaInicio: string;
+  fechaFin: string;
+};
+
+const normalizePeriodoId = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized || normalized.toLowerCase() === "all") {
+    return null;
+  }
+
+  return normalized;
+};
+
+const buildAsignaturasWhere = (periodoId: string | null) => {
+  const activeAsignatura = isNull(asignaturas.eliminadoAt);
+  return periodoId ? and(activeAsignatura, eq(asignaturas.periodoId, periodoId)) : activeAsignatura;
+};
 
 export type MetricasGlobales = {
   totalDocentes: number;
@@ -34,36 +66,118 @@ export type AsignaturaMetrica = {
   asistenciaPromedio: number | null;
 };
 
-export async function obtenerMetricasGlobales(): Promise<MetricasGlobales | null> {
+export async function listarPeriodosDashboard(): Promise<DashboardPeriodoOption[]> {
+  const actorResult = await requireActionActor("admin_metricas_periodos", ["admin"]);
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const db = getDb();
+
+  const rows = await db
+    .select({
+      id: periodosAcademicos.id,
+      codigo: periodosAcademicos.codigo,
+      nombre: periodosAcademicos.nombre,
+      estado: periodosAcademicos.estado,
+      fechaInicio: periodosAcademicos.fechaInicio,
+      fechaFin: periodosAcademicos.fechaFin,
+    })
+    .from(periodosAcademicos)
+    .orderBy(desc(periodosAcademicos.fechaInicio), desc(periodosAcademicos.createdAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    codigo: row.codigo,
+    nombre: row.nombre,
+    estado: row.estado,
+    fechaInicio: row.fechaInicio,
+    fechaFin: row.fechaFin,
+  }));
+}
+
+export async function obtenerMetricasGlobales(
+  options: PeriodoScopeOptions = {},
+): Promise<MetricasGlobales | null> {
   const actorResult = await requireActionActor("admin_metricas_globales", ["admin"]);
 
   if (!actorResult.ok) return null;
 
   const db = getDb();
+  const periodoId = normalizePeriodoId(options.periodoId);
 
-  const [
-    [docentesCount],
-    [alumnosCount],
-    asigRows,
-    [clasesCount],
-    [solicitudesCount],
-  ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` })
-      .from(usuarios)
-      .where(and(eq(usuarios.rol, "docente"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt))),
-    db.select({ count: sql<number>`count(*)` })
-      .from(usuarios)
-      .where(and(eq(usuarios.rol, "alumno"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt))),
-    db.select({ estado: asignaturas.estado, count: sql<number>`count(*)` })
-      .from(asignaturas)
-      .groupBy(asignaturas.estado),
-    db.select({ count: sql<number>`count(*)` })
-      .from(clases)
-      .where(isNull(clases.eliminadoAt)),
-    db.select({ count: sql<number>`count(*)` })
-      .from(solicitudesDocumentos)
-      .where(eq(solicitudesDocumentos.estado, "pendiente")),
-  ]);
+  const asignaturasWhere = buildAsignaturasWhere(periodoId);
+
+  const [[docentesCount], [alumnosCount], asigRows, [clasesCount], [solicitudesCount]] = await Promise.all(
+    periodoId
+      ? [
+          db
+            .select({ count: sql<number>`count(distinct ${usuarios.id})` })
+            .from(asignaturas)
+            .innerJoin(
+              usuarios,
+              and(
+                eq(asignaturas.docenteId, usuarios.id),
+                eq(usuarios.rol, "docente"),
+                eq(usuarios.activo, true),
+                isNull(usuarios.eliminadoAt),
+              ),
+            )
+            .where(asignaturasWhere),
+          db
+            .select({ count: sql<number>`count(distinct ${usuarios.id})` })
+            .from(matriculas)
+            .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+            .innerJoin(
+              usuarios,
+              and(
+                eq(matriculas.alumnoId, usuarios.id),
+                eq(usuarios.rol, "alumno"),
+                eq(usuarios.activo, true),
+                isNull(usuarios.eliminadoAt),
+              ),
+            )
+            .where(and(isNull(matriculas.eliminadoAt), asignaturasWhere)),
+          db
+            .select({ estado: asignaturas.estado, count: sql<number>`count(*)` })
+            .from(asignaturas)
+            .where(asignaturasWhere)
+            .groupBy(asignaturas.estado),
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(clases)
+            .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+            .where(and(isNull(clases.eliminadoAt), asignaturasWhere)),
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(solicitudesDocumentos)
+            .where(eq(solicitudesDocumentos.estado, "pendiente")),
+        ]
+      : [
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(usuarios)
+            .where(and(eq(usuarios.rol, "docente"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt))),
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(usuarios)
+            .where(and(eq(usuarios.rol, "alumno"), eq(usuarios.activo, true), isNull(usuarios.eliminadoAt))),
+          db
+            .select({ estado: asignaturas.estado, count: sql<number>`count(*)` })
+            .from(asignaturas)
+            .where(asignaturasWhere)
+            .groupBy(asignaturas.estado),
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(clases)
+            .where(isNull(clases.eliminadoAt)),
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(solicitudesDocumentos)
+            .where(eq(solicitudesDocumentos.estado, "pendiente")),
+        ],
+  );
 
   const totalAsig = asigRows.reduce((s, r) => s + Number(r.count), 0);
   const activasCount = Number(asigRows.find((r) => r.estado === "activo")?.count ?? 0);
@@ -80,12 +194,16 @@ export async function obtenerMetricasGlobales(): Promise<MetricasGlobales | null
   };
 }
 
-export async function obtenerMetricasPorAsignatura(): Promise<AsignaturaMetrica[]> {
+export async function obtenerMetricasPorAsignatura(
+  options: PeriodoScopeOptions = {},
+): Promise<AsignaturaMetrica[]> {
   const actorResult = await requireActionActor("admin_metricas_asignaturas", ["admin"]);
 
   if (!actorResult.ok) return [];
 
   const db = getDb();
+  const periodoId = normalizePeriodoId(options.periodoId);
+  const asignaturasWhere = buildAsignaturasWhere(periodoId);
 
   const [rows, alumnosCounts, clasesCounts, asistStats] = await Promise.all([
     db.select({
@@ -95,14 +213,16 @@ export async function obtenerMetricasPorAsignatura(): Promise<AsignaturaMetrica[
       docenteNombre: usuarios.nombre,
     })
     .from(asignaturas)
-    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id)),
+    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id))
+    .where(asignaturasWhere),
 
     db.select({
       asignaturaId: matriculas.asignaturaId,
       count: sql<number>`count(distinct ${matriculas.alumnoId})`,
     })
     .from(matriculas)
-    .where(and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)))
+    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .where(and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt), asignaturasWhere))
     .groupBy(matriculas.asignaturaId),
 
     db.select({
@@ -110,7 +230,8 @@ export async function obtenerMetricasPorAsignatura(): Promise<AsignaturaMetrica[
       count: sql<number>`count(*)`,
     })
     .from(clases)
-    .where(isNull(clases.eliminadoAt))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(and(isNull(clases.eliminadoAt), asignaturasWhere))
     .groupBy(clases.asignaturaId),
 
     db.select({
@@ -120,7 +241,8 @@ export async function obtenerMetricasPorAsignatura(): Promise<AsignaturaMetrica[
     })
     .from(asistencia)
     .innerJoin(clases, eq(asistencia.claseId, clases.id))
-    .where(isNull(clases.eliminadoAt))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(and(isNull(clases.eliminadoAt), asignaturasWhere))
     .groupBy(clases.asignaturaId),
   ]);
 

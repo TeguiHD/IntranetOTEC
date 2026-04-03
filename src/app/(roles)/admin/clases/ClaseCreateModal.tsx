@@ -13,17 +13,26 @@ const inputClass =
 type ClaseCreateModalProps = {
   asignaturaId: string | undefined;
   currentPage: number;
+  periodoId?: string;
+  searchQuery?: string;
+  disabled?: boolean;
 };
 
-export function ClaseCreateModal({ asignaturaId, currentPage }: ClaseCreateModalProps) {
+export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQuery, disabled = false }: ClaseCreateModalProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+        onClick={() => {
+          if (!disabled) {
+            setOpen(true);
+          }
+        }}
+        disabled={disabled}
+        title={disabled ? "Selecciona una seccion para crear clases" : undefined}
+        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
       >
         <Plus className="h-4 w-4" />
         Nueva Clase
@@ -38,7 +47,9 @@ export function ClaseCreateModal({ asignaturaId, currentPage }: ClaseCreateModal
       >
         <form action={crearClaseFormAction} className="space-y-4">
           <input type="hidden" name="asignaturaId" value={asignaturaId ?? ""} />
+          <input type="hidden" name="periodoId" value={periodoId ?? ""} />
           <input type="hidden" name="page" value={String(currentPage)} />
+          <input type="hidden" name="q" value={searchQuery ?? ""} />
 
           <div className="space-y-1.5">
             <label htmlFor="modal-clase-titulo" className="block text-sm font-medium text-text-primary dark:text-gray-200">

@@ -2,7 +2,9 @@ import {
   Bell,
   BookOpen,
   Brain,
+  BarChart3,
   CalendarDays,
+  CalendarRange,
   ClipboardCheck,
   ClipboardList,
   CreditCard,
@@ -68,14 +70,14 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Academico",
     items: [
-      { href: "/admin/asignaturas", label: "Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
+      { href: "/admin/cursos", label: "Cursos", Icon: BookOpen, gradient: "grad-indigo" },
+      { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen, gradient: "grad-blue" },
+      { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange, gradient: "grad-teal" },
       { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
       { href: "/admin/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-gold" },
       { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald" },
-      { href: "/admin/encuestas", label: "Encuestas Docente", Icon: Star, gradient: "grad-amber" },
-      { href: "/admin/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet" },
-      { href: "/admin/encuestas-builder", label: "Constructor Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
+      { href: "/admin/encuestas-builder", label: "Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
     ],
   },
   {
@@ -92,6 +94,16 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
       { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload, gradient: "grad-emerald" },
+    ],
+  },
+  {
+    title: "Reportes",
+    items: [
+      { href: "/admin/reportes", label: "Dashboard", Icon: BarChart3, gradient: "grad-purple" },
+      { href: "/admin/reportes/rendimiento", label: "Rendimiento", Icon: TrendingUp, gradient: "grad-blue" },
+      { href: "/admin/reportes/retencion", label: "Retención", Icon: Users, gradient: "grad-amber" },
+      { href: "/admin/reportes/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald" },
+      { href: "/admin/reportes/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-violet" },
     ],
   },
   {
@@ -126,6 +138,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
     title: "Academico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
+      { href: "/docente/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal" },
       { href: "/docente/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
     ],
@@ -156,6 +169,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     title: "Academico",
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
+      { href: "/alumno/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal" },
       { href: "/alumno/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
       { href: "/alumno/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },

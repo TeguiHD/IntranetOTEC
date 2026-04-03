@@ -313,6 +313,7 @@ export async function crearEvaluacionAction(input: {
 
 export async function crearEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const result = await crearEvaluacionAction({
     asignaturaId,
     titulo: getStringField(formData, "titulo"),
@@ -328,8 +329,9 @@ export async function crearEvaluacionFormAction(formData: FormData): Promise<voi
   });
 
   revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
 }
 
 export async function crearPlantillaEncuestaAction(input: {
@@ -467,6 +469,7 @@ export async function crearPlantillaEncuestaAction(input: {
 
 export async function crearPlantillaEncuestaFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const plantillaRaw = getStringField(formData, "plantilla");
 
   const result = await crearPlantillaEncuestaAction({
@@ -475,8 +478,9 @@ export async function crearPlantillaEncuestaFormAction(formData: FormData): Prom
   });
 
   revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${filterQuery}`);
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${periodoQuery}${filterQuery}`);
 }
 
 export async function publicarEvaluacionAction(id: string): Promise<MutationResult> {
@@ -587,11 +591,13 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
 
 export async function publicarEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const result = await publicarEvaluacionAction(getStringField(formData, "evaluacionId"));
 
   revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
 }
 
 export async function despublicarEvaluacionAction(id: string): Promise<MutationResult> {
@@ -655,11 +661,13 @@ export async function despublicarEvaluacionAction(id: string): Promise<MutationR
 
 export async function despublicarEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const result = await despublicarEvaluacionAction(getStringField(formData, "evaluacionId"));
 
   revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
 }
 
 export async function eliminarEvaluacionAction(id: string): Promise<MutationResult> {
@@ -721,11 +729,13 @@ export async function eliminarEvaluacionAction(id: string): Promise<MutationResu
 
 export async function eliminarEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const result = await eliminarEvaluacionAction(getStringField(formData, "evaluacionId"));
 
   revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${filterQuery}`);
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
 }
 
 export async function agregarPreguntaAction(input: {
@@ -834,6 +844,7 @@ export async function agregarPreguntaAction(input: {
 export async function agregarPreguntaFormAction(formData: FormData): Promise<void> {
   const evaluacionId = getStringField(formData, "evaluacionId");
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const tipo = getStringField(formData, "tipo") as
     | "opcion_multiple"
     | "verdadero_falso"
@@ -864,9 +875,10 @@ export async function agregarPreguntaFormAction(formData: FormData): Promise<voi
   });
 
   revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
   const evaluacionQuery = evaluacionId ? `&evaluacionId=${encodeURIComponent(evaluacionId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${filterQuery}${evaluacionQuery}`);
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}${evaluacionQuery}`);
 }
 
 export async function enviarRespuestasAction(input: {

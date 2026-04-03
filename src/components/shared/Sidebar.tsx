@@ -35,8 +35,11 @@ function SidebarNav({
   const sections = ROLE_SECTIONS[role];
   const homeHref = `/${role}`;
 
+  const allHrefs = sections.flatMap(s => s.items.map(i => i.href));
   const isActive = (href: string): boolean => {
     if (href === homeHref) return pathname === href;
+    const hasNavChildren = allHrefs.some(h => h !== href && h.startsWith(`${href}/`));
+    if (hasNavChildren) return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 

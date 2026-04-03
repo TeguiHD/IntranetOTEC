@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas, usuarios } from "@/db/schema";
+import { asignaturas, cursos, periodosAcademicos, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateDocenteAsignado } from "@/lib/email";
 import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
@@ -56,6 +56,32 @@ const sanitizeOptionalText = (value: string | undefined): string | undefined => 
 
   const clean = sanitizeText(value).replace(/\s+/g, " ").trim();
   return clean.length > 0 ? clean : undefined;
+};
+
+const addMonthsToIsoDate = (isoDate: string, months: number): string => {
+  const [yearRaw, monthRaw, dayRaw] = isoDate.split("-").map((part) => Number.parseInt(part ?? "", 10));
+  const year = Number.isFinite(yearRaw) ? yearRaw : 1970;
+  const month = Number.isFinite(monthRaw) ? monthRaw : 1;
+  const day = Number.isFinite(dayRaw) ? dayRaw : 1;
+
+  const base = new Date(Date.UTC(year, month - 1, day));
+  base.setUTCMonth(base.getUTCMonth() + months);
+  const yyyy = base.getUTCFullYear();
+  const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(base.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const turnoCodeMap: Record<"manana" | "tarde" | "vespertino", "M" | "T" | "V"> = {
+  manana: "M",
+  tarde: "T",
+  vespertino: "V",
+};
+
+const normalizeCodeSegment = (value: string, fallback: string, maxLength: number): string => {
+  const normalized = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (!normalized) return fallback;
+  return normalized.slice(0, maxLength);
 };
 
 export type AsignaturaBusqueda = {
@@ -133,6 +159,7 @@ export async function countAsignaturasAdmin(
   options?: {
     incluirArchivadas?: boolean;
     q?: string;
+    periodoId?: string;
     estado?: "borrador" | "activo" | "finalizado" | "archivado";
     fechaDesde?: string;
     fechaHasta?: string;
@@ -160,6 +187,10 @@ export async function countAsignaturasAdmin(
     conditions.push(
       or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
     );
+  }
+
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
   }
 
   const fechaDesde = parseDateFilter(options?.fechaDesde);
@@ -219,6 +250,7 @@ export async function listarAsignaturasAdmin(
   options?: {
     incluirArchivadas?: boolean;
     q?: string;
+    periodoId?: string;
     estado?: "borrador" | "activo" | "finalizado" | "archivado";
     fechaDesde?: string;
     fechaHasta?: string;
@@ -250,6 +282,10 @@ export async function listarAsignaturasAdmin(
     conditions.push(
       or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
     );
+  }
+
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
   }
 
   const fechaDesde = parseDateFilter(options?.fechaDesde);
@@ -299,6 +335,9 @@ export async function crearAsignaturaAction(input: {
   nombre: string;
   descripcion?: string;
   codigo?: string;
+  cursoId: string;
+  periodoId: string;
+  turno: "manana" | "tarde" | "vespertino";
   fechaInicio: string;
   duracionMeses: number;
   maxAlumnos: number;
@@ -346,13 +385,123 @@ export async function crearAsignaturaAction(input: {
       }
     }
 
+    const [curso] = await db
+      .select({ id: cursos.id, codigo: cursos.codigo, activo: cursos.activo })
+      .from(cursos)
+      .where(and(eq(cursos.id, parsed.data.cursoId), isNull(cursos.eliminadoAt)))
+      .limit(1);
+
+    if (!curso) {
+      return {
+        ok: false,
+        code: "curso_not_found",
+        message: "El curso seleccionado no existe o no esta disponible.",
+      };
+    }
+
+    if (curso.activo === false) {
+      return {
+        ok: false,
+        code: "curso_inactivo",
+        message: "No puedes crear secciones usando un curso inactivo.",
+      };
+    }
+
+    const [periodo] = await db
+      .select({ id: periodosAcademicos.id, codigo: periodosAcademicos.codigo, estado: periodosAcademicos.estado })
+      .from(periodosAcademicos)
+      .where(eq(periodosAcademicos.id, parsed.data.periodoId))
+      .limit(1);
+
+    if (!periodo) {
+      return {
+        ok: false,
+        code: "periodo_not_found",
+        message: "El periodo academico seleccionado no existe.",
+      };
+    }
+
+    if (periodo.estado === "cerrado") {
+      return {
+        ok: false,
+        code: "periodo_closed",
+        message: "No se pueden crear secciones en periodos cerrados.",
+      };
+    }
+
+    const [sectionConflict] = await db
+      .select({ id: asignaturas.id })
+      .from(asignaturas)
+      .where(
+        and(
+          eq(asignaturas.cursoId, parsed.data.cursoId),
+          eq(asignaturas.periodoId, parsed.data.periodoId),
+          eq(asignaturas.turno, parsed.data.turno),
+          isNull(asignaturas.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    if (sectionConflict) {
+      return {
+        ok: false,
+        code: "section_conflict",
+        message: "Ya existe una seccion para este curso, periodo y turno.",
+      };
+    }
+
+    let sectionCode = parsed.data.codigo;
+    if (!sectionCode) {
+      const turnoCode = turnoCodeMap[parsed.data.turno];
+      const cursoCode = normalizeCodeSegment(curso.codigo, "CURSO", 8);
+      const periodoCode = normalizeCodeSegment(periodo.codigo, "PER", 10);
+      const baseCode = `${cursoCode}-${periodoCode}-${turnoCode}`.slice(0, 24);
+
+      sectionCode = baseCode;
+      let suffix = 2;
+
+      while (true) {
+        const [existingCode] = await db
+          .select({ id: asignaturas.id })
+          .from(asignaturas)
+          .where(and(eq(asignaturas.codigo, sectionCode), isNull(asignaturas.eliminadoAt)))
+          .limit(1);
+
+        if (!existingCode) break;
+
+        const suffixText = `-${String(suffix).padStart(2, "0")}`;
+        sectionCode = `${baseCode.slice(0, 24 - suffixText.length)}${suffixText}`;
+        suffix += 1;
+      }
+    } else {
+      const [existingCode] = await db
+        .select({ id: asignaturas.id })
+        .from(asignaturas)
+        .where(and(eq(asignaturas.codigo, sectionCode), isNull(asignaturas.eliminadoAt)))
+        .limit(1);
+
+      if (existingCode) {
+        return {
+          ok: false,
+          code: "codigo_duplicado",
+          message: "Ya existe una seccion con ese codigo.",
+        };
+      }
+    }
+
+    const fechaFin = addMonthsToIsoDate(parsed.data.fechaInicio, parsed.data.duracionMeses);
+
     const [created] = await db
       .insert(asignaturas)
       .values({
         nombre: sanitizeText(parsed.data.nombre),
         descripcion: sanitizeOptionalText(parsed.data.descripcion),
-        codigo: parsed.data.codigo,
+        codigo: sectionCode,
         fechaInicio: parsed.data.fechaInicio,
+        fechaFin,
+        cursoId: parsed.data.cursoId,
+        periodoId: parsed.data.periodoId,
+        turno: parsed.data.turno,
         duracionMeses: parsed.data.duracionMeses,
         maxAlumnos: parsed.data.maxAlumnos,
         docenteId: parsed.data.docenteId,
@@ -370,7 +519,10 @@ export async function crearAsignaturaAction(input: {
       entidad: "asignaturas",
       entidadId: created.id,
       payload: {
-        codigo: parsed.data.codigo ?? null,
+        codigo: sectionCode,
+        cursoId: parsed.data.cursoId,
+        periodoId: parsed.data.periodoId,
+        turno: parsed.data.turno,
         docenteId: parsed.data.docenteId ?? null,
       },
       exitoso: true,
@@ -528,6 +680,9 @@ export async function crearAsignaturaFormAction(formData: FormData): Promise<voi
     nombre: getStringField(formData, "nombre"),
     descripcion: getStringField(formData, "descripcion"),
     codigo: getStringField(formData, "codigo"),
+    cursoId: getStringField(formData, "cursoId"),
+    periodoId: getStringField(formData, "periodoId"),
+    turno: (getStringField(formData, "turno") || "") as "manana" | "tarde" | "vespertino",
     fechaInicio: getStringField(formData, "fechaInicio"),
     duracionMeses: parseIntegerField(getStringField(formData, "duracionMeses")) ?? 0,
     maxAlumnos: parseIntegerField(getStringField(formData, "maxAlumnos")) ?? 0,

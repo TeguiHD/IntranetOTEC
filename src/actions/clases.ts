@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas, clases, matriculas } from "@/db/schema";
+import { asignaturas, bloquesHorario, clases, matriculas } from "@/db/schema";
 import { activo } from "@/db/filters";
 import { registrarAudit } from "@/lib/audit";
 import { enviarPushADestinatarios } from "@/actions/notificaciones";
@@ -56,6 +56,66 @@ const parsePageField = (value: string): number | null => {
   }
 
   return parsed;
+};
+
+const parseIsoDateUtc = (value: string): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  const day = Number.parseInt(match[3], 10);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
+const addUtcDays = (baseDate: Date, days: number): Date => {
+  const copy = new Date(baseDate.getTime());
+  copy.setUTCDate(copy.getUTCDate() + days);
+  return copy;
+};
+
+const toIsoDateUtc = (date: Date): string => {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+};
+
+const getWeekdayMon0 = (date: Date): number => {
+  return (date.getUTCDay() + 6) % 7;
+};
+
+const normalizeTimeValue = (value: string | null): string => {
+  if (!value) {
+    return "";
+  }
+
+  return value.slice(0, 5);
+};
+
+const buildClaseDedupKey = (params: {
+  fecha: string;
+  horaInicio: string | null;
+  horaFin: string | null;
+  sala: string | null;
+}) => {
+  const salaKey = (params.sala ?? "").trim().toLowerCase();
+  return `${params.fecha}|${normalizeTimeValue(params.horaInicio)}|${normalizeTimeValue(params.horaFin)}|${salaKey}`;
 };
 
 export async function listarClasesPorAsignatura(
@@ -283,7 +343,9 @@ export async function editarClaseAction(input: {
 
 export async function editarClaseFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const page = parsePageField(getStringField(formData, "page"));
+  const q = getStringField(formData, "q").trim();
   const result = await editarClaseAction({
     id: getStringField(formData, "id"),
     titulo: getStringField(formData, "titulo"),
@@ -304,8 +366,10 @@ export async function editarClaseFormAction(formData: FormData): Promise<void> {
   const filterQuery = asignaturaId
     ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
     : "";
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const pageQuery = page ? `&page=${page}` : "";
-  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
+  const searchQuery = q ? `&q=${encodeURIComponent(q)}` : "";
+  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}${pageQuery}${searchQuery}`);
 }
 
 export async function crearClaseAction(input: {
@@ -466,6 +530,224 @@ export async function crearClaseAction(input: {
   }
 }
 
+export async function generarClasesDesdeBloquesAction(
+  asignaturaId: string,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_clase_autogenerate", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  if (!asignaturaId || typeof asignaturaId !== "string") {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Asignatura inválida.",
+    };
+  }
+
+  const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(asignaturaId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
+  }
+
+  const db = getDb();
+
+  try {
+    const [subject] = await db
+      .select({
+        id: asignaturas.id,
+        nombre: asignaturas.nombre,
+        fechaInicio: asignaturas.fechaInicio,
+        fechaFin: asignaturas.fechaFin,
+      })
+      .from(asignaturas)
+      .where(and(eq(asignaturas.id, asignaturaId), isNull(asignaturas.eliminadoAt)))
+      .limit(1);
+
+    if (!subject) {
+      return {
+        ok: false,
+        code: "asignatura_not_found",
+        message: "No se encontró la asignatura.",
+      };
+    }
+
+    if (!subject.fechaInicio || !subject.fechaFin) {
+      return {
+        ok: false,
+        code: "asignatura_range_missing",
+        message: "La asignatura debe tener fecha de inicio y término para generar clases.",
+      };
+    }
+
+    const inicio = parseIsoDateUtc(subject.fechaInicio);
+    const fin = parseIsoDateUtc(subject.fechaFin);
+
+    if (!inicio || !fin || fin < inicio) {
+      return {
+        ok: false,
+        code: "asignatura_range_invalid",
+        message: "El rango de fechas de la asignatura es inválido.",
+      };
+    }
+
+    const bloques = await db
+      .select({
+        diaSemana: bloquesHorario.diaSemana,
+        horaInicio: bloquesHorario.horaInicio,
+        horaFin: bloquesHorario.horaFin,
+        sala: bloquesHorario.sala,
+      })
+      .from(bloquesHorario)
+      .where(
+        and(eq(bloquesHorario.asignaturaId, asignaturaId), isNull(bloquesHorario.eliminadoAt)),
+      )
+      .orderBy(asc(bloquesHorario.diaSemana), asc(bloquesHorario.horaInicio));
+
+    if (bloques.length === 0) {
+      return {
+        ok: false,
+        code: "sin_bloques_horario",
+        message: "Primero debes definir bloques horarios para la sección.",
+      };
+    }
+
+    const existing = await db
+      .select({
+        numeroSesion: clases.numeroSesion,
+        fecha: clases.fecha,
+        horaInicio: clases.horaInicio,
+        horaFin: clases.horaFin,
+        sala: clases.sala,
+      })
+      .from(clases)
+      .where(eq(clases.asignaturaId, asignaturaId));
+
+    let maxNumeroSesion = 0;
+    const existingKeys = new Set<string>();
+
+    for (const clase of existing) {
+      maxNumeroSesion = Math.max(maxNumeroSesion, clase.numeroSesion ?? 0);
+      existingKeys.add(
+        buildClaseDedupKey({
+          fecha: clase.fecha,
+          horaInicio: clase.horaInicio,
+          horaFin: clase.horaFin,
+          sala: clase.sala,
+        }),
+      );
+    }
+
+    const bloquesByDay = new Map<number, typeof bloques>();
+    for (const bloque of bloques) {
+      const current = bloquesByDay.get(bloque.diaSemana) ?? [];
+      current.push(bloque);
+      bloquesByDay.set(bloque.diaSemana, current);
+    }
+
+    const nuevasClases: Array<{
+      asignaturaId: string;
+      titulo: string;
+      descripcion: string;
+      numeroSesion: number;
+      fecha: string;
+      horaInicio: string;
+      horaFin: string;
+      sala: string | null;
+      publicada: boolean;
+      createdAt: Date;
+    }> = [];
+
+    let cursor = new Date(inicio.getTime());
+    while (cursor <= fin) {
+      const diaSemana = getWeekdayMon0(cursor);
+      const bloquesDia = bloquesByDay.get(diaSemana) ?? [];
+
+      if (bloquesDia.length > 0) {
+        const fechaClase = toIsoDateUtc(cursor);
+
+        for (const bloque of bloquesDia) {
+          const dedupKey = buildClaseDedupKey({
+            fecha: fechaClase,
+            horaInicio: bloque.horaInicio,
+            horaFin: bloque.horaFin,
+            sala: bloque.sala,
+          });
+
+          if (existingKeys.has(dedupKey)) {
+            continue;
+          }
+
+          maxNumeroSesion += 1;
+          nuevasClases.push({
+            asignaturaId,
+            titulo: `Sesión ${maxNumeroSesion}`,
+            descripcion: "Clase generada automáticamente desde bloques horarios.",
+            numeroSesion: maxNumeroSesion,
+            fecha: fechaClase,
+            horaInicio: bloque.horaInicio,
+            horaFin: bloque.horaFin,
+            sala: bloque.sala,
+            publicada: false,
+            createdAt: new Date(),
+          });
+
+          existingKeys.add(dedupKey);
+        }
+      }
+
+      cursor = addUtcDays(cursor, 1);
+    }
+
+    if (nuevasClases.length === 0) {
+      return { ok: true, code: "clases_autogeneradas_sin_cambios" };
+    }
+
+    await db.insert(clases).values(nuevasClases);
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "crear",
+      entidad: "clases",
+      entidadId: subject.id,
+      payload: {
+        origen: "bloques_horario",
+        totalGeneradas: nuevasClases.length,
+      },
+      exitoso: true,
+    });
+
+    revalidatePath("/admin/clases");
+    revalidatePath("/admin/horarios");
+
+    return { ok: true, code: "clases_autogeneradas" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_clase_autogenerate_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: {
+        reason: message,
+        asignaturaId,
+      },
+    });
+
+    return {
+      ok: false,
+      code: "clases_autogeneradas_failed",
+      message: "No fue posible generar clases automáticamente.",
+    };
+  }
+}
+
 export async function eliminarClaseAction(id: string): Promise<MutationResult> {
   const actorResult = await requireActionActor("admin_clase_delete", ["admin"]);
 
@@ -532,20 +814,26 @@ export async function eliminarClaseAction(id: string): Promise<MutationResult> {
 
 export async function eliminarClaseFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const page = parsePageField(getStringField(formData, "page"));
+  const q = getStringField(formData, "q").trim();
   const result = await eliminarClaseAction(getStringField(formData, "id"));
 
   revalidatePath("/admin/clases");
   const filterQuery = asignaturaId
     ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
     : "";
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const pageQuery = page ? `&page=${page}` : "";
-  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
+  const searchQuery = q ? `&q=${encodeURIComponent(q)}` : "";
+  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}${pageQuery}${searchQuery}`);
 }
 
 export async function crearClaseFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
   const page = parsePageField(getStringField(formData, "page"));
+  const q = getStringField(formData, "q").trim();
   const result = await crearClaseAction({
     asignaturaId,
     titulo: getStringField(formData, "titulo"),
@@ -563,7 +851,28 @@ export async function crearClaseFormAction(formData: FormData): Promise<void> {
   const filterQuery = asignaturaId
     ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
     : "";
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const pageQuery = page ? `&page=${page}` : "";
+  const searchQuery = q ? `&q=${encodeURIComponent(q)}` : "";
 
-  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
+  redirect(`/admin/clases?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}${pageQuery}${searchQuery}`);
+}
+
+export async function generarClasesDesdeBloquesFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const page = parsePageField(getStringField(formData, "page"));
+  const q = getStringField(formData, "q").trim();
+  const result = await generarClasesDesdeBloquesAction(asignaturaId);
+
+  revalidatePath("/admin/clases");
+
+  const filterQuery = asignaturaId
+    ? `&asignaturaId=${encodeURIComponent(asignaturaId)}`
+    : "";
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
+  const pageQuery = page ? `&page=${page}` : "";
+  const searchQuery = q ? `&q=${encodeURIComponent(q)}` : "";
+
+  redirect(`/admin/clases?state=${result.code}${periodoQuery}${filterQuery}${pageQuery}${searchQuery}`);
 }

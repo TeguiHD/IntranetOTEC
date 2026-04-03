@@ -92,6 +92,48 @@
       "when": 1743505200000,
       "tag": "0012_asignaturas_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1775076720000,
+      "tag": "0013_usuarios_telefono",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1775088000000,
+      "tag": "0014_periodos_academicos",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1743638400000,
+      "tag": "0015_estado_alumno",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1743642000000,
+      "tag": "0016_cursos_secciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1743645600000,
+      "tag": "0017_cursos_data_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1743650000000,
+      "tag": "0018_fase1_constraints_feedback",
+      "breakpoints": true
     }
   ]
 }

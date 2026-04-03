@@ -1,5 +1,6 @@
 import { ClipboardList, Eye, Plus, Trash2 } from "lucide-react";
 
+import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
   agregarPreguntaFormAction,
@@ -11,6 +12,7 @@ import {
   obtenerResultadosEvaluacion,
   publicarEvaluacionFormAction,
 } from "@/actions/evaluaciones";
+import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearRut } from "@/lib/rut";
 
@@ -66,6 +68,7 @@ const TIPO_LABELS: Record<string, string> = {
 type AdminEvaluacionesPageProps = {
   searchParams?: Promise<{
     state?: string;
+    periodoId?: string;
     asignaturaId?: string;
     evaluacionId?: string;
   }>;
@@ -84,17 +87,25 @@ export default async function AdminEvaluacionesPage({
   searchParams,
 }: AdminEvaluacionesPageProps) {
   const params = await (searchParams ??
-    Promise.resolve({} as { state?: string; asignaturaId?: string; evaluacionId?: string }));
+    Promise.resolve({} as { state?: string; periodoId?: string; asignaturaId?: string; evaluacionId?: string }));
+
+  const requestedPeriodoId = typeof params?.periodoId === "string" ? params.periodoId.trim() : "";
+  const periodos = await listarPeriodosDashboard();
+  const defaultPeriodoId = periodos.find((p) => p.estado === "activo")?.id ?? periodos[0]?.id ?? "";
+  const selectedPeriodoId =
+    requestedPeriodoId && periodos.some((p) => p.id === requestedPeriodoId)
+      ? requestedPeriodoId
+      : defaultPeriodoId;
 
   const asignaturas = await listarAsignaturasAdmin(
-    { limit: 100, offset: 0 },
-    { incluirArchivadas: false },
+    { limit: 1000, offset: 0 },
+    { incluirArchivadas: false, periodoId: selectedPeriodoId || undefined },
   );
 
   const selectedAsignaturaIdRaw =
     typeof params?.asignaturaId === "string" ? params.asignaturaId : undefined;
   const selectedAsignaturaId =
-    selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
+    selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw) && asignaturas.some((a) => a.id === selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
       : asignaturas[0]?.id;
 
@@ -135,27 +146,44 @@ export default async function AdminEvaluacionesPage({
         method="GET"
         className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5"
       >
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_auto]">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="eval-periodo"
+              className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400"
+            >
+              Periodo
+            </label>
+            <select
+              id="eval-periodo"
+              name="periodoId"
+              defaultValue={selectedPeriodoId}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            >
+              {periodos.length === 0 ? (
+                <option value="">Sin periodos</option>
+              ) : (
+                periodos.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))
+              )}
+            </select>
+          </div>
+
           <div className="space-y-1.5">
             <label
               htmlFor="eval-asig"
               className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400"
             >
-              Asignatura
+              Seccion
             </label>
-            <select
-              id="eval-asig"
-              name="asignaturaId"
+            <AsignaturaFilterSelect
+              options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
               defaultValue={selectedAsignaturaId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              {asignaturas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.codigo ? `[${a.codigo}] ` : ""}
-                  {a.nombre}
-                </option>
-              ))}
-            </select>
+              name="asignaturaId"
+              placeholder="Buscar seccion..."
+              autoSubmit={false}
+            />
           </div>
           <div className="flex items-end">
             <button
@@ -167,6 +195,12 @@ export default async function AdminEvaluacionesPage({
           </div>
         </div>
       </form>
+
+      {asignaturas.length === 0 && (
+        <article className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-sm text-text-secondary shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+          No hay secciones disponibles para el periodo seleccionado.
+        </article>
+      )}
 
       {selectedAsignaturaId && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
@@ -182,6 +216,7 @@ export default async function AdminEvaluacionesPage({
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <form action={crearPlantillaEncuestaFormAction} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
               <input type="hidden" name="plantilla" value="docente_otec" />
               <h3 className="text-sm font-semibold text-text-primary dark:text-white">
                 Evaluación Docente y OTEC
@@ -199,6 +234,7 @@ export default async function AdminEvaluacionesPage({
 
             <form action={crearPlantillaEncuestaFormAction} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
               <input type="hidden" name="plantilla" value="estilos_aprendizaje" />
               <h3 className="text-sm font-semibold text-text-primary dark:text-white">
                 Test de Estilos de Aprendizaje
@@ -227,6 +263,7 @@ export default async function AdminEvaluacionesPage({
           </div>
           <form action={crearEvaluacionFormAction} className="space-y-4">
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+            <input type="hidden" name="periodoId" value={selectedPeriodoId} />
             <div className="grid gap-4 sm:grid-cols-2">
               <input
                 name="titulo"
@@ -331,7 +368,7 @@ export default async function AdminEvaluacionesPage({
                       </span>
                     )}
                     <a
-                      href={`?asignaturaId=${encodeURIComponent(selectedAsignaturaId ?? "")}&evaluacionId=${encodeURIComponent(ev.id)}`}
+                      href={`?periodoId=${encodeURIComponent(selectedPeriodoId)}&asignaturaId=${encodeURIComponent(selectedAsignaturaId ?? "")}&evaluacionId=${encodeURIComponent(ev.id)}`}
                       className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                     >
                       Ver resultados
@@ -340,6 +377,7 @@ export default async function AdminEvaluacionesPage({
                       <form action={publicarEvaluacionFormAction}>
                         <input type="hidden" name="evaluacionId" value={ev.id} />
                         <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                        <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                         <button
                           type="submit"
                           className="rounded-lg border border-success/30 bg-success/5 px-3 py-1.5 text-xs font-medium text-success transition-colors hover:bg-success/10"
@@ -352,6 +390,7 @@ export default async function AdminEvaluacionesPage({
                       <form action={despublicarEvaluacionFormAction}>
                         <input type="hidden" name="evaluacionId" value={ev.id} />
                         <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                        <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                         <button
                           type="submit"
                           className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
@@ -363,6 +402,7 @@ export default async function AdminEvaluacionesPage({
                     <form action={eliminarEvaluacionFormAction}>
                       <input type="hidden" name="evaluacionId" value={ev.id} />
                       <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                       <button
                         type="submit"
                         className="flex items-center gap-1 rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10"
@@ -400,6 +440,7 @@ export default async function AdminEvaluacionesPage({
           <form action={agregarPreguntaFormAction} className="mb-6 grid gap-3 rounded-xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
             <input type="hidden" name="evaluacionId" value={selectedEvaluacionId} />
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+            <input type="hidden" name="periodoId" value={selectedPeriodoId} />
             <input
               name="enunciado"
               placeholder="Nueva pregunta"

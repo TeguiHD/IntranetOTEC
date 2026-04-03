@@ -3,7 +3,7 @@
 import { and, eq, gte, isNull, lte } from "drizzle-orm";
 
 import { getDb } from "@/db";
-import { asignaturas, clases, evaluaciones, matriculas } from "@/db/schema";
+import { asignaturas, clases, cursos, evaluaciones, matriculas } from "@/db/schema";
 import { requireActionActor } from "@/actions/_security";
 
 export type EventoCalendario = {
@@ -54,15 +54,18 @@ export async function obtenerEventosCalendarioAlumno(
 
   // Nombre de asignaturas para colores
   const asigs = await db
-    .select({ id: asignaturas.id, nombre: asignaturas.nombre })
+    .select({ id: asignaturas.id, nombre: asignaturas.nombre, cursoNombre: cursos.nombre })
     .from(asignaturas)
+    .leftJoin(cursos, eq(asignaturas.cursoId, cursos.id))
     .where(eq(asignaturas.estado, "activo"));
 
   const colorMap: Record<string, string> = {};
   asigs.forEach((a, i) => {
     colorMap[a.id] = COLORS[i % COLORS.length];
   });
-  const nombreMap: Record<string, string> = Object.fromEntries(asigs.map((a) => [a.id, a.nombre]));
+  const nombreMap: Record<string, string> = Object.fromEntries(
+    asigs.map((a) => [a.id, a.cursoNombre ?? a.nombre]),
+  );
 
   // Clases del mes
   for (const asigId of asigIds) {
@@ -146,15 +149,18 @@ export async function obtenerEventosCalendarioDocente(
   const fin = `${anio}-${String(mes).padStart(2, "0")}-${ultimoDia}`;
 
   const asigs = await db
-    .select({ id: asignaturas.id, nombre: asignaturas.nombre })
+    .select({ id: asignaturas.id, nombre: asignaturas.nombre, cursoNombre: cursos.nombre })
     .from(asignaturas)
+    .leftJoin(cursos, eq(asignaturas.cursoId, cursos.id))
     .where(eq(asignaturas.docenteId, actorResult.actor.userId));
 
   if (asigs.length === 0) return [];
 
   const colorMap: Record<string, string> = {};
   asigs.forEach((a, i) => { colorMap[a.id] = COLORS[i % COLORS.length]; });
-  const nombreMap: Record<string, string> = Object.fromEntries(asigs.map((a) => [a.id, a.nombre]));
+  const nombreMap: Record<string, string> = Object.fromEntries(
+    asigs.map((a) => [a.id, a.cursoNombre ?? a.nombre]),
+  );
 
   const eventos: EventoCalendario[] = [];
 

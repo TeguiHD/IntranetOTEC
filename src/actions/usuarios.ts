@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas, material, matriculas, usuarios } from "@/db/schema";
+import { asignaturas, historialEstadoAlumno, material, matriculas, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateBienvenida } from "@/lib/email";
 import { logEvent } from "@/lib/observability/logger";
@@ -157,6 +157,7 @@ export async function listarUsuariosPorRol(
       email: usuarios.email,
       rut: usuarios.rut,
       activo: usuarios.activo,
+      estadoAlumno: usuarios.estadoAlumno,
       eliminadoAt: usuarios.eliminadoAt,
       createdAt: usuarios.createdAt,
     })
@@ -737,6 +738,7 @@ export async function crearAlumnoAction(input: {
           password: passwordHash,
           pinCambiado: false,
           rol: "alumno",
+          estadoAlumno: "activo",
           activo: true,
           eliminadoAt: null,
           eliminadoPor: null,
@@ -790,6 +792,7 @@ export async function crearAlumnoAction(input: {
         password: passwordHash,
         pinCambiado: false,
         rol: "alumno",
+        estadoAlumno: "activo",
         activo: true,
         createdAt: now,
         updatedAt: now,
@@ -916,6 +919,7 @@ export async function desactivarUsuarioAction(input: {
       .update(usuarios)
       .set({
         activo: false,
+        estadoAlumno: target.rol === "alumno" ? "retirado" : undefined,
         eliminadoAt: new Date(),
         eliminadoPor: actorResult.actor.userId,
         updatedAt: new Date(),
@@ -1012,6 +1016,7 @@ export async function activarUsuarioAction(input: {
       .update(usuarios)
       .set({
         activo: true,
+        estadoAlumno: target.rol === "alumno" ? "activo" : undefined,
         eliminadoAt: null,
         eliminadoPor: null,
         updatedAt: new Date(),
@@ -1893,4 +1898,89 @@ export async function establecerPasswordDocenteAction(input: {
   });
 
   return { ok: true, code: "password_set" };
+}
+
+// ---------- Estado del alumno ----------
+
+const estadosAlumnoValidos = ["activo", "egresado", "retirado", "suspendido", "desertor"] as const;
+type EstadoAlumno = (typeof estadosAlumnoValidos)[number];
+
+export async function cambiarEstadoAlumno(
+  alumnoId: string,
+  nuevoEstado: EstadoAlumno,
+  motivo?: string,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("cambiar_estado_alumno", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!estadosAlumnoValidos.includes(nuevoEstado)) {
+    return { ok: false, code: "invalid_state", message: "Estado no válido." };
+  }
+
+  const db = getDb();
+
+  const [alumno] = await db
+    .select({ id: usuarios.id, estadoAlumno: usuarios.estadoAlumno, rol: usuarios.rol })
+    .from(usuarios)
+    .where(and(eq(usuarios.id, alumnoId), eq(usuarios.rol, "alumno"), isNull(usuarios.eliminadoAt)))
+    .limit(1);
+
+  if (!alumno) {
+    return { ok: false, code: "not_found", message: "Alumno no encontrado." };
+  }
+
+  if (alumno.estadoAlumno === nuevoEstado) {
+    return { ok: false, code: "no_change", message: "El alumno ya tiene ese estado." };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(usuarios)
+      .set({ estadoAlumno: nuevoEstado, updatedAt: new Date() })
+      .where(eq(usuarios.id, alumnoId));
+
+    await tx.insert(historialEstadoAlumno).values({
+      alumnoId,
+      estadoAnterior: alumno.estadoAlumno ?? null,
+      estadoNuevo: nuevoEstado,
+      motivo: motivo ? sanitizeText(motivo) : null,
+      cambiadoPor: actorResult.actor.userId,
+    });
+  });
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "editar",
+    entidad: "usuarios",
+    entidadId: alumnoId,
+    payload: { campo: "estado_alumno", anterior: alumno.estadoAlumno, nuevo: nuevoEstado },
+    exitoso: true,
+  });
+
+  revalidatePath("/admin/alumnos");
+  return { ok: true, code: "estado_actualizado" };
+}
+
+export async function obtenerHistorialEstadoAlumno(alumnoId: string) {
+  const actorResult = await requireActionActor("obtener_historial_estado_alumno", ["admin"]);
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  return db
+    .select({
+      id: historialEstadoAlumno.id,
+      estadoAnterior: historialEstadoAlumno.estadoAnterior,
+      estadoNuevo: historialEstadoAlumno.estadoNuevo,
+      motivo: historialEstadoAlumno.motivo,
+      createdAt: historialEstadoAlumno.createdAt,
+      cambiadoPorNombre: usuarios.nombre,
+      cambiadoPorApellido: usuarios.apellido,
+    })
+    .from(historialEstadoAlumno)
+    .innerJoin(usuarios, eq(historialEstadoAlumno.cambiadoPor, usuarios.id))
+    .where(eq(historialEstadoAlumno.alumnoId, alumnoId))
+    .orderBy(desc(historialEstadoAlumno.createdAt));
 }

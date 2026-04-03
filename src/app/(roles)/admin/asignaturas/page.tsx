@@ -4,6 +4,8 @@ import {
   countAsignaturasAdmin,
   listarAsignaturasAdmin,
 } from "@/actions/asignaturas";
+import { listarPeriodosDashboard } from "@/actions/admin-metricas";
+import { listarCursosCombobox } from "@/actions/cursos";
 import { listarUsuariosPorRol } from "@/actions/usuarios";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
@@ -55,6 +57,8 @@ type AdminAsignaturasPageProps = {
     page?: string;
     q?: string;
     estado?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
   }>;
 };
 
@@ -65,19 +69,36 @@ export const metadata = {
 export default async function AdminAsignaturasPage({
   searchParams,
 }: AdminAsignaturasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string; q?: string; estado?: string }));
+  const params = await (searchParams ?? Promise.resolve({
+    state: undefined,
+    page: undefined,
+    q: undefined,
+    estado: undefined,
+    fechaDesde: undefined,
+    fechaHasta: undefined,
+  }));
   const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
   const q = typeof params.q === "string" ? params.q.trim() : "";
   const estadoFilter = typeof params.estado === "string" && params.estado.length > 0
     ? (params.estado as "activo" | "borrador" | "finalizado" | "archivado")
     : undefined;
+  const fechaDesde = typeof params.fechaDesde === "string" ? params.fechaDesde.trim() : "";
+  const fechaHasta = typeof params.fechaHasta === "string" ? params.fechaHasta.trim() : "";
 
-  const filterOpts = { incluirArchivadas: true, q: q || undefined, estado: estadoFilter };
+  const filterOpts = {
+    incluirArchivadas: true,
+    q: q || undefined,
+    estado: estadoFilter,
+    fechaDesde: fechaDesde || undefined,
+    fechaHasta: fechaHasta || undefined,
+  };
 
-  const [asignaturas, docentes, totalCount] = await Promise.all([
+  const [asignaturas, docentes, cursosCombo, periodos, totalCount] = await Promise.all([
     listarAsignaturasAdmin({ limit: PAGE_SIZE, offset }, filterOpts),
     listarUsuariosPorRol("docente", { limit: 200, offset: 0 }, { incluirInactivos: true }),
+    listarCursosCombobox(),
+    listarPeriodosDashboard(),
     countAsignaturasAdmin(filterOpts),
   ]);
 
@@ -86,6 +107,8 @@ export default async function AdminAsignaturasPage({
   const filterQuery = new URLSearchParams();
   if (q) filterQuery.set("q", q);
   if (estadoFilter) filterQuery.set("estado", estadoFilter);
+  if (fechaDesde) filterQuery.set("fechaDesde", fechaDesde);
+  if (fechaHasta) filterQuery.set("fechaHasta", fechaHasta);
   const buildHrefBase = filterQuery.toString()
     ? `/admin/asignaturas?${filterQuery.toString()}&`
     : "/admin/asignaturas?";
@@ -111,7 +134,7 @@ export default async function AdminAsignaturasPage({
     docenteApellido: a.docenteApellido,
   }));
 
-  const hasFilter = q || estadoFilter;
+  const hasFilter = q || estadoFilter || fechaDesde || fechaHasta;
 
   return (
     <section className="space-y-5">
@@ -128,8 +151,8 @@ export default async function AdminAsignaturasPage({
 
       {/* Search & Filter */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-          <div className="relative">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_auto_auto_auto_auto]">
+          <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
               name="q"
@@ -155,6 +178,20 @@ export default async function AdminAsignaturasPage({
               </svg>
             </div>
           </div>
+          <input
+            name="fechaDesde"
+            type="date"
+            defaultValue={fechaDesde}
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            aria-label="Fecha desde"
+          />
+          <input
+            name="fechaHasta"
+            type="date"
+            defaultValue={fechaHasta}
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            aria-label="Fecha hasta"
+          />
           <button
             type="submit"
             className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
@@ -168,6 +205,12 @@ export default async function AdminAsignaturasPage({
               {totalCount} resultado{totalCount !== 1 ? "s" : ""}
               {q && <> para «<strong>{q}</strong>»</>}
               {estadoFilter && <> en estado <strong>{estadoFilter}</strong></>}
+              {(fechaDesde || fechaHasta) && (
+                <>
+                  {" "}
+                  en rango <strong>{fechaDesde || "..."}</strong> a <strong>{fechaHasta || "..."}</strong>
+                </>
+              )}
             </span>
             <a
               href="/admin/asignaturas"
@@ -183,6 +226,8 @@ export default async function AdminAsignaturasPage({
         <AsignaturaManager
           asignaturas={asignaturasSimple}
           docentes={docentesSimple}
+          cursos={cursosCombo}
+          periodos={periodos}
           totalCount={totalCount}
           currentPage={currentPage}
           totalPages={totalPages}

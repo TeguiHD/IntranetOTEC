@@ -410,10 +410,16 @@ export async function listarAsignaturasActivasAdmin() {
   const db = getDb();
 
   return db
-    .select({ id: asignaturas.id, nombre: asignaturas.nombre })
+    .select({
+      id: asignaturas.id,
+      nombre: asignaturas.nombre,
+      codigo: asignaturas.codigo,
+      fechaInicio: asignaturas.fechaInicio,
+      turno: asignaturas.turno,
+    })
     .from(asignaturas)
-    .where(inArray(asignaturas.estado, ["activo", "finalizado"]))
-    .orderBy(asignaturas.nombre);
+    .where(isNull(asignaturas.eliminadoAt))
+    .orderBy(desc(asignaturas.fechaInicio), asignaturas.nombre);
 }
 
 // Lista combinada de alumnos y docentes para envíos individuales
@@ -501,13 +507,38 @@ export async function eliminarNotificacionAction(id: string): Promise<MutationRe
 }
 
 export async function listarMisNotificacionesRecientes() {
-  const actorResult = await requireActionActor("notificaciones_recientes", ["alumno", "docente"]);
+  const actorResult = await requireActionActor("notificaciones_recientes", ["admin", "alumno", "docente"]);
 
   if (!actorResult.ok) {
     return [];
   }
 
   const db = getDb();
+
+  if (actorResult.actor.userRol === "admin") {
+    return db
+      .select({
+        id: notificaciones.id,
+        titulo: notificaciones.titulo,
+        contenido: notificaciones.contenido,
+        createdAt: notificaciones.createdAt,
+        leidoAt: sql<Date | null>`NULL`,
+        tipo: notificaciones.tipo,
+        asignaturaNombre: asignaturas.nombre,
+        totalDestinatarios:
+          sql<number>`(SELECT COUNT(*) FROM notificaciones_destinatarios nd WHERE nd.notificacion_id = ${notificaciones.id})::int`,
+      })
+      .from(notificaciones)
+      .leftJoin(asignaturas, eq(notificaciones.asignaturaId, asignaturas.id))
+      .where(
+        and(
+          eq(notificaciones.emisorId, actorResult.actor.userId),
+          isNull(notificaciones.eliminadoAt),
+        ),
+      )
+      .orderBy(desc(notificaciones.createdAt))
+      .limit(5);
+  }
 
   return db
     .select({
@@ -516,6 +547,9 @@ export async function listarMisNotificacionesRecientes() {
       contenido: notificaciones.contenido,
       createdAt: notificaciones.createdAt,
       leidoAt: notificacionesDestinatarios.leidoAt,
+      tipo: sql<string | null>`NULL`,
+      asignaturaNombre: sql<string | null>`NULL`,
+      totalDestinatarios: sql<number | null>`NULL`,
     })
     .from(notificacionesDestinatarios)
     .innerJoin(notificaciones, eq(notificacionesDestinatarios.notificacionId, notificaciones.id))

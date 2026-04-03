@@ -51,7 +51,6 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-const HEADERS = ["nombre", "apellido", "rut", "email"];
 const HEADER_ALIASES: Record<string, string> = {
   name: "nombre",
   first_name: "nombre",

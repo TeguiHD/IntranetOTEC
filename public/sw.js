@@ -1,4 +1,4 @@
-const CACHE_VERSION = "otec-v4";
+const CACHE_VERSION = "otec-v5-icons-20260403";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("message", (event) => {
@@ -13,8 +13,8 @@ self.addEventListener("install", (event) => {
     caches.open(CACHE_VERSION).then((cache) =>
       cache.addAll([
         OFFLINE_URL,
-        "/icon-192.png",
-        "/icon-512.png",
+        "/icon-192-v2.png",
+        "/icon-512-v2.png",
         "/logo-intranet.webp",
       ])
     )
@@ -105,8 +105,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title ?? "Mi OTEC", {
       body: data.body,
-      icon: "/icon-192.png",
-      badge: "/icon-96.png",
+      icon: "/icon-192-v2.png",
+      badge: "/icon-96-v2.png",
       tag: "otec-" + Date.now(),
       renotify: true,
       vibrate: [200, 100, 200],

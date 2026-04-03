@@ -36,14 +36,14 @@ export const metadata: Metadata = {
     template: "%s | Mi OTEC",
   },
   description: "Intranet educativa OTEC - Impulsate & Emprende",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=20260403",
   icons: {
     icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192-v2.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512-v2.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/icon-180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icon-180-v2.png", sizes: "180x180", type: "image/png" },
     ],
   },
   appleWebApp: {

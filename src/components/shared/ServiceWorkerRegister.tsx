@@ -7,8 +7,10 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
+    const swUrl = "/sw.js?v=20260403";
+
     navigator.serviceWorker
-      .register("/sw.js")
+      .register(swUrl)
       .then((registration) => {
         // Check for updates every 60 seconds
         setInterval(() => registration.update(), 60_000);

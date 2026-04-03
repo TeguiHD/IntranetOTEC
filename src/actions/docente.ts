@@ -22,6 +22,11 @@ import { finalizarAsignaturasVencidas } from "@/lib/courseLifecycle";
 import { sanitizeText } from "@/lib/sanitize";
 import { parseSpreadsheetRowsFromBuffer } from "@/lib/spreadsheet";
 
+import {
+  assertPeriodoAbiertoByAsignaturaId,
+  assertPeriodoAbiertoByClaseId,
+  assertPeriodoAbiertoByMatriculaId,
+} from "./_period-lock";
 import { requireActionActor, type MutationResult } from "./_security";
 
 const getStringField = (formData: FormData, field: string): string => {
@@ -335,6 +340,11 @@ export async function crearClaseDocenteAction(input: {
     return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
   }
 
+  const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(parsed.data.asignaturaId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
+  }
+
   const db = getDb();
   const [subject] = await db
     .select({ estado: asignaturas.estado })
@@ -459,6 +469,11 @@ export async function editarClaseDocenteAction(input: {
     return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
   }
 
+  const periodoCheck = await assertPeriodoAbiertoByClaseId(parsed.data.claseId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
+  }
+
   const [subject] = await db
     .select({ estado: asignaturas.estado })
     .from(asignaturas)
@@ -546,6 +561,11 @@ export async function registrarAsistenciaDocenteAction(input: {
     return { ok: false, code: "forbidden", message: "No autorizado para esta asignatura." };
   }
 
+  const periodoCheck = await assertPeriodoAbiertoByClaseId(ctx.claseId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
+  }
+
   const [subject] = await db
     .select({ estado: asignaturas.estado })
     .from(asignaturas)
@@ -564,6 +584,11 @@ export async function registrarAsistenciaDocenteAction(input: {
 
   if (!matriculaRow) {
     return { ok: false, code: "matricula_not_found", message: "Matrícula no encontrada." };
+  }
+
+  const matriculaPeriodoCheck = await assertPeriodoAbiertoByMatriculaId(matriculaRow.id);
+  if (!matriculaPeriodoCheck.ok) {
+    return matriculaPeriodoCheck.result;
   }
 
   const fechaRegistro = parseDateInput(parsed.data.fechaRegistro);
@@ -644,6 +669,11 @@ export async function registrarNotaDocenteAction(input: {
 
   if (!matriculaRow) {
     return { ok: false, code: "matricula_not_found", message: "Matrícula no encontrada." };
+  }
+
+  const periodoCheck = await assertPeriodoAbiertoByMatriculaId(matriculaRow.id);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
   }
 
   const fechaRegistro = parseDateInput(parsed.data.fechaRegistro);
@@ -758,6 +788,9 @@ export async function eliminarClaseDocenteAction(input: {
   const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, clase.asignaturaId);
   if (!isOwner) return { ok: false, code: "forbidden", message: "No tienes permiso para eliminar esta clase." };
 
+  const periodoCheck = await assertPeriodoAbiertoByClaseId(clase.id);
+  if (!periodoCheck.ok) return periodoCheck.result;
+
   await db.update(clases).set({ eliminadoAt: new Date(), eliminadoPor: actorResult.actor.userId }).where(eq(clases.id, input.claseId));
 
   await registrarAudit({
@@ -799,7 +832,11 @@ export async function eliminarNotaDocenteAction(input: {
 
   const db = getDb();
   const [existing] = await db
-    .select({ id: notasDocente.id, docenteId: notasDocente.docenteId })
+    .select({
+      id: notasDocente.id,
+      docenteId: notasDocente.docenteId,
+      matriculaId: notasDocente.matriculaId,
+    })
     .from(notasDocente)
     .where(eq(notasDocente.id, parsed.data.notaId))
     .limit(1);
@@ -810,6 +847,11 @@ export async function eliminarNotaDocenteAction(input: {
 
   if (existing.docenteId !== actorResult.actor.userId) {
     return { ok: false, code: "forbidden", message: "Solo puedes eliminar tus propias notas." };
+  }
+
+  const periodoCheck = await assertPeriodoAbiertoByMatriculaId(existing.matriculaId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
   }
 
   await db.delete(notasDocente).where(eq(notasDocente.id, parsed.data.notaId));
@@ -851,7 +893,11 @@ export async function eliminarObservacionDocenteAction(input: {
 
   const db = getDb();
   const [existing] = await db
-    .select({ id: observacionesDocente.id, docenteId: observacionesDocente.docenteId })
+    .select({
+      id: observacionesDocente.id,
+      docenteId: observacionesDocente.docenteId,
+      matriculaId: observacionesDocente.matriculaId,
+    })
     .from(observacionesDocente)
     .where(eq(observacionesDocente.id, parsed.data.observacionId))
     .limit(1);
@@ -866,6 +912,11 @@ export async function eliminarObservacionDocenteAction(input: {
       code: "forbidden",
       message: "Solo puedes eliminar tus propias observaciones.",
     };
+  }
+
+  const periodoCheck = await assertPeriodoAbiertoByMatriculaId(existing.matriculaId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
   }
 
   await db.delete(observacionesDocente).where(eq(observacionesDocente.id, parsed.data.observacionId));
@@ -924,6 +975,11 @@ export async function importarNotasDocenteAction(formData: FormData): Promise<Mu
 
   if (!subject || subject.estado === "archivado" || subject.estado === "finalizado") {
     return { ok: false, code: "asignatura_closed", message: "La asignatura está cerrada." };
+  }
+
+  const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(asignaturaId);
+  if (!periodoCheck.ok) {
+    return periodoCheck.result;
   }
 
   try {

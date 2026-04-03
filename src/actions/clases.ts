@@ -15,6 +15,10 @@ import { sanitizeText } from "@/lib/sanitize";
 import { crearClaseInputSchema, editarClaseInputSchema } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
+import {
+  assertPeriodoAbiertoByAsignaturaId,
+  assertPeriodoAbiertoByClaseId,
+} from "./_period-lock";
 import { requireActionActor, type MutationResult } from "./_security";
 
 const getStringField = (formData: FormData, field: string): string => {
@@ -233,6 +237,11 @@ export async function editarClaseAction(input: {
       return { ok: false, code: "clase_not_found", message: "Clase no encontrada." };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByClaseId(parsed.data.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db
       .update(clases)
       .set({
@@ -354,6 +363,11 @@ export async function crearClaseAction(input: {
         code: "asignatura_closed",
         message: "No puedes crear clases en asignaturas cerradas.",
       };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(parsed.data.asignaturaId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     let numeroSesion = parsed.data.numeroSesion;
@@ -478,6 +492,11 @@ export async function eliminarClaseAction(id: string): Promise<MutationResult> {
 
     if (existing.eliminadoAt) {
       return { ok: true, code: "already_deleted" };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByClaseId(id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     await db

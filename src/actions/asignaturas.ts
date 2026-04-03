@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, ilike, isNull, ne, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, isNull, lte, ne, or, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -19,6 +19,7 @@ import {
 } from "@/lib/validations/admin";
 
 import { resolvePagination, type PaginationInput } from "./_pagination";
+import { assertPeriodoAbiertoByAsignaturaId } from "./_period-lock";
 import { requireActionActor, type MutationResult } from "./_security";
 
 const getStringField = (formData: FormData, field: string): string => {
@@ -37,6 +38,15 @@ const parseIntegerField = (value: string): number | undefined => {
 
   const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const parseDateFilter = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
 };
 
 const sanitizeOptionalText = (value: string | undefined): string | undefined => {
@@ -120,7 +130,13 @@ export async function buscarAsignaturasAdminAction(
 }
 
 export async function countAsignaturasAdmin(
-  options?: { incluirArchivadas?: boolean; q?: string; estado?: "borrador" | "activo" | "finalizado" | "archivado" },
+  options?: {
+    incluirArchivadas?: boolean;
+    q?: string;
+    estado?: "borrador" | "activo" | "finalizado" | "archivado";
+    fechaDesde?: string;
+    fechaHasta?: string;
+  },
 ): Promise<number> {
   const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
 
@@ -144,6 +160,16 @@ export async function countAsignaturasAdmin(
     conditions.push(
       or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
     );
+  }
+
+  const fechaDesde = parseDateFilter(options?.fechaDesde);
+  if (fechaDesde) {
+    conditions.push(gte(asignaturas.fechaInicio, fechaDesde));
+  }
+
+  const fechaHasta = parseDateFilter(options?.fechaHasta);
+  if (fechaHasta) {
+    conditions.push(lte(asignaturas.fechaInicio, fechaHasta));
   }
 
   const baseQuery = db.select({ total: count() }).from(asignaturas);
@@ -190,7 +216,13 @@ export async function listarAsignaturas(
 
 export async function listarAsignaturasAdmin(
   pagination: PaginationInput = {},
-  options?: { incluirArchivadas?: boolean; q?: string; estado?: "borrador" | "activo" | "finalizado" | "archivado" },
+  options?: {
+    incluirArchivadas?: boolean;
+    q?: string;
+    estado?: "borrador" | "activo" | "finalizado" | "archivado";
+    fechaDesde?: string;
+    fechaHasta?: string;
+  },
 ) {
   const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
 
@@ -218,6 +250,16 @@ export async function listarAsignaturasAdmin(
     conditions.push(
       or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
     );
+  }
+
+  const fechaDesde = parseDateFilter(options?.fechaDesde);
+  if (fechaDesde) {
+    conditions.push(gte(asignaturas.fechaInicio, fechaDesde));
+  }
+
+  const fechaHasta = parseDateFilter(options?.fechaHasta);
+  if (fechaHasta) {
+    conditions.push(lte(asignaturas.fechaInicio, fechaHasta));
   }
 
   const baseQuery = db
@@ -402,6 +444,11 @@ export async function asignarDocenteAction(input: {
       };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(parsed.data.asignaturaId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     const [docente] = await db
       .select({ id: usuarios.id, nombre: usuarios.nombre, email: usuarios.email })
       .from(usuarios)
@@ -540,6 +587,11 @@ export async function editarAsignaturaAction(input: {
       };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(parsed.data.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     const sanitizedDesc = parsed.data.descripcion
       ? sanitizeText(parsed.data.descripcion).replace(/\s+/g, " ").trim() || undefined
       : undefined;
@@ -615,6 +667,11 @@ export async function archivarAsignaturaAction(input: { id: string }): Promise<M
       return { ok: true, code: "already_archived" };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(input.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db
       .update(asignaturas)
       .set({ estado: "archivado", updatedAt: new Date() })
@@ -676,6 +733,11 @@ export async function desarchivariAsignaturaAction(input: { id: string }): Promi
       return { ok: true, code: "not_archived" };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(input.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db
       .update(asignaturas)
       .set({ estado: "activo", updatedAt: new Date() })
@@ -735,6 +797,11 @@ export async function eliminarAsignaturaAction(input: { id: string }): Promise<M
 
     if (existing.eliminadoAt) {
       return { ok: true, code: "already_deleted" };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(input.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     await db

@@ -20,6 +20,10 @@ import {
   matricularAlumnoInputSchema,
 } from "@/lib/validations/admin";
 
+import {
+  assertPeriodoAbiertoByAsignaturaId,
+  assertPeriodoAbiertoByMatriculaId,
+} from "./_period-lock";
 import { resolvePagination, type PaginationInput } from "./_pagination";
 import { requireActionActor, type MutationResult } from "./_security";
 
@@ -204,6 +208,11 @@ export async function matricularAlumnoAction(input: {
         code: "asignatura_not_found",
         message: "Asignatura no encontrada.",
       };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(parsed.data.asignaturaId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     if (subject.estado === "archivado" || subject.estado === "finalizado") {
@@ -432,6 +441,11 @@ export async function desmatricularAlumnoAction(input: {
       return { ok: true, code: "already_inactive" };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByMatriculaId(row.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db
       .update(matriculas)
       .set({ activa: false })
@@ -513,6 +527,11 @@ export async function editarMatriculaAction(input: {
         code: "matricula_not_found",
         message: "Matrícula no encontrada.",
       };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByMatriculaId(row.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     await db
@@ -641,6 +660,11 @@ export async function reactivarMatriculaAction(input: {
       return { ok: true, code: "already_active" };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByMatriculaId(row.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db
       .update(matriculas)
       .set({ activa: true })
@@ -706,6 +730,11 @@ export async function eliminarMatriculaAction(input: {
 
     if (row.eliminadoAt) {
       return { ok: true, code: "already_deleted" };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByMatriculaId(row.id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     await db

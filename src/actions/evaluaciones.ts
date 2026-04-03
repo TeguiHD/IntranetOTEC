@@ -30,6 +30,10 @@ import {
   type SurveyTemplateKey,
 } from "@/lib/surveyTemplates";
 
+import {
+  assertPeriodoAbiertoByAsignaturaId,
+  assertPeriodoAbiertoByEvaluacionId,
+} from "./_period-lock";
 import { requireActionActor, type MutationResult } from "./_security";
 
 const getStringField = (formData: FormData, field: string): string => {
@@ -259,6 +263,11 @@ export async function crearEvaluacionAction(input: {
       return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(input.asignaturaId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     const [created] = await db
       .insert(evaluaciones)
       .values({
@@ -359,6 +368,11 @@ export async function crearPlantillaEncuestaAction(input: {
         code: "asignatura_closed",
         message: "No puedes crear encuestas en asignaturas archivadas.",
       };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(parsed.data.asignaturaId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     const [existingTemplate] = await db
@@ -487,6 +501,11 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
       return { ok: true, code: "already_published" };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db.update(evaluaciones).set({ publicada: true }).where(eq(evaluaciones.id, id));
 
     await registrarAudit({
@@ -597,6 +616,11 @@ export async function despublicarEvaluacionAction(id: string): Promise<MutationR
       return { ok: true, code: "already_unpublished" };
     }
 
+    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
     await db.update(evaluaciones).set({ publicada: false }).where(eq(evaluaciones.id, id));
 
     await registrarAudit({
@@ -658,6 +682,11 @@ export async function eliminarEvaluacionAction(id: string): Promise<MutationResu
 
     if (existing.eliminadoAt) {
       return { ok: true, code: "already_deleted" };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     await db
@@ -727,6 +756,11 @@ export async function agregarPreguntaAction(input: {
 
     if (!ev) {
       return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(input.evaluacionId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     let opcionesJson: unknown = null;
@@ -871,6 +905,11 @@ export async function enviarRespuestasAction(input: {
 
     if (!ev) {
       return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(input.evaluacionId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
     }
 
     const now = new Date();

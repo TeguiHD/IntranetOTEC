@@ -59,15 +59,12 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
             Cursos
           </h1>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-            Templates reutilizables. Cada sección (asignatura) es una oferta de un curso en un periodo y turno.
+            Catálogo base de cursos. Cada sección es una oferta concreta de un curso en un periodo y turno.
           </p>
         </header>
         <CursoManager
           cursos={listado}
           searchQuery={q}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          buildHref={buildHref}
           mode="header-button"
         />
       </div>
@@ -93,9 +90,6 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
         <CursoManager
           cursos={listado}
           searchQuery={q}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          buildHref={buildHref}
           mode="table"
         />
 

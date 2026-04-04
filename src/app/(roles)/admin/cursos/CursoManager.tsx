@@ -32,9 +32,6 @@ type CursoRow = {
 type Props = {
   cursos: CursoRow[];
   searchQuery: string;
-  currentPage: number;
-  totalPages: number;
-  buildHref: (page: number) => string;
   mode: "header-button" | "table";
 };
 

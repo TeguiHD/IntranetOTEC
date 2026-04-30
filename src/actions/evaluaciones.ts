@@ -75,6 +75,27 @@ const localPruebasRoot = join(process.cwd(), "PRUEBAS");
 const _localPruebasCache: { result: PruebaLocalItem[]; cachedAt: number } = { result: [], cachedAt: 0 };
 const LOCAL_PRUEBAS_CACHE_TTL_MS = 60_000;
 
+const _supervisionEventLog = new Map<string, number[]>();
+const SUPERVISION_RATE_LIMIT = 60;
+const SUPERVISION_RATE_WINDOW_MS = 60_000;
+
+function checkSupervisionRateLimit(userId: string, evaluacionId: string): boolean {
+  const key = `${userId}:${evaluacionId}`;
+  const now = Date.now();
+  const windowStart = now - SUPERVISION_RATE_WINDOW_MS;
+  const existing = (_supervisionEventLog.get(key) ?? []).filter((t) => t > windowStart);
+  if (existing.length >= SUPERVISION_RATE_LIMIT) return false;
+  existing.push(now);
+  _supervisionEventLog.set(key, existing);
+  // Prune map if it grows too large
+  if (_supervisionEventLog.size > 10_000) {
+    for (const [k, timestamps] of _supervisionEventLog) {
+      if (timestamps.every((t) => t <= windowStart)) _supervisionEventLog.delete(k);
+    }
+  }
+  return true;
+}
+
 function buildLocalPruebasCached(): PruebaLocalItem[] {
   const now = Date.now();
   if (now - _localPruebasCache.cachedAt < LOCAL_PRUEBAS_CACHE_TTL_MS) {
@@ -2264,6 +2285,10 @@ export async function registrarEventoSupervisionAction(input: {
 
   if (!input.evaluacionId || !SUPERVISION_EVENT_TYPES.has(input.tipo)) {
     return { ok: false, code: "invalid_input", message: "Evento invalido." };
+  }
+
+  if (!checkSupervisionRateLimit(actorResult.actor.userId, input.evaluacionId)) {
+    return { ok: true, code: "supervision_rate_limited" };
   }
 
   const db = getDb();

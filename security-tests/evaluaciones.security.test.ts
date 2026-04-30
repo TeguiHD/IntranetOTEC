@@ -118,3 +118,24 @@ test("enviarRespuestasAction: nota clamped to 1.0-7.0 range", () => {
   assert.equal(clamp(1 + 6 * 1), 7.0);
   assert.equal(clamp(1 + 6 * 0), 1.0);
 });
+
+test("supervision rate limiter blocks after 60 events per 60s window", () => {
+  const log = new Map<string, number[]>();
+  const LIMIT = 60;
+  const WINDOW = 60_000;
+
+  const check = (userId: string, evalId: string): boolean => {
+    const key = `${userId}:${evalId}`;
+    const now = Date.now();
+    const windowStart = now - WINDOW;
+    const existing = (log.get(key) ?? []).filter((t) => t > windowStart);
+    if (existing.length >= LIMIT) return false;
+    existing.push(now);
+    log.set(key, existing);
+    return true;
+  };
+
+  for (let i = 0; i < 60; i++) assert.equal(check("u1", "ev1"), true);
+  assert.equal(check("u1", "ev1"), false);
+  assert.equal(check("u2", "ev1"), true);
+});

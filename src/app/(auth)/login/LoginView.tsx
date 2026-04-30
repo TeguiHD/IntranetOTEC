@@ -68,11 +68,14 @@ function OtecLogo() {
 export function LoginView({ authError }: LoginViewProps) {
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<LoginTab>(() => {
-    if (typeof window === "undefined") return "alumno";
+  const [activeTab, setActiveTab] = useState<LoginTab>("alumno");
+
+  useEffect(() => {
     const saved = window.localStorage.getItem("login_tab");
-    return saved === "staff" ? "staff" : "alumno";
-  });
+    if (saved === "staff") {
+      setActiveTab("staff");
+    }
+  }, []);
   const [rut, setRut] = useState("");
   const [isRutValid, setIsRutValid] = useState(false);
   const [pin, setPin] = useState("");
@@ -113,6 +116,7 @@ export function LoginView({ authError }: LoginViewProps) {
 
       const result = await signIn(provider, {
         ...payload,
+        callbackUrl: "/",
         redirect: false,
       });
 
@@ -122,7 +126,7 @@ export function LoginView({ authError }: LoginViewProps) {
       }
 
       toast.success("Inicio de sesión exitoso. Redirigiendo...");
-      router.replace("/");
+      window.location.assign("/");
       router.refresh();
     });
   };

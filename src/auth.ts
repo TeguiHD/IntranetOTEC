@@ -44,6 +44,21 @@ const splitCsv = (rawValue: string | undefined): string[] =>
 
 const normalizeEmail = (value: string): string => value.trim().toLowerCase();
 
+const isLocalBaseUrl = (value: string): boolean => {
+  try {
+    const hostname = new URL(value).hostname;
+    return (
+      process.env.NODE_ENV !== "production" &&
+      (hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1" ||
+        hostname.endsWith(".localhost"))
+    );
+  } catch {
+    return false;
+  }
+};
+
 const toSafeSlug = (value: string): string => {
   const normalized = value
     .toLowerCase()
@@ -258,6 +273,10 @@ const nextAuth = NextAuth({
         const rawPin = typeof credentials?.pin === "string" ? credentials.pin : "";
         const isForeign = esRutExtranjero(rawRut);
         const rutLimpio = isForeign ? rawRut.trim().toUpperCase() : normalizarRut(rawRut);
+        const rutConGuion =
+          !isForeign && rutLimpio.length > 1
+            ? `${rutLimpio.slice(0, -1)}-${rutLimpio.slice(-1)}`
+            : rutLimpio;
         const foreignLoginCandidates = isForeign
           ? [
               rutLimpio,
@@ -285,7 +304,11 @@ const nextAuth = NextAuth({
               and(
                 isForeign
                   ? or(...foreignLoginCandidates.map((candidate) => eq(usuarios.rut, candidate)))
-                  : or(eq(usuarios.rut, rutLimpio), eq(usuarios.rut, rutFormateado)),
+                  : or(
+                      eq(usuarios.rut, rutLimpio),
+                      eq(usuarios.rut, rutConGuion),
+                      eq(usuarios.rut, rutFormateado),
+                    ),
                 eq(usuarios.rol, "alumno"),
                 eq(usuarios.activo, true),
                 isNull(usuarios.eliminadoAt),
@@ -530,7 +553,9 @@ const nextAuth = NextAuth({
   callbacks: {
     async redirect({ url, baseUrl }) {
       const configuredBaseUrl =
-        process.env.AUTH_URL?.trim() ?? process.env.NEXT_PUBLIC_BASE_URL?.trim() ?? baseUrl;
+        isLocalBaseUrl(baseUrl)
+          ? baseUrl
+          : process.env.AUTH_URL?.trim() ?? process.env.NEXT_PUBLIC_BASE_URL?.trim() ?? baseUrl;
 
       let safeBaseUrl = baseUrl;
 

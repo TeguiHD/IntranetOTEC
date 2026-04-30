@@ -1,0 +1,6 @@
+BEGIN;
+
+GRANT USAGE ON SCHEMA public TO otec;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "eventos_supervision" TO otec;
+
+COMMIT;

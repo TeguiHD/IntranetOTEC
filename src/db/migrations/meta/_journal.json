@@ -134,6 +134,20 @@
       "when": 1743650000000,
       "tag": "0018_fase1_constraints_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1743653600000,
+      "tag": "0019_modo_supervision_evaluaciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1777510800000,
+      "tag": "0020_grant_eventos_supervision_to_app",
+      "breakpoints": true
     }
   ]
 }

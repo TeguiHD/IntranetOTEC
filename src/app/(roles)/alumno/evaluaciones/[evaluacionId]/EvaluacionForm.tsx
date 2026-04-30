@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { enviarRespuestasFormAction, type PreguntaItem } from "@/actions/evaluaciones";
+import {
+  enviarRespuestasFormAction,
+  registrarEventoSupervisionAction,
+  type PreguntaItem,
+} from "@/actions/evaluaciones";
 import { coerceScaleQuestionOptions } from "@/lib/surveyTemplates";
 
 type EvaluacionFormProps = {
   evaluacionId: string;
   preguntas: PreguntaItem[];
+  supervisionEnabled?: boolean;
 };
 
 type OpcionMultipleData = {
@@ -20,13 +25,106 @@ type OpcionMultipleData = {
   etiquetaMax?: string;
 };
 
-export function EvaluacionForm({ evaluacionId, preguntas }: EvaluacionFormProps) {
+export function EvaluacionForm({
+  evaluacionId,
+  preguntas,
+  supervisionEnabled = false,
+}: EvaluacionFormProps) {
   const [pending, setPending] = useState(false);
+  const activeQuestionRef = useRef<string | null>(null);
+  const activeStartedAtRef = useRef<number>(Date.now());
+
+  const logEvent = useCallback(
+    (tipo: string, payload?: Record<string, unknown>) => {
+      if (!supervisionEnabled) return;
+      registrarEventoSupervisionAction({ evaluacionId, tipo, payload }).catch(() => {});
+    },
+    [evaluacionId, supervisionEnabled],
+  );
+
+  const flushQuestionTime = useCallback(
+    (reason: string) => {
+      const questionId = activeQuestionRef.current;
+      if (!questionId) return;
+      const now = Date.now();
+      const seconds = Math.max(0, Math.round((now - activeStartedAtRef.current) / 1000));
+      if (seconds > 0) {
+        logEvent("question_time", { questionId, seconds, reason });
+      }
+      activeStartedAtRef.current = now;
+    },
+    [logEvent],
+  );
+
+  const activateQuestion = useCallback(
+    (questionId: string) => {
+      if (!supervisionEnabled) return;
+      if (activeQuestionRef.current === questionId) return;
+      flushQuestionTime("question_change");
+      activeQuestionRef.current = questionId;
+      activeStartedAtRef.current = Date.now();
+    },
+    [flushQuestionTime, supervisionEnabled],
+  );
+
+  useEffect(() => {
+    if (!supervisionEnabled) return;
+
+    logEvent("supervision_start", {
+      questions: preguntas.length,
+      userAgent: navigator.userAgent,
+    });
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushQuestionTime("page_hidden");
+        logEvent("page_hidden", { visibilityState: document.visibilityState });
+      }
+    };
+    const onBlur = () => {
+      flushQuestionTime("window_blur");
+      logEvent("window_blur");
+    };
+    const onCopy = () => logEvent("copy");
+    const onCut = () => logEvent("cut");
+    const onPaste = () => logEvent("paste");
+    const onContextMenu = () => logEvent("context_menu");
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "PrintScreen") {
+        logEvent("printscreen_key", {
+          note: "Intento parcial; capturas de pantalla no son detectables de forma confiable desde navegador.",
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
+    document.addEventListener("contextmenu", onContextMenu);
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      flushQuestionTime("unmount");
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+      document.removeEventListener("contextmenu", onContextMenu);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [flushQuestionTime, logEvent, preguntas.length, supervisionEnabled]);
 
   return (
     <form
       action={enviarRespuestasFormAction}
-      onSubmit={() => setPending(true)}
+      onSubmit={() => {
+        flushQuestionTime("submit");
+        logEvent("submit_flush");
+        setPending(true);
+      }}
       className="space-y-6"
     >
       <input type="hidden" name="evaluacionId" value={evaluacionId} />
@@ -37,6 +135,8 @@ export function EvaluacionForm({ evaluacionId, preguntas }: EvaluacionFormProps)
         return (
           <fieldset
             key={pregunta.id}
+            onFocus={() => activateQuestion(pregunta.id)}
+            onPointerEnter={() => activateQuestion(pregunta.id)}
             className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
           >
             <legend className="sr-only">Pregunta {idx + 1}</legend>

@@ -1,7 +1,7 @@
-import { CalendarDays, CheckCircle, ClipboardList, Clock } from "lucide-react";
+import { CalendarDays, CheckCircle, ClipboardList, Clock, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { listarEvaluacionesAlumno, listarPreguntasByEvaluacion } from "@/actions/evaluaciones";
+import { listarEvaluacionesAlumno, listarPreguntasAlumnoByEvaluacion } from "@/actions/evaluaciones";
 import { obtenerEntregasAlumno } from "@/actions/entregas";
 
 import { EvaluacionForm } from "./EvaluacionForm";
@@ -35,7 +35,7 @@ export default async function AlumnoEvaluacionPage({
   const esTareaOProyecto = evaluacion.tipo === "tarea" || evaluacion.tipo === "proyecto";
 
   const [preguntas, entregasPrevias] = await Promise.all([
-    listarPreguntasByEvaluacion(evaluacionId),
+    listarPreguntasAlumnoByEvaluacion(evaluacionId),
     esTareaOProyecto ? obtenerEntregasAlumno(evaluacionId) : Promise.resolve([]),
   ]);
   const isSubmitted = state === "respuestas_enviadas";
@@ -113,6 +113,20 @@ export default async function AlumnoEvaluacionPage({
         </article>
       )}
 
+      {evaluacion.modoSupervision && (
+        <article className="rounded-xl border border-cyan-300/60 bg-cyan-50 p-4 text-sm text-cyan-900 dark:border-cyan-700/60 dark:bg-cyan-950/30 dark:text-cyan-100">
+          <div className="flex gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Evaluación supervisada</p>
+              <p className="mt-1 text-cyan-800/80 dark:text-cyan-100/75">
+                Se registran eventos de integridad como salida de pestaña, pérdida de foco, copia/pega, menú contextual y tiempo aproximado por pregunta.
+              </p>
+            </div>
+          </div>
+        </article>
+      )}
+
       {isSubmitted && (
         <article className="rounded-xl border border-success/30 bg-success/5 p-6 dark:border-success/40 dark:bg-success/10">
           <div className="flex items-center gap-3">
@@ -163,7 +177,11 @@ export default async function AlumnoEvaluacionPage({
       )}
 
       {!esTareaOProyecto && !isSubmitted && preguntas.length > 0 && (
-        <EvaluacionForm evaluacionId={evaluacionId} preguntas={preguntas} />
+        <EvaluacionForm
+          evaluacionId={evaluacionId}
+          preguntas={preguntas}
+          supervisionEnabled={Boolean(evaluacion.modoSupervision)}
+        />
       )}
     </section>
   );

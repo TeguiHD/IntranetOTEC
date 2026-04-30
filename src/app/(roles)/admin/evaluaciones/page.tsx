@@ -1,4 +1,4 @@
-import { ClipboardList, Eye, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ClipboardList, Eye, FileUp, ListChecks, Plus, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
@@ -8,9 +8,14 @@ import {
   crearPlantillaEncuestaFormAction,
   despublicarEvaluacionFormAction,
   eliminarEvaluacionFormAction,
+  importarPruebaLocalFormAction,
   listarEvaluacionesByAsignatura,
+  listarEventosSupervisionByEvaluacion,
+  listarPreguntasByEvaluacion,
+  listarPruebasLocalesAction,
   obtenerResultadosEvaluacion,
   publicarEvaluacionFormAction,
+  toggleModoSupervisionFormAction,
 } from "@/actions/evaluaciones";
 import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
@@ -28,6 +33,14 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   evaluacion_deleted: { tone: "success", text: "Evaluación eliminada correctamente." },
   already_deleted: { tone: "success", text: "La evaluación ya había sido eliminada." },
   pregunta_created: { tone: "success", text: "Pregunta agregada correctamente." },
+  local_test_imported: { tone: "success", text: "Prueba importada en borrador. Revísala antes de publicar." },
+  test_exists: { tone: "error", text: "Esa prueba ya existe en la asignatura seleccionada." },
+  empty_test: { tone: "error", text: "No se reconocieron preguntas en el archivo seleccionado." },
+  invalid_file: { tone: "error", text: "No fue posible leer el archivo de prueba seleccionado." },
+  local_test_import_failed: { tone: "error", text: "No fue posible importar la prueba local." },
+  supervision_enabled: { tone: "success", text: "Modo supervisión activado para la evaluación." },
+  supervision_disabled: { tone: "success", text: "Modo supervisión desactivado para la evaluación." },
+  supervision_toggle_failed: { tone: "error", text: "No fue posible cambiar el modo supervisión." },
   template_docente_otec_created: {
     tone: "success",
     text: "Plantilla de Evaluación Docente y OTEC creada en borrador.",
@@ -63,6 +76,13 @@ const TIPO_LABELS: Record<string, string> = {
   tarea: "Tarea",
   examen: "Examen",
   proyecto: "Proyecto",
+};
+
+const PREGUNTA_LABELS: Record<string, string> = {
+  opcion_multiple: "Selección múltiple",
+  verdadero_falso: "Verdadero/Falso",
+  respuesta_corta: "Respuesta corta",
+  desarrollo: "Desarrollo",
 };
 
 type AdminEvaluacionesPageProps = {
@@ -115,6 +135,7 @@ export default async function AdminEvaluacionesPage({
   const evaluaciones = selectedAsignaturaId
     ? await listarEvaluacionesByAsignatura(selectedAsignaturaId)
     : [];
+  const pruebasLocales = selectedAsignaturaId ? await listarPruebasLocalesAction() : [];
 
   const selectedEvaluacionIdRaw =
     typeof params?.evaluacionId === "string" ? params.evaluacionId : undefined;
@@ -126,6 +147,13 @@ export default async function AdminEvaluacionesPage({
   const resultados = selectedEvaluacionId
     ? await obtenerResultadosEvaluacion(selectedEvaluacionId)
     : [];
+  const preguntasSeleccionadas = selectedEvaluacionId
+    ? await listarPreguntasByEvaluacion(selectedEvaluacionId)
+    : [];
+  const eventosSupervision = selectedEvaluacionId
+    ? await listarEventosSupervisionByEvaluacion(selectedEvaluacionId)
+    : [];
+  const selectedEvaluacion = evaluaciones.find((ev) => ev.id === selectedEvaluacionId) ?? null;
 
   return (
     <section className="space-y-5">
@@ -264,7 +292,7 @@ export default async function AdminEvaluacionesPage({
           <form action={crearEvaluacionFormAction} className="space-y-4">
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
             <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <input
                 name="titulo"
                 placeholder="Título de la evaluación"
@@ -291,8 +319,32 @@ export default async function AdminEvaluacionesPage({
                 className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
               <input
+                name="fechaInicio"
+                type="datetime-local"
+                aria-label="Fecha de inicio"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <input
                 name="fechaLimite"
                 type="datetime-local"
+                aria-label="Fecha límite"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <input
+                name="tiempoMinutos"
+                type="number"
+                min="1"
+                max="600"
+                placeholder="Tiempo disponible (min)"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <input
+                name="intentosMax"
+                type="number"
+                min="1"
+                max="5"
+                defaultValue="1"
+                placeholder="Intentos máximos"
                 className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
             </div>
@@ -312,6 +364,132 @@ export default async function AdminEvaluacionesPage({
               </button>
             </div>
           </form>
+        </article>
+      )}
+
+      {selectedAsignaturaId && (
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
+                <FileUp className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-text-primary dark:text-white">
+                  Importar prueba desde banco local
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm text-text-secondary dark:text-gray-400">
+                  Convierte los archivos de PRUEBAS en exámenes estructurados. Se crean en borrador para revisar pauta, fechas y publicación.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              {pruebasLocales.length} archivo{pruebasLocales.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {pruebasLocales.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 p-5 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+              No se encontraron pruebas .txt en la carpeta PRUEBAS.
+            </div>
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {pruebasLocales.slice(0, 6).map((prueba) => (
+                  <div key={prueba.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <p className="line-clamp-2 text-sm font-semibold text-text-primary dark:text-gray-100">
+                      {prueba.titulo}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-text-secondary dark:text-gray-400">
+                      {prueba.archivo}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                        {prueba.totalPreguntas} preguntas
+                      </span>
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        {prueba.resumen.opcionMultiple} selección
+                      </span>
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        {prueba.resumen.verdaderoFalso} V/F
+                      </span>
+                      {prueba.resumen.desarrollo > 0 && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                          {prueba.resumen.desarrollo} desarrollo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <form action={importarPruebaLocalFormAction} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+                <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Prueba
+                </label>
+                <select
+                  name="archivo"
+                  required
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                >
+                  {pruebasLocales.map((prueba) => (
+                    <option key={prueba.id} value={prueba.archivo}>
+                      {prueba.titulo} ({prueba.totalPreguntas})
+                    </option>
+                  ))}
+                </select>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    name="fechaInicio"
+                    type="datetime-local"
+                    aria-label="Fecha de inicio"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                  <input
+                    name="fechaLimite"
+                    type="datetime-local"
+                    aria-label="Fecha límite"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                  <input
+                    name="tiempoMinutos"
+                    type="number"
+                    min="1"
+                    max="600"
+                    placeholder="Tiempo min."
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                  <input
+                    name="intentosMax"
+                    type="number"
+                    min="1"
+                    max="5"
+                    defaultValue="1"
+                    placeholder="Intentos"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <input
+                  name="ponderacion"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder="Ponderación %"
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                />
+                <button
+                  type="submit"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
+                >
+                  <FileUp className="h-4 w-4" />
+                  Importar en borrador
+                </button>
+              </form>
+            </div>
+          )}
         </article>
       )}
 
@@ -367,6 +545,23 @@ export default async function AdminEvaluacionesPage({
                         Borrador
                       </span>
                     )}
+                    <form action={toggleModoSupervisionFormAction}>
+                      <input type="hidden" name="evaluacionId" value={ev.id} />
+                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="enabled" value={ev.modoSupervision ? "false" : "true"} />
+                      <button
+                        type="submit"
+                        className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          ev.modoSupervision
+                            ? "border-cyan-300 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-700/60 dark:bg-cyan-900/20 dark:text-cyan-300"
+                            : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        }`}
+                      >
+                        {ev.modoSupervision ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />}
+                        {ev.modoSupervision ? "Supervisada" : "Activar supervisión"}
+                      </button>
+                    </form>
                     <a
                       href={`?periodoId=${encodeURIComponent(selectedPeriodoId)}&asignaturaId=${encodeURIComponent(selectedAsignaturaId ?? "")}&evaluacionId=${encodeURIComponent(ev.id)}`}
                       className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
@@ -421,13 +616,13 @@ export default async function AdminEvaluacionesPage({
 
       {selectedEvaluacionId && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-                Resultados simplificados
+                Maquetador de prueba
               </h2>
               <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-                Alumno que respondió y nota registrada para la evaluación seleccionada.
+                {selectedEvaluacion?.titulo ?? "Evaluación seleccionada"} · arma la pauta, puntajes y preguntas antes de publicar.
               </p>
             </div>
             {selectedAsignatura?.codigo && (
@@ -437,40 +632,136 @@ export default async function AdminEvaluacionesPage({
             )}
           </div>
 
-          <form action={agregarPreguntaFormAction} className="mb-6 grid gap-3 rounded-xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
+          <form action={agregarPreguntaFormAction} className="mb-6 grid gap-4 rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] p-4 dark:border-primary/40 dark:bg-primary/10">
             <input type="hidden" name="evaluacionId" value={selectedEvaluacionId} />
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
             <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-            <input
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-text-primary dark:text-white">
+                Agregar pregunta
+              </h3>
+            </div>
+            <textarea
               name="enunciado"
-              placeholder="Nueva pregunta"
+              rows={2}
+              placeholder="Enunciado de la pregunta..."
               required
-              className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-[1.2fr_120px_120px_140px]">
               <select
                 name="tipo"
-                defaultValue="respuesta_corta"
+                defaultValue="opcion_multiple"
                 className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               >
-                <option value="respuesta_corta">Respuesta corta</option>
-                <option value="desarrollo">Desarrollo</option>
-                <option value="verdadero_falso">Verdadero/Falso</option>
                 <option value="opcion_multiple">Opción múltiple</option>
+                <option value="verdadero_falso">Verdadero/Falso</option>
+                <option value="desarrollo">Desarrollo</option>
+                <option value="respuesta_corta">Respuesta corta</option>
               </select>
-              <input name="opcion" placeholder="Opción 1" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
-              <input name="opcion" placeholder="Opción 2" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
-              <input name="puntaje" type="number" min="0" step="0.01" placeholder="Puntaje" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
+              <input name="puntaje" type="number" min="0" step="0.01" defaultValue="1" placeholder="Puntaje" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
+              <input name="orden" type="number" min="1" placeholder="Orden" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
+              <select name="correcta" defaultValue="" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="">Sin pauta</option>
+                <option value="0">Correcta A / Verdadero</option>
+                <option value="1">Correcta B / Falso</option>
+                <option value="2">Correcta C</option>
+                <option value="3">Correcta D</option>
+              </select>
             </div>
-            <div className="flex justify-end">
+            <div className="grid gap-3 md:grid-cols-4">
+              {["A", "B", "C", "D"].map((label) => (
+                <input
+                  key={label}
+                  name="opcion"
+                  placeholder={`Alternativa ${label}`}
+                  className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 text-xs text-text-secondary dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Para V/F usa pauta A = Verdadero o B = Falso. Desarrollo y respuesta corta quedan para revisión manual.
+              </p>
               <button
                 type="submit"
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
               >
                 Agregar pregunta
               </button>
             </div>
           </form>
+
+          <div className="mb-6 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary dark:text-white">
+                  Pauta y estructura
+                </h3>
+                <p className="text-xs text-text-secondary dark:text-gray-400">
+                  {preguntasSeleccionadas.length} pregunta{preguntasSeleccionadas.length !== 1 ? "s" : ""} en esta evaluación.
+                </p>
+              </div>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                {selectedEvaluacion?.publicada ? "Publicada" : "Borrador"}
+              </span>
+            </div>
+            {preguntasSeleccionadas.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-text-secondary dark:text-gray-400">
+                Aún no hay preguntas maquetadas para esta evaluación.
+              </p>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {preguntasSeleccionadas.map((pregunta, index) => {
+                  const opciones = pregunta.opciones as { opciones?: string[]; correcta?: number | string } | null;
+                  const correcta =
+                    pregunta.tipo === "opcion_multiple" && typeof opciones?.correcta === "number"
+                      ? String.fromCharCode(65 + opciones.correcta)
+                      : pregunta.tipo === "verdadero_falso" && typeof opciones?.correcta === "string"
+                        ? opciones.correcta === "true" ? "Verdadero" : "Falso"
+                        : null;
+
+                  return (
+                    <div key={pregunta.id} className="p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text-primary dark:text-gray-100">
+                            {pregunta.orden ?? index + 1}. {pregunta.enunciado}
+                          </p>
+                          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                            {PREGUNTA_LABELS[pregunta.tipo] ?? pregunta.tipo} · {pregunta.puntaje ?? "1"} punto{pregunta.puntaje === "1" ? "" : "s"}
+                          </p>
+                        </div>
+                        {correcta ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {correcta}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            Sin pauta
+                          </span>
+                        )}
+                      </div>
+                      {opciones?.opciones && opciones.opciones.length > 0 && (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {opciones.opciones.map((opcion, optionIndex) => (
+                            <div key={`${pregunta.id}-${optionIndex}`} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-text-secondary dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-300">
+                              <span className="font-semibold text-text-primary dark:text-white">
+                                {String.fromCharCode(65 + optionIndex)}.
+                              </span>{" "}
+                              {opcion}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {resultados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -514,6 +805,63 @@ export default async function AdminEvaluacionesPage({
               </table>
             </div>
           )}
+
+          <div className="mt-6 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                {selectedEvaluacion?.modoSupervision ? (
+                  <ShieldCheck className="h-4 w-4 text-cyan-500" />
+                ) : (
+                  <ShieldOff className="h-4 w-4 text-gray-400" />
+                )}
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary dark:text-white">
+                    Historial de supervisión
+                  </h3>
+                  <p className="text-xs text-text-secondary dark:text-gray-400">
+                    Registra salida de pestaña, copia/pega, foco perdido y tiempo aproximado por pregunta.
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                {eventosSupervision.length} evento{eventosSupervision.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            {!selectedEvaluacion?.modoSupervision ? (
+              <p className="px-4 py-5 text-sm text-text-secondary dark:text-gray-400">
+                Activa supervisión en la tarjeta de la evaluación para empezar a registrar eventos. La captura de pantalla no es detectable de forma confiable desde navegador; solo se registra intento de tecla PrintScreen cuando el sistema lo informa.
+              </p>
+            ) : eventosSupervision.length === 0 ? (
+              <p className="px-4 py-5 text-sm text-text-secondary dark:text-gray-400">
+                Sin eventos registrados todavía.
+              </p>
+            ) : (
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                {eventosSupervision.slice(-50).reverse().map((evento) => (
+                  <div key={evento.id} className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[1fr_auto]">
+                    <div>
+                      <p className="font-medium text-text-primary dark:text-gray-100">
+                        {evento.tipo.replace(/_/g, " ")}
+                      </p>
+                      <p className="text-xs text-text-secondary dark:text-gray-400">
+                        {evento.alumnoNombre ? `${evento.alumnoNombre} ${evento.alumnoApellido ?? ""}`.trim() : "Alumno"} · {evento.alumnoRut ? formatRut(evento.alumnoRut) : "sin RUT"}
+                      </p>
+                      {evento.payload ? (
+                        <p className="mt-1 break-all text-xs text-text-muted dark:text-gray-500">
+                          {typeof evento.payload === "object" && evento.payload !== null && "data" in evento.payload
+                            ? String((evento.payload as { data?: unknown }).data)
+                            : JSON.stringify(evento.payload)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <time className="text-xs text-text-secondary dark:text-gray-400">
+                      {evento.createdAt ? new Date(evento.createdAt).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "-"}
+                    </time>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </article>
       )}
     </section>

@@ -6,6 +6,7 @@ import {
   getTemplateScaleOptions,
   parseScaleAnswer,
 } from "../src/lib/surveyTemplates";
+import { stripCorrectAnswer } from "../src/lib/evaluation-options";
 
 test("coerceScaleQuestionOptions accepts valid likert payload", () => {
   const payload = getTemplateScaleOptions("docente_otec");
@@ -44,4 +45,16 @@ test("parseScaleAnswer rejects injected and out-of-range values", () => {
   assert.equal(parseScaleAnswer("0", options), null);
   assert.equal(parseScaleAnswer("6", options), null);
   assert.equal(parseScaleAnswer("3", options), 3);
+});
+
+test("student question payload never exposes correct answer metadata", () => {
+  const payload = {
+    opciones: ["A", "B", "C", "D"],
+    correcta: 2,
+  };
+
+  const sanitized = stripCorrectAnswer(payload) as { opciones: string[]; correcta?: number };
+
+  assert.deepEqual(sanitized.opciones, ["A", "B", "C", "D"]);
+  assert.equal("correcta" in sanitized, false);
 });

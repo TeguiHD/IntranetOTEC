@@ -3,6 +3,17 @@ import { NextRequest } from "next/server";
 
 import { parseAppRole, type AuthzContext } from "@/lib/authz";
 
+const isLocalDevRequest = (request: NextRequest): boolean => {
+  const hostname = request.nextUrl.hostname;
+  return (
+    process.env.NODE_ENV !== "production" &&
+    (hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".localhost"))
+  );
+};
+
 export async function getRequestAuthContext(
   request: NextRequest,
 ): Promise<AuthzContext | null> {
@@ -13,11 +24,13 @@ export async function getRequestAuthContext(
     ?.toLowerCase();
   const secureByForwardedProto = forwardedProto === "https";
   const secureByConfig = (process.env.AUTH_URL ?? "").startsWith("https://");
+  const secureCookie =
+    !isLocalDevRequest(request) && (secureByForwardedProto || secureByConfig);
 
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
-    secureCookie: secureByForwardedProto || secureByConfig,
+    secureCookie,
   });
 
   if (!token) {

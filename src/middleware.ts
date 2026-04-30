@@ -43,7 +43,22 @@ const isAuthRelatedPath = (pathname: string): boolean =>
   pathname.startsWith("/api/internal") ||
   pathname.startsWith("/api/auth");
 
+const isLocalDevRequest = (request: NextRequest): boolean => {
+  const hostname = request.nextUrl.hostname;
+  return (
+    process.env.NODE_ENV !== "production" &&
+    (hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".localhost"))
+  );
+};
+
 const resolvePublicOrigin = (request: NextRequest): string => {
+  if (isLocalDevRequest(request)) {
+    return request.nextUrl.origin;
+  }
+
   const configuredOrigin =
     process.env.AUTH_URL?.trim() ?? process.env.NEXT_PUBLIC_BASE_URL?.trim();
 
@@ -112,7 +127,7 @@ export async function middleware(request: NextRequest) {
 
   // Fallback for misconfigured reverse proxies (e.g. Apache without ProxyPreserveHost)
   // Ensure NextAuth reads the correct original host
-  const authUrl = process.env.AUTH_URL?.trim();
+  const authUrl = isLocalDevRequest(request) ? undefined : process.env.AUTH_URL?.trim();
   if (authUrl) {
     try {
       const parsedUrl = new URL(authUrl);

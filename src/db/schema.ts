@@ -328,6 +328,7 @@ export const evaluaciones = pgTable(
     intentosMax: integer("intentos_max").default(1),
     instrucciones: text("instrucciones"),
     publicada: boolean("publicada").default(false),
+    modoSupervision: boolean("modo_supervision").default(false),
     // --- Unified survey fields ---
     esEncuesta: boolean("es_encuesta").default(false),
     audiencia: audienciaEncuestaEnum("audiencia"),
@@ -385,6 +386,24 @@ export const respuestasFormulario = pgTable("respuestas_formulario", {
   intento: integer("intento").default(1),
   createdAt: tstz("created_at").defaultNow(),
 });
+
+export const eventosSupervision = pgTable(
+  "eventos_supervision",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    evaluacionId: uuid("evaluacion_id")
+      .notNull()
+      .references(() => evaluaciones.id),
+    matriculaId: uuid("matricula_id").references(() => matriculas.id),
+    tipo: text("tipo").notNull(),
+    payload: jsonb("payload"),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    evaluacionIdx: index("eventos_supervision_eval_idx").on(t.evaluacionId, t.createdAt),
+    matriculaIdx: index("eventos_supervision_matricula_idx").on(t.matriculaId, t.createdAt),
+  }),
+);
 
 // --- Asignaciones de encuesta: quién debe responder y si ya lo hizo ---
 export const encuestaAsignaciones = pgTable(

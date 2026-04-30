@@ -1,5 +1,8 @@
 "use server";
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -9,6 +12,7 @@ import { getDb } from "@/db";
 import {
   asignaturas,
   evaluaciones,
+  eventosSupervision,
   matriculas,
   notas,
   preguntas,
@@ -18,7 +22,13 @@ import {
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateEvaluacionPublicada } from "@/lib/email";
 import { enviarPushADestinatarios } from "@/actions/notificaciones";
+import { stripCorrectAnswer } from "@/lib/evaluation-options";
 import { logEvent } from "@/lib/observability/logger";
+import {
+  listLocalPruebaFiles,
+  readLocalPrueba,
+  type LocalPruebaParsed,
+} from "@/lib/local-pruebas";
 import { sanitizeText } from "@/lib/sanitize";
 import {
   SURVEY_TEMPLATE_DEFINITIONS,
@@ -55,6 +65,8 @@ const plantillaEncuestaInputSchema = z.object({
   plantilla: z.enum(SURVEY_TEMPLATE_KEYS),
 });
 
+const localPruebasRoot = join(process.cwd(), "PRUEBAS");
+
 export type EvaluacionItem = {
   id: string;
   titulo: string;
@@ -65,6 +77,7 @@ export type EvaluacionItem = {
   fechaInicio: Date | null;
   fechaLimite: Date | null;
   publicada: boolean | null;
+  modoSupervision: boolean | null;
   asignaturaNombre: string;
   totalPreguntas: number;
 };
@@ -77,6 +90,23 @@ export type PreguntaItem = {
   opciones: unknown;
   puntaje: string | null;
   orden: number | null;
+};
+
+export type EventoSupervisionItem = {
+  id: string;
+  tipo: string;
+  payload: unknown;
+  createdAt: Date | null;
+  alumnoNombre: string | null;
+  alumnoApellido: string | null;
+  alumnoRut: string | null;
+};
+
+export type PruebaLocalItem = Pick<
+  LocalPruebaParsed,
+  "id" | "titulo" | "archivo" | "puntajeTotal" | "resumen"
+> & {
+  totalPreguntas: number;
 };
 
 export async function listarEvaluacionesByAsignatura(
@@ -98,6 +128,7 @@ export async function listarEvaluacionesByAsignatura(
       fechaInicio: evaluaciones.fechaInicio,
       fechaLimite: evaluaciones.fechaLimite,
       publicada: evaluaciones.publicada,
+      modoSupervision: evaluaciones.modoSupervision,
       asignaturaNombre: asignaturas.nombre,
     })
     .from(evaluaciones)
@@ -143,6 +174,7 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
       fechaInicio: evaluaciones.fechaInicio,
       fechaLimite: evaluaciones.fechaLimite,
       publicada: evaluaciones.publicada,
+      modoSupervision: evaluaciones.modoSupervision,
       asignaturaNombre: asignaturas.nombre,
     })
     .from(evaluaciones)
@@ -205,13 +237,90 @@ export async function listarPreguntasByEvaluacion(
     .orderBy(asc(preguntas.orden), asc(preguntas.id));
 }
 
+export async function listarPreguntasAlumnoByEvaluacion(
+  evaluacionId: string,
+): Promise<PreguntaItem[]> {
+  const actorResult = await requireActionActor("alumno_evaluacion_preguntas_list", ["alumno"]);
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  const [ev] = await db
+    .select({ id: evaluaciones.id })
+    .from(evaluaciones)
+    .innerJoin(matriculas, eq(matriculas.asignaturaId, evaluaciones.asignaturaId))
+    .where(
+      and(
+        eq(evaluaciones.id, evaluacionId),
+        eq(evaluaciones.publicada, true),
+        eq(matriculas.alumnoId, actorResult.actor.userId),
+        eq(matriculas.activa, true),
+        isNull(evaluaciones.eliminadoAt),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .limit(1);
+
+  if (!ev) return [];
+
+  const rows = await listarPreguntasByEvaluacion(evaluacionId);
+  return rows.map((pregunta) => ({
+    ...pregunta,
+    opciones: stripCorrectAnswer(pregunta.opciones),
+  }));
+}
+
+export async function listarEventosSupervisionByEvaluacion(
+  evaluacionId: string,
+): Promise<EventoSupervisionItem[]> {
+  const actorResult = await requireActionActor("supervision_eventos_list", ["admin", "docente"]);
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  return db
+    .select({
+      id: eventosSupervision.id,
+      tipo: eventosSupervision.tipo,
+      payload: eventosSupervision.payload,
+      createdAt: eventosSupervision.createdAt,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+    })
+    .from(eventosSupervision)
+    .leftJoin(matriculas, eq(eventosSupervision.matriculaId, matriculas.id))
+    .leftJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(eq(eventosSupervision.evaluacionId, evaluacionId))
+    .orderBy(asc(eventosSupervision.createdAt));
+}
+
+export async function listarPruebasLocalesAction(): Promise<PruebaLocalItem[]> {
+  const actorResult = await requireActionActor("pruebas_locales_list", ["admin"]);
+  if (!actorResult.ok) return [];
+
+  if (!existsSync(localPruebasRoot)) return [];
+
+  return listLocalPruebaFiles(localPruebasRoot).map((archivo) => {
+    const parsed = readLocalPrueba(localPruebasRoot, archivo);
+    return {
+      id: parsed.id,
+      titulo: parsed.titulo,
+      archivo: parsed.archivo,
+      puntajeTotal: parsed.puntajeTotal,
+      resumen: parsed.resumen,
+      totalPreguntas: parsed.preguntas.length,
+    };
+  });
+}
+
 export async function obtenerResultadosEvaluacion(evaluacionId: string) {
   const actorResult = await requireActionActor("evaluacion_resultados", ["admin", "docente"]);
   if (!actorResult.ok) return [];
 
   const db = getDb();
 
-  return db
+  const notasRows = await db
     .select({
       matriculaId: notas.matriculaId,
       nota: notas.nota,
@@ -226,6 +335,46 @@ export async function obtenerResultadosEvaluacion(evaluacionId: string) {
     .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
     .where(and(eq(notas.evaluacionId, evaluacionId), isNull(notas.eliminadoAt)))
     .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+
+  const respuestasRows = await db
+    .select({
+      matriculaId: respuestasFormulario.matriculaId,
+      fechaRespuesta: sql<Date>`max(${respuestasFormulario.createdAt})`,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+    })
+    .from(respuestasFormulario)
+    .innerJoin(matriculas, eq(respuestasFormulario.matriculaId, matriculas.id))
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(eq(respuestasFormulario.evaluacionId, evaluacionId))
+    .groupBy(
+      respuestasFormulario.matriculaId,
+      usuarios.nombre,
+      usuarios.apellido,
+      usuarios.rut,
+    );
+
+  const resultMap = new Map(notasRows.map((row) => [row.matriculaId, row]));
+  for (const row of respuestasRows) {
+    if (resultMap.has(row.matriculaId)) continue;
+    resultMap.set(row.matriculaId, {
+      matriculaId: row.matriculaId,
+      nota: null,
+      observacion: null,
+      fechaNota: row.fechaRespuesta,
+      alumnoNombre: row.alumnoNombre,
+      alumnoApellido: row.alumnoApellido,
+      alumnoRut: row.alumnoRut,
+    });
+  }
+
+  return Array.from(resultMap.values()).sort((a, b) =>
+    `${a.alumnoApellido} ${a.alumnoNombre}`.localeCompare(
+      `${b.alumnoApellido} ${b.alumnoNombre}`,
+      "es",
+    ),
+  );
 }
 
 export async function crearEvaluacionAction(input: {
@@ -236,6 +385,8 @@ export async function crearEvaluacionAction(input: {
   instrucciones?: string;
   fechaInicio?: string;
   fechaLimite?: string;
+  intentosMax?: number;
+  tiempoMinutos?: number;
 }): Promise<MutationResult> {
   const actorResult = await requireActionActor("evaluacion_create", ["admin", "docente"]);
   if (!actorResult.ok) return actorResult.result;
@@ -268,6 +419,17 @@ export async function crearEvaluacionAction(input: {
       return periodoCheck.result;
     }
 
+    const intentosMax = Number.isFinite(input.intentosMax)
+      ? Math.max(1, Math.min(Math.trunc(input.intentosMax ?? 1), 5))
+      : 1;
+    const tiempoMinutos = Number.isFinite(input.tiempoMinutos)
+      ? Math.max(1, Math.min(Math.trunc(input.tiempoMinutos ?? 0), 600))
+      : null;
+    const instrucciones = [
+      tiempoMinutos ? `Tiempo disponible: ${tiempoMinutos} minutos.` : null,
+      sanitizeOptionalText(input.instrucciones),
+    ].filter(Boolean).join(" ");
+
     const [created] = await db
       .insert(evaluaciones)
       .values({
@@ -275,9 +437,10 @@ export async function crearEvaluacionAction(input: {
         titulo,
         tipo: input.tipo,
         ponderacion: input.ponderacion || null,
-        instrucciones: sanitizeOptionalText(input.instrucciones),
+        instrucciones: instrucciones || null,
         fechaInicio: input.fechaInicio ? new Date(input.fechaInicio) : null,
         fechaLimite: input.fechaLimite ? new Date(input.fechaLimite) : null,
+        intentosMax,
         publicada: false,
         createdAt: new Date(),
       })
@@ -326,12 +489,251 @@ export async function crearEvaluacionFormAction(formData: FormData): Promise<voi
     instrucciones: getStringField(formData, "instrucciones") || undefined,
     fechaInicio: getStringField(formData, "fechaInicio") || undefined,
     fechaLimite: getStringField(formData, "fechaLimite") || undefined,
+    intentosMax: Number.parseInt(getStringField(formData, "intentosMax"), 10) || undefined,
+    tiempoMinutos: Number.parseInt(getStringField(formData, "tiempoMinutos"), 10) || undefined,
   });
 
   revalidatePath("/admin/evaluaciones");
   const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
   const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
   redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
+}
+
+export async function importarPruebaLocalAction(input: {
+  asignaturaId: string;
+  archivo: string;
+  fechaInicio?: string;
+  fechaLimite?: string;
+  intentosMax?: number;
+  ponderacion?: string;
+  tiempoMinutos?: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("prueba_local_import", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!input.asignaturaId || !input.archivo || !existsSync(localPruebasRoot)) {
+    return { ok: false, code: "invalid_input", message: "Datos invalidos." };
+  }
+
+  let parsed: LocalPruebaParsed;
+  try {
+    parsed = readLocalPrueba(localPruebasRoot, input.archivo);
+  } catch {
+    return { ok: false, code: "invalid_file", message: "No se pudo leer el archivo de prueba." };
+  }
+
+  if (parsed.preguntas.length === 0) {
+    return { ok: false, code: "empty_test", message: "La prueba no contiene preguntas reconocibles." };
+  }
+
+  const db = getDb();
+
+  try {
+    const [asignatura] = await db
+      .select({ id: asignaturas.id, estado: asignaturas.estado })
+      .from(asignaturas)
+      .where(and(eq(asignaturas.id, input.asignaturaId), isNull(asignaturas.eliminadoAt)))
+      .limit(1);
+
+    if (!asignatura) {
+      return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
+    }
+
+    if (asignatura.estado === "finalizado" || asignatura.estado === "archivado") {
+      return {
+        ok: false,
+        code: "asignatura_closed",
+        message: "No puedes importar pruebas en asignaturas finalizadas o archivadas.",
+      };
+    }
+
+    const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(input.asignaturaId);
+    if (!periodoCheck.ok) {
+      return periodoCheck.result;
+    }
+
+    const [existing] = await db
+      .select({ id: evaluaciones.id })
+      .from(evaluaciones)
+      .where(
+        and(
+          eq(evaluaciones.asignaturaId, input.asignaturaId),
+          eq(evaluaciones.titulo, parsed.titulo),
+          isNull(evaluaciones.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      return { ok: false, code: "test_exists", message: "Ya existe una evaluacion con ese titulo en la asignatura." };
+    }
+
+    const intentosMax = Number.isFinite(input.intentosMax)
+      ? Math.max(1, Math.min(Math.trunc(input.intentosMax ?? 1), 5))
+      : 1;
+    const tiempoMinutos = Number.isFinite(input.tiempoMinutos)
+      ? Math.max(1, Math.min(Math.trunc(input.tiempoMinutos ?? 0), 600))
+      : null;
+
+    const [created] = await db.transaction(async (tx) => {
+      const [evaluacion] = await tx
+        .insert(evaluaciones)
+        .values({
+          asignaturaId: input.asignaturaId,
+          titulo: parsed.titulo,
+          tipo: "examen",
+          ponderacion: input.ponderacion || null,
+          fechaInicio: input.fechaInicio ? new Date(input.fechaInicio) : null,
+          fechaLimite: input.fechaLimite ? new Date(input.fechaLimite) : null,
+          intentosMax,
+          instrucciones: [
+            tiempoMinutos ? `Tiempo disponible: ${tiempoMinutos} minutos.` : null,
+            "Prueba importada desde banco local. Las preguntas sin pauta quedan disponibles para revision docente; publica solo cuando fechas, tiempo e instrucciones esten revisadas.",
+          ].filter(Boolean).join(" "),
+          publicada: false,
+          creadoPor: actorResult.actor.userId,
+          createdAt: new Date(),
+        })
+        .returning({ id: evaluaciones.id });
+
+      if (!evaluacion) {
+        throw new Error("creation_failed");
+      }
+
+      await tx.insert(preguntas).values(
+        parsed.preguntas.map((pregunta) => ({
+          evaluacionId: evaluacion.id,
+          enunciado: pregunta.enunciado,
+          tipo: pregunta.tipo,
+          opciones:
+            pregunta.tipo === "opcion_multiple" && pregunta.opciones
+              ? { opciones: pregunta.opciones }
+              : null,
+          puntaje: pregunta.puntaje,
+          orden: pregunta.orden,
+        })),
+      );
+
+      return [evaluacion];
+    });
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "crear",
+      entidad: "evaluaciones",
+      entidadId: created.id,
+      payload: {
+        asignaturaId: input.asignaturaId,
+        archivo: parsed.archivo,
+        totalPreguntas: parsed.preguntas.length,
+        publicada: false,
+      },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "local_test_imported" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "prueba_local_import_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message, archivo: input.archivo },
+    });
+    return { ok: false, code: "local_test_import_failed", message: "No fue posible importar la prueba." };
+  }
+}
+
+export async function importarPruebaLocalFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const result = await importarPruebaLocalAction({
+    asignaturaId,
+    archivo: getStringField(formData, "archivo"),
+    fechaInicio: getStringField(formData, "fechaInicio") || undefined,
+    fechaLimite: getStringField(formData, "fechaLimite") || undefined,
+    intentosMax: Number.parseInt(getStringField(formData, "intentosMax"), 10) || undefined,
+    ponderacion: getStringField(formData, "ponderacion") || undefined,
+    tiempoMinutos: Number.parseInt(getStringField(formData, "tiempoMinutos"), 10) || undefined,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
+  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${periodoQuery}${filterQuery}`);
+}
+
+export async function toggleModoSupervisionAction(
+  id: string,
+  enabled: boolean,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("evaluacion_supervision_toggle", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+  if (!id) return { ok: false, code: "invalid_input", message: "ID requerido." };
+
+  const db = getDb();
+
+  try {
+    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
+    if (!periodoCheck.ok) return periodoCheck.result;
+
+    const [existing] = await db
+      .select({ id: evaluaciones.id })
+      .from(evaluaciones)
+      .where(and(eq(evaluaciones.id, id), isNull(evaluaciones.eliminadoAt)))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+    }
+
+    await db
+      .update(evaluaciones)
+      .set({ modoSupervision: enabled })
+      .where(eq(evaluaciones.id, id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "evaluaciones",
+      entidadId: id,
+      payload: { modoSupervision: enabled },
+      exitoso: true,
+    });
+
+    return { ok: true, code: enabled ? "supervision_enabled" : "supervision_disabled" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "evaluacion_supervision_toggle_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "supervision_toggle_failed", message: "No fue posible actualizar la supervision." };
+  }
+}
+
+export async function toggleModoSupervisionFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const enabled = getStringField(formData, "enabled") === "true";
+  const result = await toggleModoSupervisionAction(evaluacionId, enabled);
+
+  revalidatePath("/admin/evaluaciones");
+  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
+  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
+  const evaluacionQuery = evaluacionId ? `&evaluacionId=${encodeURIComponent(evaluacionId)}` : "";
+  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${periodoQuery}${filterQuery}${evaluacionQuery}`);
 }
 
 export async function crearPlantillaEncuestaAction(input: {
@@ -797,7 +1199,7 @@ export async function agregarPreguntaAction(input: {
 
         opcionesJson = optionPayload;
       }
-    } else if (input.tipo === "verdadero_falso") {
+    } else if (input.tipo === "verdadero_falso" && Number.isInteger(input.correcta)) {
       opcionesJson = { correcta: String(Boolean(input.correcta)) };
     }
 
@@ -858,18 +1260,20 @@ export async function agregarPreguntaFormAction(formData: FormData): Promise<voi
 
   const correctaValue = getStringField(formData, "correcta");
   const correcta =
-    tipo === "verdadero_falso"
-      ? correctaValue === "true"
-        ? 1
-        : 0
-      : Number.parseInt(correctaValue, 10);
+    !correctaValue
+      ? undefined
+      : tipo === "verdadero_falso"
+        ? correctaValue === "true" || correctaValue === "0"
+          ? 1
+          : 0
+        : Number.parseInt(correctaValue, 10);
 
   const result = await agregarPreguntaAction({
     evaluacionId,
     enunciado: getStringField(formData, "enunciado"),
     tipo,
     opciones: opciones.length > 0 ? opciones : undefined,
-    correcta: Number.isFinite(correcta) ? correcta : undefined,
+    correcta: typeof correcta === "number" && Number.isFinite(correcta) ? correcta : undefined,
     puntaje: getStringField(formData, "puntaje") || undefined,
     orden: Number.parseInt(getStringField(formData, "orden"), 10) || undefined,
   });
@@ -992,7 +1396,7 @@ export async function enviarRespuestasAction(input: {
 
     const preguntaMap = new Map(preguntaRows.map((p) => [p.id, p]));
     let puntosObtenidos = 0;
-    let puntosTotal = 0;
+    let puntosAutocalificables = 0;
     const scaleAnswers: number[] = [];
 
     for (const resp of input.respuestas) {
@@ -1009,7 +1413,6 @@ export async function enviarRespuestasAction(input: {
       }
 
       const puntaje = Number(pregunta.puntaje ?? "1");
-      puntosTotal += puntaje;
 
       let esCorrecta: boolean | null = null;
       if (pregunta.tipo === "opcion_multiple") {
@@ -1036,10 +1439,11 @@ export async function enviarRespuestasAction(input: {
           }
         }
       } else if (pregunta.tipo === "verdadero_falso") {
-        const opts = pregunta.opciones as { correcta: string } | null;
-        if (opts) esCorrecta = respuesta === opts.correcta;
+        const opts = pregunta.opciones as { correcta?: string } | null;
+        if (typeof opts?.correcta === "string") esCorrecta = respuesta === opts.correcta;
       }
 
+      if (esCorrecta !== null) puntosAutocalificables += puntaje;
       if (esCorrecta === true) puntosObtenidos += puntaje;
 
       await db.insert(respuestasFormulario).values({
@@ -1060,39 +1464,42 @@ export async function enviarRespuestasAction(input: {
         : null;
 
     const rawNota =
-      puntosTotal > 0
-        ? 1 + 6 * (puntosObtenidos / puntosTotal)
+      puntosAutocalificables > 0
+        ? 1 + 6 * (puntosObtenidos / puntosAutocalificables)
         : scaleAverage !== null
           ? scaleAverage
-          : 1.0;
+          : null;
 
-    const notaCalculada = Math.round(Math.max(1, Math.min(7, rawNota)) * 10) / 10;
+    const notaCalculada =
+      rawNota === null ? null : Math.round(Math.max(1, Math.min(7, rawNota)) * 10) / 10;
 
-    const [existingNota] = await db
-      .select({ id: notas.id })
-      .from(notas)
-      .where(and(eq(notas.evaluacionId, input.evaluacionId), eq(notas.matriculaId, matricula.id)))
-      .limit(1);
+    if (notaCalculada !== null) {
+      const [existingNota] = await db
+        .select({ id: notas.id })
+        .from(notas)
+        .where(and(eq(notas.evaluacionId, input.evaluacionId), eq(notas.matriculaId, matricula.id)))
+        .limit(1);
 
-    if (existingNota) {
-      await db
-        .update(notas)
-        .set({
+      if (existingNota) {
+        await db
+          .update(notas)
+          .set({
+            nota: String(notaCalculada),
+            calificadoPor: null,
+            fechaNota: now,
+            eliminadoAt: null,
+            eliminadoPor: null,
+          })
+          .where(eq(notas.id, existingNota.id));
+      } else {
+        await db.insert(notas).values({
+          evaluacionId: input.evaluacionId,
+          matriculaId: matricula.id,
           nota: String(notaCalculada),
           calificadoPor: null,
           fechaNota: now,
-          eliminadoAt: null,
-          eliminadoPor: null,
-        })
-        .where(eq(notas.id, existingNota.id));
-    } else {
-      await db.insert(notas).values({
-        evaluacionId: input.evaluacionId,
-        matriculaId: matricula.id,
-        nota: String(notaCalculada),
-        calificadoPor: null,
-        fechaNota: now,
-      });
+        });
+      }
     }
 
     await registrarAudit({
@@ -1106,6 +1513,7 @@ export async function enviarRespuestasAction(input: {
         intento: currentIntento,
         nota: notaCalculada,
         escalaPromedio: scaleAverage,
+        puntosAutocalificables,
       },
       exitoso: true,
     });
@@ -1141,4 +1549,83 @@ export async function enviarRespuestasFormAction(formData: FormData): Promise<vo
   const result = await enviarRespuestasAction({ evaluacionId, respuestas });
   revalidatePath(`/alumno/evaluaciones/${evaluacionId}`);
   redirect(`/alumno/evaluaciones/${evaluacionId}?state=${result.ok ? result.code : "error"}`);
+}
+
+const SUPERVISION_EVENT_TYPES = new Set([
+  "supervision_start",
+  "page_hidden",
+  "window_blur",
+  "copy",
+  "cut",
+  "paste",
+  "context_menu",
+  "printscreen_key",
+  "question_time",
+  "submit_flush",
+]);
+
+export async function registrarEventoSupervisionAction(input: {
+  evaluacionId: string;
+  tipo: string;
+  payload?: Record<string, unknown>;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("supervision_event_create", ["alumno"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!input.evaluacionId || !SUPERVISION_EVENT_TYPES.has(input.tipo)) {
+    return { ok: false, code: "invalid_input", message: "Evento invalido." };
+  }
+
+  const db = getDb();
+
+  try {
+    const [row] = await db
+      .select({
+        evaluacionId: evaluaciones.id,
+        matriculaId: matriculas.id,
+        modoSupervision: evaluaciones.modoSupervision,
+      })
+      .from(evaluaciones)
+      .innerJoin(matriculas, eq(matriculas.asignaturaId, evaluaciones.asignaturaId))
+      .where(
+        and(
+          eq(evaluaciones.id, input.evaluacionId),
+          eq(evaluaciones.publicada, true),
+          eq(matriculas.alumnoId, actorResult.actor.userId),
+          eq(matriculas.activa, true),
+          isNull(evaluaciones.eliminadoAt),
+          isNull(matriculas.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    if (!row || !row.modoSupervision) {
+      return { ok: true, code: "supervision_ignored" };
+    }
+
+    const safePayload = input.payload
+      ? { data: JSON.stringify(input.payload).slice(0, 4000) }
+      : null;
+
+    await db.insert(eventosSupervision).values({
+      evaluacionId: input.evaluacionId,
+      matriculaId: row.matriculaId,
+      tipo: input.tipo,
+      payload: safePayload,
+      createdAt: new Date(),
+    });
+
+    return { ok: true, code: "supervision_event_registered" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "supervision_event_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message, tipo: input.tipo },
+    });
+    return { ok: false, code: "supervision_event_failed", message: "No fue posible registrar el evento." };
+  }
 }

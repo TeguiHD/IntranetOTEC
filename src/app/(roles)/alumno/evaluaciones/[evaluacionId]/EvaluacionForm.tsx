@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   enviarRespuestasFormAction,
+  type IntentoEvaluacionActivo,
   registrarEventoSupervisionAction,
   type PreguntaItem,
 } from "@/actions/evaluaciones";
@@ -13,6 +14,8 @@ type EvaluacionFormProps = {
   evaluacionId: string;
   preguntas: PreguntaItem[];
   supervisionEnabled?: boolean;
+  duracionMinutos?: number | null;
+  intentoActivo?: IntentoEvaluacionActivo | null;
 };
 
 type OpcionMultipleData = {
@@ -29,10 +32,38 @@ export function EvaluacionForm({
   evaluacionId,
   preguntas,
   supervisionEnabled = false,
+  duracionMinutos = null,
+  intentoActivo = null,
 }: EvaluacionFormProps) {
   const [pending, setPending] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(() => {
+    const expiracionAt = intentoActivo?.expiracionAt;
+    if (!expiracionAt) return null;
+    return Math.max(
+      0,
+      Math.floor((new Date(expiracionAt).getTime() - Date.now()) / 1000),
+    );
+  });
   const activeQuestionRef = useRef<string | null>(null);
   const activeStartedAtRef = useRef<number>(Date.now());
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    const expiracionAt = intentoActivo?.expiracionAt;
+    if (!expiracionAt) return;
+
+    const tick = () => {
+      const next = Math.max(
+        0,
+        Math.floor((new Date(expiracionAt).getTime() - Date.now()) / 1000),
+      );
+      setRemainingSeconds(next);
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [intentoActivo?.expiracionAt]);
 
   const logEvent = useCallback(
     (tipo: string, payload?: Record<string, unknown>) => {
@@ -117,8 +148,20 @@ export function EvaluacionForm({
     };
   }, [flushQuestionTime, logEvent, preguntas.length, supervisionEnabled]);
 
+  useEffect(() => {
+    if (remainingSeconds !== 0) return;
+    if (!intentoActivo) return;
+    flushQuestionTime("timer_expired");
+    logEvent("timer_expired_autosubmit");
+    const id = window.setTimeout(() => {
+      formRef.current?.requestSubmit();
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [remainingSeconds, intentoActivo, flushQuestionTime, logEvent]);
+
   return (
     <form
+      ref={formRef}
       action={enviarRespuestasFormAction}
       onSubmit={() => {
         flushQuestionTime("submit");
@@ -128,6 +171,30 @@ export function EvaluacionForm({
       className="space-y-6"
     >
       <input type="hidden" name="evaluacionId" value={evaluacionId} />
+      {intentoActivo ? <input type="hidden" name="intentoId" value={intentoActivo.intentoId} /> : null}
+
+      {duracionMinutos && intentoActivo && remainingSeconds !== null ? (
+        <div className={`sticky top-3 z-10 rounded-xl border px-4 py-3 text-sm shadow-sm ${
+          remainingSeconds <= 300
+            ? "border-danger/40 bg-danger/5 text-danger"
+            : "border-primary/20 bg-primary/5 text-text-primary dark:text-gray-100"
+        }`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-semibold">
+                Intento {intentoActivo.intento} en curso
+              </p>
+              <p className="text-xs opacity-80">
+                Tiempo estricto de {duracionMinutos} minutos, contado desde que abriste este intento.
+              </p>
+            </div>
+            <p className="text-lg font-bold tabular-nums">
+              {String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:
+              {String(remainingSeconds % 60).padStart(2, "0")}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {preguntas.map((pregunta, idx) => {
         const fieldName = `respuesta_${pregunta.id}`;
@@ -261,10 +328,14 @@ export function EvaluacionForm({
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || remainingSeconds === 0}
           className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "Enviando..." : "Enviar Respuestas"}
+          {pending
+            ? "Enviando..."
+            : remainingSeconds === 0 && intentoActivo
+              ? "Enviando automáticamente…"
+              : "Enviar Respuestas"}
         </button>
       </div>
     </form>

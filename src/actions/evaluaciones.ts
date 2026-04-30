@@ -72,6 +72,41 @@ const plantillaEncuestaInputSchema = z.object({
 });
 
 const localPruebasRoot = join(process.cwd(), "PRUEBAS");
+const _localPruebasCache: { result: PruebaLocalItem[]; cachedAt: number } = { result: [], cachedAt: 0 };
+const LOCAL_PRUEBAS_CACHE_TTL_MS = 60_000;
+
+function buildLocalPruebasCached(): PruebaLocalItem[] {
+  const now = Date.now();
+  if (now - _localPruebasCache.cachedAt < LOCAL_PRUEBAS_CACHE_TTL_MS) {
+    return _localPruebasCache.result;
+  }
+  if (!existsSync(localPruebasRoot)) {
+    _localPruebasCache.result = [];
+    _localPruebasCache.cachedAt = now;
+    return [];
+  }
+  const files = listLocalPruebaFiles(localPruebasRoot);
+  const result: PruebaLocalItem[] = [];
+  for (const archivo of files) {
+    try {
+      const parsed = readLocalPrueba(localPruebasRoot, archivo);
+      result.push({
+        id: parsed.id,
+        titulo: parsed.titulo,
+        archivo: parsed.archivo,
+        puntajeTotal: parsed.puntajeTotal,
+        resumen: parsed.resumen,
+        totalPreguntas: parsed.preguntas.length,
+      });
+    } catch {
+      // Skip unparseable files — don't crash the whole list
+    }
+  }
+  _localPruebasCache.result = result;
+  _localPruebasCache.cachedAt = now;
+  return result;
+}
+
 const DEFAULT_EVALUACIONES_REDIRECT = "/admin/evaluaciones";
 
 const sanitizeEvaluacionesRedirect = (value: string): string => {
@@ -659,20 +694,7 @@ export async function listarPruebasLocalesAction(): Promise<PruebaLocalItem[]> {
     "evaluaciones.import_local",
   );
   if (!actorResult.ok) return [];
-
-  if (!existsSync(localPruebasRoot)) return [];
-
-  return listLocalPruebaFiles(localPruebasRoot).map((archivo) => {
-    const parsed = readLocalPrueba(localPruebasRoot, archivo);
-    return {
-      id: parsed.id,
-      titulo: parsed.titulo,
-      archivo: parsed.archivo,
-      puntajeTotal: parsed.puntajeTotal,
-      resumen: parsed.resumen,
-      totalPreguntas: parsed.preguntas.length,
-    };
-  });
+  return buildLocalPruebasCached();
 }
 
 export async function obtenerResultadosEvaluacion(evaluacionId: string) {

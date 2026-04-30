@@ -7,6 +7,8 @@ import {
   parseScaleAnswer,
 } from "../src/lib/surveyTemplates";
 import { stripCorrectAnswer } from "../src/lib/evaluation-options";
+import { getEvaluationWindowStatus } from "../src/lib/evaluation-status";
+import { readLocalPrueba } from "../src/lib/local-pruebas";
 
 test("coerceScaleQuestionOptions accepts valid likert payload", () => {
   const payload = getTemplateScaleOptions("docente_otec");
@@ -57,4 +59,54 @@ test("student question payload never exposes correct answer metadata", () => {
 
   assert.deepEqual(sanitized.opciones, ["A", "B", "C", "D"]);
   assert.equal("correcta" in sanitized, false);
+});
+
+test("evaluation window status stays deterministic across draft, scheduled and overdue states", () => {
+  const now = new Date("2026-04-30T12:00:00Z");
+
+  assert.equal(
+    getEvaluationWindowStatus({ publicada: false, now }),
+    "borrador",
+  );
+  assert.equal(
+    getEvaluationWindowStatus({
+      publicada: true,
+      fechaInicio: new Date("2026-05-01T12:00:00Z"),
+      now,
+    }),
+    "programada",
+  );
+  assert.equal(
+    getEvaluationWindowStatus({
+      publicada: true,
+      fechaInicio: new Date("2026-04-29T12:00:00Z"),
+      fechaLimite: new Date("2026-05-01T12:00:00Z"),
+      now,
+    }),
+    "disponible",
+  );
+  assert.equal(
+    getEvaluationWindowStatus({
+      publicada: true,
+      fechaLimite: new Date("2026-04-29T12:00:00Z"),
+      now,
+    }),
+    "vencida",
+  );
+});
+
+test("readLocalPrueba blocks absolute path injection", () => {
+  const rootDir = "/tmp/pruebas-test-nonexistent";
+  assert.throws(
+    () => readLocalPrueba(rootDir, "/etc/passwd"),
+    /invalid_path/,
+  );
+});
+
+test("readLocalPrueba blocks traversal with absolute segment", () => {
+  const rootDir = "/tmp/pruebas-test-nonexistent";
+  assert.throws(
+    () => readLocalPrueba(rootDir, "subdir/../../../etc/passwd"),
+    /invalid_path/,
+  );
 });

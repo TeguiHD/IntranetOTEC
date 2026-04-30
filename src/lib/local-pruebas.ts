@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 
 export type LocalPruebaQuestion = {
   enunciado: string;
@@ -191,9 +191,10 @@ export function listLocalPruebaFiles(rootDir: string): string[] {
 }
 
 export function readLocalPrueba(rootDir: string, archivo: string): LocalPruebaParsed {
-  if (archivo.includes("..")) {
+  const rootResolved = resolve(rootDir);
+  const fullPath = resolve(rootDir, archivo);
+  if (!fullPath.startsWith(rootResolved + "/") && fullPath !== rootResolved) {
     throw new Error("invalid_path");
   }
-  const fullPath = join(rootDir, archivo);
   return parseLocalPrueba(archivo, readFileSync(fullPath, "utf8"));
 }

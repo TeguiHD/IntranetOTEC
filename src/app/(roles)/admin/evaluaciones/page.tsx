@@ -4,6 +4,7 @@ import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
   agregarPreguntaFormAction,
+  calificarRespuestaEvaluacionFormAction,
   crearEvaluacionFormAction,
   crearPlantillaEncuestaFormAction,
   despublicarEvaluacionFormAction,
@@ -13,12 +14,15 @@ import {
   listarEventosSupervisionByEvaluacion,
   listarPreguntasByEvaluacion,
   listarPruebasLocalesAction,
+  listarRespuestasParaCalificar,
   obtenerResultadosEvaluacion,
   publicarEvaluacionFormAction,
   toggleModoSupervisionFormAction,
+  type RespuestaPendienteItem,
 } from "@/actions/evaluaciones";
 import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { describeEvaluationWriteLock } from "@/lib/academic-state";
 import { formatearRut } from "@/lib/rut";
 
 const UUID_REGEX =
@@ -131,6 +135,7 @@ export default async function AdminEvaluacionesPage({
 
   const selectedAsignatura =
     asignaturas.find((a) => a.id === selectedAsignaturaId) ?? null;
+  const selectedPeriodo = periodos.find((periodo) => periodo.id === selectedPeriodoId) ?? null;
 
   const evaluaciones = selectedAsignaturaId
     ? await listarEvaluacionesByAsignatura(selectedAsignaturaId)
@@ -147,6 +152,9 @@ export default async function AdminEvaluacionesPage({
   const resultados = selectedEvaluacionId
     ? await obtenerResultadosEvaluacion(selectedEvaluacionId)
     : [];
+  const respuestasPendientes: RespuestaPendienteItem[] = selectedEvaluacionId
+    ? await listarRespuestasParaCalificar(selectedEvaluacionId)
+    : [];
   const preguntasSeleccionadas = selectedEvaluacionId
     ? await listarPreguntasByEvaluacion(selectedEvaluacionId)
     : [];
@@ -154,6 +162,13 @@ export default async function AdminEvaluacionesPage({
     ? await listarEventosSupervisionByEvaluacion(selectedEvaluacionId)
     : [];
   const selectedEvaluacion = evaluaciones.find((ev) => ev.id === selectedEvaluacionId) ?? null;
+  const draftCount = evaluaciones.filter((evaluacion) => !evaluacion.publicada).length;
+  const publishedCount = evaluaciones.filter((evaluacion) => evaluacion.publicada).length;
+  const supervisedCount = evaluaciones.filter((evaluacion) => evaluacion.modoSupervision).length;
+  const writeLockMessage = describeEvaluationWriteLock({
+    periodoEstado: selectedPeriodo?.estado,
+    asignaturaEstado: selectedAsignatura?.estado,
+  });
 
   return (
     <section className="space-y-5">
@@ -227,6 +242,47 @@ export default async function AdminEvaluacionesPage({
       {asignaturas.length === 0 && (
         <article className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-sm text-text-secondary shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           No hay secciones disponibles para el periodo seleccionado.
+        </article>
+      )}
+
+      {selectedAsignaturaId && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+              Borradores
+            </p>
+            <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{draftCount}</p>
+            <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+              Evaluaciones aún no publicadas para la sección filtrada.
+            </p>
+          </article>
+          <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+              Publicadas
+            </p>
+            <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{publishedCount}</p>
+            <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+              Disponibles para responder según fechas y matrícula.
+            </p>
+          </article>
+          <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+              Supervisadas
+            </p>
+            <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{supervisedCount}</p>
+            <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+              Con trazabilidad de eventos de integridad activada.
+            </p>
+          </article>
+        </div>
+      )}
+
+      {selectedAsignaturaId && writeLockMessage && (
+        <article className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-semibold">
+            {selectedAsignatura?.nombre ?? "Sección seleccionada"}
+          </p>
+          <p className="mt-1 text-amber-800/90 dark:text-amber-100/80">{writeLockMessage}</p>
         </article>
       )}
 
@@ -803,6 +859,72 @@ export default async function AdminEvaluacionesPage({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {respuestasPendientes.length > 0 && (
+            <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-900/20">
+              <h3 className="mb-3 text-sm font-semibold text-amber-900 dark:text-amber-300">
+                Corrección manual ({respuestasPendientes.filter((r) => !r.notaActual).length} pendientes)
+              </h3>
+              <div className="space-y-4">
+                {respuestasPendientes.map((item) => (
+                  <div key={item.respuestaId} className="rounded-lg border border-amber-100 bg-white p-4 dark:border-amber-900/30 dark:bg-gray-900">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                      {item.alumnoApellido}, {item.alumnoNombre} — {item.alumnoRut}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text-primary dark:text-white">{item.enunciado}</p>
+                    <blockquote className="mt-2 rounded-md border-l-4 border-amber-300 bg-amber-50/50 px-3 py-2 text-sm text-text-primary dark:border-amber-700 dark:bg-amber-900/30 dark:text-gray-200">
+                      {item.respuesta ?? <em className="text-text-secondary">Sin respuesta</em>}
+                    </blockquote>
+                    {item.notaActual ? (
+                      <p className="mt-2 text-xs text-green-700 dark:text-green-400">
+                        Nota: <strong>{item.notaActual}</strong>
+                      </p>
+                    ) : null}
+                    <form action={calificarRespuestaEvaluacionFormAction} className="mt-3 flex flex-wrap items-end gap-3">
+                      <input type="hidden" name="evaluacionId" value={selectedEvaluacionId ?? ""} />
+                      <input type="hidden" name="matriculaId" value={item.matriculaId} />
+                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
+                      <input type="hidden" name="redirectTo" value={`/admin/evaluaciones?periodoId=${selectedPeriodoId ?? ""}&asignaturaId=${selectedAsignaturaId ?? ""}&evaluacionId=${selectedEvaluacionId ?? ""}`} />
+                      <div>
+                        <label className="block text-xs font-medium text-text-secondary dark:text-gray-400">
+                          Nota (1.0–7.0)
+                        </label>
+                        <input
+                          type="number"
+                          name="nota"
+                          min="1"
+                          max="7"
+                          step="0.1"
+                          defaultValue={item.notaActual ?? ""}
+                          required
+                          className="mt-1 w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-text-secondary dark:text-gray-400">
+                          Observación (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          name="observacion"
+                          maxLength={500}
+                          placeholder="Retroalimentación para el alumno..."
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark"
+                      >
+                        {item.notaActual ? "Actualizar" : "Registrar nota"}
+                      </button>
+                    </form>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

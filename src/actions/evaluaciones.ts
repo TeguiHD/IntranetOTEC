@@ -152,6 +152,21 @@ export type EventoSupervisionItem = {
   alumnoRut: string | null;
 };
 
+export type RespuestaPendienteItem = {
+  respuestaId: string;
+  matriculaId: string;
+  preguntaId: string;
+  enunciado: string;
+  tipo: string;
+  respuesta: string | null;
+  intento: number | null;
+  alumnoNombre: string | null;
+  alumnoApellido: string | null;
+  alumnoRut: string | null;
+  notaActual: string | null;
+  esCorrecta: boolean | null;
+};
+
 export type PruebaLocalItem = Pick<
   LocalPruebaParsed,
   "id" | "titulo" | "archivo" | "puntajeTotal" | "resumen"
@@ -729,6 +744,179 @@ export async function obtenerResultadosEvaluacion(evaluacionId: string) {
       "es",
     ),
   );
+}
+
+export async function listarRespuestasParaCalificar(
+  evaluacionId: string,
+): Promise<RespuestaPendienteItem[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_respuestas_corregir_list",
+    "evaluaciones.read_results",
+  );
+  if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) return [];
+
+  const db = getDb();
+
+  const notaSubq = db
+    .select({ matriculaId: notas.matriculaId, nota: notas.nota })
+    .from(notas)
+    .where(and(eq(notas.evaluacionId, evaluacionId), isNull(notas.eliminadoAt)))
+    .as("nota_subq");
+
+  return db
+    .select({
+      respuestaId: respuestasFormulario.id,
+      matriculaId: respuestasFormulario.matriculaId,
+      preguntaId: respuestasFormulario.preguntaId,
+      enunciado: preguntas.enunciado,
+      tipo: preguntas.tipo,
+      respuesta: respuestasFormulario.respuesta,
+      intento: respuestasFormulario.intento,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+      notaActual: notaSubq.nota,
+      esCorrecta: respuestasFormulario.esCorrecta,
+    })
+    .from(respuestasFormulario)
+    .innerJoin(preguntas, eq(respuestasFormulario.preguntaId, preguntas.id))
+    .innerJoin(matriculas, eq(respuestasFormulario.matriculaId, matriculas.id))
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .leftJoin(notaSubq, eq(notaSubq.matriculaId, respuestasFormulario.matriculaId))
+    .where(
+      and(
+        eq(respuestasFormulario.evaluacionId, evaluacionId),
+        sql`${preguntas.tipo} in ('respuesta_corta', 'desarrollo')`,
+        isNull(preguntas.eliminadoAt),
+      ),
+    )
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre), asc(preguntas.orden));
+}
+
+export async function calificarRespuestaEvaluacionAction(input: {
+  evaluacionId: string;
+  matriculaId: string;
+  nota: number;
+  observacion?: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_calificar_manual",
+    "evaluaciones.write_questions",
+  );
+  if (!actorResult.ok) return actorResult.result;
+
+  const nota = Number(input.nota);
+  if (!Number.isFinite(nota) || nota < 1 || nota > 7) {
+    return { ok: false, code: "invalid_input", message: "Nota debe estar entre 1.0 y 7.0." };
+  }
+
+  const evaluacion = await getEvaluacionAccessRow(input.evaluacionId);
+  if (!evaluacion) {
+    return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+  }
+  if (!actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return forbiddenMutationResult("No tienes permiso para calificar esta evaluación.");
+  }
+
+  const db = getDb();
+  const notaRedondeada = String(Math.round(nota * 10) / 10);
+
+  try {
+    const [existing] = await db
+      .select({ id: notas.id })
+      .from(notas)
+      .where(
+        and(
+          eq(notas.evaluacionId, input.evaluacionId),
+          eq(notas.matriculaId, input.matriculaId),
+          isNull(notas.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    const now = new Date();
+    const observacion = input.observacion
+      ? sanitizeText(input.observacion).trim().slice(0, 500) || null
+      : null;
+
+    if (existing) {
+      await db
+        .update(notas)
+        .set({
+          nota: notaRedondeada,
+          calificadoPor: actorResult.actor.userId,
+          fechaNota: now,
+          observacion,
+          eliminadoAt: null,
+        })
+        .where(eq(notas.id, existing.id));
+    } else {
+      await db.insert(notas).values({
+        evaluacionId: input.evaluacionId,
+        matriculaId: input.matriculaId,
+        nota: notaRedondeada,
+        calificadoPor: actorResult.actor.userId,
+        fechaNota: now,
+        observacion,
+      });
+    }
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "notas",
+      entidadId: input.evaluacionId,
+      payload: { matriculaId: input.matriculaId, nota: notaRedondeada },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "nota_manual_registrada" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "calificar_manual_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "calificar_failed", message: "No fue posible registrar la nota." };
+  }
+}
+
+export async function calificarRespuestaEvaluacionFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const matriculaId = getStringField(formData, "matriculaId");
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+  const notaRaw = Number.parseFloat(
+    getStringField(formData, "nota").replace(",", "."),
+  );
+  const observacion = getStringField(formData, "observacion") || undefined;
+
+  const result = await calificarRespuestaEvaluacionAction({
+    evaluacionId,
+    matriculaId,
+    nota: notaRaw,
+    observacion,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function crearEvaluacionAction(input: {

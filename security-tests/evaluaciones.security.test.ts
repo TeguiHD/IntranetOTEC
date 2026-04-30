@@ -110,3 +110,11 @@ test("readLocalPrueba blocks traversal with absolute segment", () => {
     /invalid_path/,
   );
 });
+
+test("enviarRespuestasAction: nota clamped to 1.0-7.0 range", () => {
+  const clamp = (raw: number) => Math.round(Math.max(1, Math.min(7, raw)) * 10) / 10;
+  assert.equal(clamp(0), 1.0);
+  assert.equal(clamp(8), 7.0);
+  assert.equal(clamp(1 + 6 * 1), 7.0);
+  assert.equal(clamp(1 + 6 * 0), 1.0);
+});

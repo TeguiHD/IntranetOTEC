@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import {
   asignaturas,
+  evaluacionIntentos,
   evaluaciones,
   eventosSupervision,
   matriculas,
@@ -23,6 +24,7 @@ import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateEvaluacionPublicada } from "@/lib/email";
 import { enviarPushADestinatarios } from "@/actions/notificaciones";
 import { stripCorrectAnswer } from "@/lib/evaluation-options";
+import { getEvaluationWindowStatus, type EvaluationWindowStatus } from "@/lib/evaluation-status";
 import { logEvent } from "@/lib/observability/logger";
 import {
   listLocalPruebaFiles,
@@ -44,7 +46,11 @@ import {
   assertPeriodoAbiertoByAsignaturaId,
   assertPeriodoAbiertoByEvaluacionId,
 } from "./_period-lock";
-import { requireActionActor, type MutationResult } from "./_security";
+import {
+  requireActionCapability,
+  type ActionActorContext,
+  type MutationResult,
+} from "./_security";
 
 const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
@@ -66,20 +72,64 @@ const plantillaEncuestaInputSchema = z.object({
 });
 
 const localPruebasRoot = join(process.cwd(), "PRUEBAS");
+const DEFAULT_EVALUACIONES_REDIRECT = "/admin/evaluaciones";
+
+const sanitizeEvaluacionesRedirect = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/")) return DEFAULT_EVALUACIONES_REDIRECT;
+  if (trimmed.startsWith("/admin/evaluaciones") || trimmed.startsWith("/docente/asignaturas/")) {
+    return trimmed;
+  }
+
+  return DEFAULT_EVALUACIONES_REDIRECT;
+};
+
+const redirectEvaluacionesForm = (input: {
+  redirectTo?: string;
+  state: string;
+  periodoId?: string;
+  asignaturaId?: string;
+  evaluacionId?: string;
+}): never => {
+  const base = sanitizeEvaluacionesRedirect(input.redirectTo ?? DEFAULT_EVALUACIONES_REDIRECT);
+  const [pathname, search = ""] = base.split("?");
+  const query = new URLSearchParams(search);
+
+  query.set("state", input.state);
+  if (input.periodoId) query.set("periodoId", input.periodoId);
+  if (input.asignaturaId) query.set("asignaturaId", input.asignaturaId);
+  if (input.evaluacionId) query.set("evaluacionId", input.evaluacionId);
+
+  redirect(`${pathname}?${query.toString()}`);
+};
 
 export type EvaluacionItem = {
   id: string;
+  asignaturaId: string;
   titulo: string;
   tipo: "formulario" | "tarea" | "examen" | "proyecto";
   ponderacion: string | null;
   instrucciones: string | null;
   intentosMax: number | null;
+  duracionMinutos: number | null;
   fechaInicio: Date | null;
   fechaLimite: Date | null;
   publicada: boolean | null;
   modoSupervision: boolean | null;
   asignaturaNombre: string;
   totalPreguntas: number;
+  estadoVentana: EvaluationWindowStatus;
+  totalRespondidas: number;
+  totalCalificadas: number;
+  notaAlumno: string | null;
+  respondidaPorAlumno: boolean;
+};
+
+export type IntentoEvaluacionActivo = {
+  intentoId: string;
+  intento: number;
+  iniciadoAt: Date;
+  expiracionAt: Date | null;
 };
 
 export type PreguntaItem = {
@@ -109,22 +159,123 @@ export type PruebaLocalItem = Pick<
   totalPreguntas: number;
 };
 
+type AsignaturaAccessRow = {
+  id: string;
+  docenteId: string | null;
+  estado: typeof asignaturas.$inferSelect.estado;
+};
+
+type EvaluacionAccessRow = {
+  id: string;
+  asignaturaId: string;
+  docenteId: string | null;
+};
+
+const actorCanManageAsignatura = (
+  actor: ActionActorContext,
+  asignatura: Pick<AsignaturaAccessRow, "docenteId">,
+): boolean =>
+  actor.userRol === "admin" ||
+  (actor.userRol === "docente" &&
+    asignatura.docenteId !== null &&
+    asignatura.docenteId === actor.userId);
+
+const actorCanManageEvaluacion = (
+  actor: ActionActorContext,
+  evaluacion: Pick<EvaluacionAccessRow, "docenteId">,
+): boolean =>
+  actor.userRol === "admin" ||
+  (actor.userRol === "docente" &&
+    evaluacion.docenteId !== null &&
+    evaluacion.docenteId === actor.userId);
+
+const getAsignaturaAccessRow = async (
+  asignaturaId: string,
+): Promise<AsignaturaAccessRow | null> => {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      id: asignaturas.id,
+      docenteId: asignaturas.docenteId,
+      estado: asignaturas.estado,
+    })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, asignaturaId))
+    .limit(1);
+
+  return row ?? null;
+};
+
+const getEvaluacionAccessRow = async (
+  evaluacionId: string,
+): Promise<EvaluacionAccessRow | null> => {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      id: evaluaciones.id,
+      asignaturaId: evaluaciones.asignaturaId,
+      docenteId: asignaturas.docenteId,
+    })
+    .from(evaluaciones)
+    .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+    .where(and(eq(evaluaciones.id, evaluacionId), isNull(evaluaciones.eliminadoAt)))
+    .limit(1);
+
+  return row ?? null;
+};
+
+const forbiddenMutationResult = (message = "No autorizado para esta acción."): MutationResult => ({
+  ok: false,
+  code: "forbidden",
+  message,
+});
+
+const fetchPreguntasByEvaluacion = async (
+  evaluacionId: string,
+): Promise<PreguntaItem[]> => {
+  const db = getDb();
+
+  return db
+    .select({
+      id: preguntas.id,
+      evaluacionId: preguntas.evaluacionId,
+      enunciado: preguntas.enunciado,
+      tipo: preguntas.tipo,
+      opciones: preguntas.opciones,
+      puntaje: preguntas.puntaje,
+      orden: preguntas.orden,
+    })
+    .from(preguntas)
+    .where(and(eq(preguntas.evaluacionId, evaluacionId), isNull(preguntas.eliminadoAt)))
+    .orderBy(asc(preguntas.orden), asc(preguntas.id));
+};
+
 export async function listarEvaluacionesByAsignatura(
   asignaturaId: string,
 ): Promise<EvaluacionItem[]> {
-  const actorResult = await requireActionActor("evaluacion_list", ["admin", "docente"]);
+  const actorResult = await requireActionCapability("evaluacion_list", [
+    "evaluaciones.read_admin",
+    "evaluaciones.read_assigned",
+  ]);
   if (!actorResult.ok) return [];
+
+  const asignatura = await getAsignaturaAccessRow(asignaturaId);
+  if (!asignatura || !actorCanManageAsignatura(actorResult.actor, asignatura)) {
+    return [];
+  }
 
   const db = getDb();
 
   const rows = await db
     .select({
       id: evaluaciones.id,
+      asignaturaId: evaluaciones.asignaturaId,
       titulo: evaluaciones.titulo,
       tipo: evaluaciones.tipo,
       ponderacion: evaluaciones.ponderacion,
       instrucciones: evaluaciones.instrucciones,
       intentosMax: evaluaciones.intentosMax,
+      duracionMinutos: evaluaciones.duracionMinutos,
       fechaInicio: evaluaciones.fechaInicio,
       fechaLimite: evaluaciones.fechaLimite,
       publicada: evaluaciones.publicada,
@@ -149,16 +300,49 @@ export async function listarEvaluacionesByAsignatura(
     .where(isNull(preguntas.eliminadoAt))
     .groupBy(preguntas.evaluacionId);
 
+  const respuestasCounts = await db
+    .select({
+      evaluacionId: respuestasFormulario.evaluacionId,
+      total: sql<number>`count(distinct ${respuestasFormulario.matriculaId})`,
+    })
+    .from(respuestasFormulario)
+    .groupBy(respuestasFormulario.evaluacionId);
+
+  const notasCounts = await db
+    .select({
+      evaluacionId: notas.evaluacionId,
+      total: sql<number>`count(distinct ${notas.matriculaId})`,
+    })
+    .from(notas)
+    .where(isNull(notas.eliminadoAt))
+    .groupBy(notas.evaluacionId);
+
   const countMap = new Map(counts.map((c) => [c.evaluacionId, Number(c.total)]));
+  const respuestaMap = new Map(
+    respuestasCounts.map((item) => [item.evaluacionId, Number(item.total)]),
+  );
+  const notaMap = new Map(notasCounts.map((item) => [item.evaluacionId, Number(item.total)]));
 
   return rows.map((r) => ({
     ...r,
     totalPreguntas: countMap.get(r.id) ?? 0,
+    estadoVentana: getEvaluationWindowStatus({
+      publicada: r.publicada,
+      fechaInicio: r.fechaInicio,
+      fechaLimite: r.fechaLimite,
+    }),
+    totalRespondidas: respuestaMap.get(r.id) ?? 0,
+    totalCalificadas: notaMap.get(r.id) ?? 0,
+    notaAlumno: null,
+    respondidaPorAlumno: false,
   }));
 }
 
 export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
-  const actorResult = await requireActionActor("alumno_evaluacion_list", ["alumno"]);
+  const actorResult = await requireActionCapability(
+    "alumno_evaluacion_list",
+    "evaluaciones.read_own",
+  );
   if (!actorResult.ok) return [];
 
   const db = getDb();
@@ -166,11 +350,13 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
   const rows = await db
     .select({
       id: evaluaciones.id,
+      asignaturaId: evaluaciones.asignaturaId,
       titulo: evaluaciones.titulo,
       tipo: evaluaciones.tipo,
       ponderacion: evaluaciones.ponderacion,
       instrucciones: evaluaciones.instrucciones,
       intentosMax: evaluaciones.intentosMax,
+      duracionMinutos: evaluaciones.duracionMinutos,
       fechaInicio: evaluaciones.fechaInicio,
       fechaLimite: evaluaciones.fechaLimite,
       publicada: evaluaciones.publicada,
@@ -202,45 +388,72 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
     .where(isNull(preguntas.eliminadoAt))
     .groupBy(preguntas.evaluacionId);
 
+  const respuestasAlumno = await db
+    .select({
+      evaluacionId: respuestasFormulario.evaluacionId,
+      total: sql<number>`count(distinct ${respuestasFormulario.matriculaId})`,
+    })
+    .from(respuestasFormulario)
+    .innerJoin(matriculas, eq(respuestasFormulario.matriculaId, matriculas.id))
+    .where(eq(matriculas.alumnoId, actorResult.actor.userId))
+    .groupBy(respuestasFormulario.evaluacionId);
+
+  const notasAlumno = await db
+    .select({
+      evaluacionId: notas.evaluacionId,
+      nota: notas.nota,
+    })
+    .from(notas)
+    .innerJoin(matriculas, eq(notas.matriculaId, matriculas.id))
+    .where(
+      and(eq(matriculas.alumnoId, actorResult.actor.userId), isNull(notas.eliminadoAt)),
+    );
+
   const countMap = new Map(counts.map((c) => [c.evaluacionId, Number(c.total)]));
+  const respuestaMap = new Map(
+    respuestasAlumno.map((item) => [item.evaluacionId, Number(item.total)]),
+  );
+  const notaMap = new Map(notasAlumno.map((item) => [item.evaluacionId, item.nota ?? null]));
 
   return rows.map((r) => ({
     ...r,
     totalPreguntas: countMap.get(r.id) ?? 0,
+    estadoVentana: getEvaluationWindowStatus({
+      publicada: r.publicada,
+      fechaInicio: r.fechaInicio,
+      fechaLimite: r.fechaLimite,
+    }),
+    totalRespondidas: 0,
+    totalCalificadas: notaMap.get(r.id) ? 1 : 0,
+    notaAlumno: notaMap.get(r.id) ?? null,
+    respondidaPorAlumno: (respuestaMap.get(r.id) ?? 0) > 0,
   }));
 }
 
 export async function listarPreguntasByEvaluacion(
   evaluacionId: string,
 ): Promise<PreguntaItem[]> {
-  const actorResult = await requireActionActor("evaluacion_preguntas_list", [
-    "admin",
-    "docente",
-    "alumno",
-  ]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_preguntas_list",
+    "evaluaciones.read_answer_key",
+  );
   if (!actorResult.ok) return [];
 
-  const db = getDb();
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return [];
+  }
 
-  return db
-    .select({
-      id: preguntas.id,
-      evaluacionId: preguntas.evaluacionId,
-      enunciado: preguntas.enunciado,
-      tipo: preguntas.tipo,
-      opciones: preguntas.opciones,
-      puntaje: preguntas.puntaje,
-      orden: preguntas.orden,
-    })
-    .from(preguntas)
-    .where(and(eq(preguntas.evaluacionId, evaluacionId), isNull(preguntas.eliminadoAt)))
-    .orderBy(asc(preguntas.orden), asc(preguntas.id));
+  return fetchPreguntasByEvaluacion(evaluacionId);
 }
 
 export async function listarPreguntasAlumnoByEvaluacion(
   evaluacionId: string,
 ): Promise<PreguntaItem[]> {
-  const actorResult = await requireActionActor("alumno_evaluacion_preguntas_list", ["alumno"]);
+  const actorResult = await requireActionCapability(
+    "alumno_evaluacion_preguntas_list",
+    "evaluaciones.respond",
+  );
   if (!actorResult.ok) return [];
 
   const db = getDb();
@@ -263,18 +476,148 @@ export async function listarPreguntasAlumnoByEvaluacion(
 
   if (!ev) return [];
 
-  const rows = await listarPreguntasByEvaluacion(evaluacionId);
+  const rows = await fetchPreguntasByEvaluacion(evaluacionId);
   return rows.map((pregunta) => ({
     ...pregunta,
     opciones: stripCorrectAnswer(pregunta.opciones),
   }));
 }
 
+export async function asegurarIntentoEvaluacionActivo(
+  evaluacionId: string,
+): Promise<IntentoEvaluacionActivo | null> {
+  const actorResult = await requireActionCapability(
+    "alumno_evaluacion_intento_start",
+    "evaluaciones.respond",
+  );
+  if (!actorResult.ok || !evaluacionId) return null;
+
+  const db = getDb();
+  const now = new Date();
+
+  const [ev] = await db
+    .select({
+      id: evaluaciones.id,
+      asignaturaId: evaluaciones.asignaturaId,
+      publicada: evaluaciones.publicada,
+      intentosMax: evaluaciones.intentosMax,
+      duracionMinutos: evaluaciones.duracionMinutos,
+      fechaInicio: evaluaciones.fechaInicio,
+      fechaLimite: evaluaciones.fechaLimite,
+    })
+    .from(evaluaciones)
+    .where(and(eq(evaluaciones.id, evaluacionId), isNull(evaluaciones.eliminadoAt)))
+    .limit(1);
+
+  if (!ev || !ev.publicada || !ev.duracionMinutos) return null;
+  if (ev.fechaInicio && ev.fechaInicio > now) return null;
+  if (ev.fechaLimite && ev.fechaLimite < now) return null;
+
+  const [matricula] = await db
+    .select({ id: matriculas.id })
+    .from(matriculas)
+    .where(
+      and(
+        eq(matriculas.alumnoId, actorResult.actor.userId),
+        eq(matriculas.asignaturaId, ev.asignaturaId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .limit(1);
+
+  if (!matricula) return null;
+
+  const [activeAttempt] = await db
+    .select({
+      id: evaluacionIntentos.id,
+      intento: evaluacionIntentos.intento,
+      iniciadoAt: evaluacionIntentos.iniciadoAt,
+    })
+    .from(evaluacionIntentos)
+    .where(
+      and(
+        eq(evaluacionIntentos.evaluacionId, evaluacionId),
+        eq(evaluacionIntentos.matriculaId, matricula.id),
+        isNull(evaluacionIntentos.enviadoAt),
+        isNull(evaluacionIntentos.expiradoAt),
+      ),
+    )
+    .orderBy(desc(evaluacionIntentos.intento))
+    .limit(1);
+
+  if (activeAttempt) {
+    const expiracionAt = new Date(
+      activeAttempt.iniciadoAt.getTime() + ev.duracionMinutos * 60_000,
+    );
+    if (expiracionAt > now) {
+      return {
+        intentoId: activeAttempt.id,
+        intento: activeAttempt.intento,
+        iniciadoAt: activeAttempt.iniciadoAt,
+        expiracionAt,
+      };
+    }
+
+    await db
+      .update(evaluacionIntentos)
+      .set({ expiradoAt: now })
+      .where(eq(evaluacionIntentos.id, activeAttempt.id));
+  }
+
+  const [maxIntentosRow] = await db
+    .select({
+      maxIntentos: sql<number>`greatest(
+        coalesce((select max(i.intento) from evaluacion_intentos i where i.evaluacion_id = ${evaluacionId} and i.matricula_id = ${matricula.id}), 0),
+        coalesce((select max(r.intento) from respuestas_formulario r where r.evaluacion_id = ${evaluacionId} and r.matricula_id = ${matricula.id}), 0)
+      )`.mapWith(Number),
+    })
+    .from(matriculas)
+    .where(eq(matriculas.id, matricula.id))
+    .limit(1);
+
+  const intentosUsados = Number(maxIntentosRow?.maxIntentos ?? 0);
+  const intentosMax = ev.intentosMax ?? 1;
+  if (intentosUsados >= intentosMax) return null;
+
+  const nextIntento = intentosUsados + 1;
+  const [created] = await db
+    .insert(evaluacionIntentos)
+    .values({
+      evaluacionId,
+      matriculaId: matricula.id,
+      intento: nextIntento,
+      iniciadoAt: now,
+    })
+    .returning({
+      id: evaluacionIntentos.id,
+      intento: evaluacionIntentos.intento,
+      iniciadoAt: evaluacionIntentos.iniciadoAt,
+    });
+
+  return created
+    ? {
+        intentoId: created.id,
+        intento: created.intento,
+        iniciadoAt: created.iniciadoAt,
+        expiracionAt: new Date(created.iniciadoAt.getTime() + ev.duracionMinutos * 60_000),
+      }
+    : null;
+}
+
 export async function listarEventosSupervisionByEvaluacion(
   evaluacionId: string,
 ): Promise<EventoSupervisionItem[]> {
-  const actorResult = await requireActionActor("supervision_eventos_list", ["admin", "docente"]);
+  const actorResult = await requireActionCapability(
+    "supervision_eventos_list",
+    "evaluaciones.read_supervision",
+  );
   if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return [];
+  }
 
   const db = getDb();
 
@@ -296,7 +639,10 @@ export async function listarEventosSupervisionByEvaluacion(
 }
 
 export async function listarPruebasLocalesAction(): Promise<PruebaLocalItem[]> {
-  const actorResult = await requireActionActor("pruebas_locales_list", ["admin"]);
+  const actorResult = await requireActionCapability(
+    "pruebas_locales_list",
+    "evaluaciones.import_local",
+  );
   if (!actorResult.ok) return [];
 
   if (!existsSync(localPruebasRoot)) return [];
@@ -315,8 +661,16 @@ export async function listarPruebasLocalesAction(): Promise<PruebaLocalItem[]> {
 }
 
 export async function obtenerResultadosEvaluacion(evaluacionId: string) {
-  const actorResult = await requireActionActor("evaluacion_resultados", ["admin", "docente"]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_resultados",
+    "evaluaciones.read_results",
+  );
   if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return [];
+  }
 
   const db = getDb();
 
@@ -388,7 +742,7 @@ export async function crearEvaluacionAction(input: {
   intentosMax?: number;
   tiempoMinutos?: number;
 }): Promise<MutationResult> {
-  const actorResult = await requireActionActor("evaluacion_create", ["admin", "docente"]);
+  const actorResult = await requireActionCapability("evaluacion_create", "evaluaciones.create");
   if (!actorResult.ok) return actorResult.result;
 
   const titulo = sanitizeText(input.titulo).trim();
@@ -404,14 +758,16 @@ export async function crearEvaluacionAction(input: {
   const db = getDb();
 
   try {
-    const [asignatura] = await db
-      .select({ id: asignaturas.id })
-      .from(asignaturas)
-      .where(eq(asignaturas.id, input.asignaturaId))
-      .limit(1);
+    const asignatura = await getAsignaturaAccessRow(input.asignaturaId);
 
     if (!asignatura) {
       return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
+    }
+
+    if (!actorCanManageAsignatura(actorResult.actor, asignatura)) {
+      return forbiddenMutationResult(
+        "Solo puedes crear evaluaciones en secciones que administras directamente.",
+      );
     }
 
     const periodoCheck = await assertPeriodoAbiertoByAsignaturaId(input.asignaturaId);
@@ -440,6 +796,7 @@ export async function crearEvaluacionAction(input: {
         instrucciones: instrucciones || null,
         fechaInicio: input.fechaInicio ? new Date(input.fechaInicio) : null,
         fechaLimite: input.fechaLimite ? new Date(input.fechaLimite) : null,
+        duracionMinutos: tiempoMinutos,
         intentosMax,
         publicada: false,
         createdAt: new Date(),
@@ -477,6 +834,7 @@ export async function crearEvaluacionAction(input: {
 export async function crearEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
   const result = await crearEvaluacionAction({
     asignaturaId,
     titulo: getStringField(formData, "titulo"),
@@ -494,9 +852,13 @@ export async function crearEvaluacionFormAction(formData: FormData): Promise<voi
   });
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+  });
 }
 
 export async function importarPruebaLocalAction(input: {
@@ -508,7 +870,10 @@ export async function importarPruebaLocalAction(input: {
   ponderacion?: string;
   tiempoMinutos?: number;
 }): Promise<MutationResult> {
-  const actorResult = await requireActionActor("prueba_local_import", ["admin"]);
+  const actorResult = await requireActionCapability(
+    "prueba_local_import",
+    "evaluaciones.import_local",
+  );
   if (!actorResult.ok) return actorResult.result;
 
   if (!input.asignaturaId || !input.archivo || !existsSync(localPruebasRoot)) {
@@ -529,11 +894,7 @@ export async function importarPruebaLocalAction(input: {
   const db = getDb();
 
   try {
-    const [asignatura] = await db
-      .select({ id: asignaturas.id, estado: asignaturas.estado })
-      .from(asignaturas)
-      .where(and(eq(asignaturas.id, input.asignaturaId), isNull(asignaturas.eliminadoAt)))
-      .limit(1);
+    const asignatura = await getAsignaturaAccessRow(input.asignaturaId);
 
     if (!asignatura) {
       return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
@@ -585,6 +946,7 @@ export async function importarPruebaLocalAction(input: {
           ponderacion: input.ponderacion || null,
           fechaInicio: input.fechaInicio ? new Date(input.fechaInicio) : null,
           fechaLimite: input.fechaLimite ? new Date(input.fechaLimite) : null,
+          duracionMinutos: tiempoMinutos,
           intentosMax,
           instrucciones: [
             tiempoMinutos ? `Tiempo disponible: ${tiempoMinutos} minutos.` : null,
@@ -651,6 +1013,7 @@ export async function importarPruebaLocalAction(input: {
 export async function importarPruebaLocalFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
   const result = await importarPruebaLocalAction({
     asignaturaId,
     archivo: getStringField(formData, "archivo"),
@@ -662,16 +1025,23 @@ export async function importarPruebaLocalFormAction(formData: FormData): Promise
   });
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${periodoQuery}${filterQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.code,
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+  });
 }
 
 export async function toggleModoSupervisionAction(
   id: string,
   enabled: boolean,
 ): Promise<MutationResult> {
-  const actorResult = await requireActionActor("evaluacion_supervision_toggle", ["admin"]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_supervision_toggle",
+    "evaluaciones.supervision",
+  );
   if (!actorResult.ok) return actorResult.result;
   if (!id) return { ok: false, code: "invalid_input", message: "ID requerido." };
 
@@ -681,11 +1051,7 @@ export async function toggleModoSupervisionAction(
     const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
     if (!periodoCheck.ok) return periodoCheck.result;
 
-    const [existing] = await db
-      .select({ id: evaluaciones.id })
-      .from(evaluaciones)
-      .where(and(eq(evaluaciones.id, id), isNull(evaluaciones.eliminadoAt)))
-      .limit(1);
+    const existing = await getEvaluacionAccessRow(id);
 
     if (!existing) {
       return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
@@ -726,21 +1092,29 @@ export async function toggleModoSupervisionFormAction(formData: FormData): Promi
   const evaluacionId = getStringField(formData, "evaluacionId");
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
   const enabled = getStringField(formData, "enabled") === "true";
   const result = await toggleModoSupervisionAction(evaluacionId, enabled);
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  const evaluacionQuery = evaluacionId ? `&evaluacionId=${encodeURIComponent(evaluacionId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${periodoQuery}${filterQuery}${evaluacionQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.code,
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function crearPlantillaEncuestaAction(input: {
   asignaturaId: string;
   plantilla: SurveyTemplateKey;
 }): Promise<MutationResult> {
-  const actorResult = await requireActionActor("evaluacion_template_create", ["admin"]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_template_create",
+    "encuestas.admin",
+  );
   if (!actorResult.ok) return actorResult.result;
 
   const parsed = plantillaEncuestaInputSchema.safeParse(input);
@@ -756,11 +1130,7 @@ export async function crearPlantillaEncuestaAction(input: {
   const db = getDb();
 
   try {
-    const [subject] = await db
-      .select({ id: asignaturas.id, estado: asignaturas.estado })
-      .from(asignaturas)
-      .where(eq(asignaturas.id, parsed.data.asignaturaId))
-      .limit(1);
+    const subject = await getAsignaturaAccessRow(parsed.data.asignaturaId);
 
     if (!subject) {
       return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
@@ -872,6 +1242,7 @@ export async function crearPlantillaEncuestaAction(input: {
 export async function crearPlantillaEncuestaFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
   const plantillaRaw = getStringField(formData, "plantilla");
 
   const result = await crearPlantillaEncuestaAction({
@@ -880,30 +1251,43 @@ export async function crearPlantillaEncuestaFormAction(formData: FormData): Prom
   });
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : result.code}${periodoQuery}${filterQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.code,
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+  });
 }
 
 export async function publicarEvaluacionAction(id: string): Promise<MutationResult> {
-  const actorResult = await requireActionActor("evaluacion_publicar", ["admin", "docente"]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_publicar",
+    "evaluaciones.publish",
+  );
   if (!actorResult.ok) return actorResult.result;
   if (!id) return { ok: false, code: "invalid_input", message: "ID requerido." };
 
   const db = getDb();
 
   try {
-    const [existing] = await db
-      .select({ id: evaluaciones.id, publicada: evaluaciones.publicada })
+    const evalAccess = await getEvaluacionAccessRow(id);
+    if (!evalAccess) {
+      return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+    }
+    if (!actorCanManageEvaluacion(actorResult.actor, evalAccess)) {
+      return forbiddenMutationResult("No tienes permiso para publicar esta evaluación.");
+    }
+
+    const [evalState] = await db
+      .select({ publicada: evaluaciones.publicada })
       .from(evaluaciones)
       .where(and(eq(evaluaciones.id, id), isNull(evaluaciones.eliminadoAt)))
       .limit(1);
-
-    if (!existing) {
+    if (!evalState) {
       return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
     }
-
-    if (existing.publicada) {
+    if (evalState.publicada) {
       return { ok: true, code: "already_published" };
     }
 
@@ -994,16 +1378,26 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
 export async function publicarEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
-  const result = await publicarEvaluacionAction(getStringField(formData, "evaluacionId"));
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const redirectTo = getStringField(formData, "redirectTo");
+  const result = await publicarEvaluacionAction(evaluacionId);
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function despublicarEvaluacionAction(id: string): Promise<MutationResult> {
-  const actorResult = await requireActionActor("evaluacion_despublicar", ["admin"]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_despublicar",
+    "evaluaciones.publish",
+  );
   if (!actorResult.ok) return actorResult.result;
   if (!id) return { ok: false, code: "invalid_input", message: "ID requerido." };
 
@@ -1064,33 +1458,49 @@ export async function despublicarEvaluacionAction(id: string): Promise<MutationR
 export async function despublicarEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
-  const result = await despublicarEvaluacionAction(getStringField(formData, "evaluacionId"));
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const redirectTo = getStringField(formData, "redirectTo");
+  const result = await despublicarEvaluacionAction(evaluacionId);
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function eliminarEvaluacionAction(id: string): Promise<MutationResult> {
-  const actorResult = await requireActionActor("evaluacion_delete", ["admin", "docente"]);
+  const actorResult = await requireActionCapability(
+    "evaluacion_delete",
+    "evaluaciones.delete",
+  );
   if (!actorResult.ok) return actorResult.result;
   if (!id) return { ok: false, code: "invalid_input", message: "ID requerido." };
 
   const db = getDb();
 
   try {
-    const [existing] = await db
-      .select({ id: evaluaciones.id, eliminadoAt: evaluaciones.eliminadoAt })
+    const evalAccess = await getEvaluacionAccessRow(id);
+    if (!evalAccess) {
+      return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+    }
+    if (!actorCanManageEvaluacion(actorResult.actor, evalAccess)) {
+      return forbiddenMutationResult("No tienes permiso para eliminar esta evaluación.");
+    }
+
+    const [evalState] = await db
+      .select({ eliminadoAt: evaluaciones.eliminadoAt })
       .from(evaluaciones)
       .where(eq(evaluaciones.id, id))
       .limit(1);
-
-    if (!existing) {
+    if (!evalState) {
       return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
     }
-
-    if (existing.eliminadoAt) {
+    if (evalState.eliminadoAt) {
       return { ok: true, code: "already_deleted" };
     }
 
@@ -1132,12 +1542,19 @@ export async function eliminarEvaluacionAction(id: string): Promise<MutationResu
 export async function eliminarEvaluacionFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
-  const result = await eliminarEvaluacionAction(getStringField(formData, "evaluacionId"));
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const redirectTo = getStringField(formData, "redirectTo");
+  const result = await eliminarEvaluacionAction(evaluacionId);
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function agregarPreguntaAction(input: {
@@ -1149,7 +1566,10 @@ export async function agregarPreguntaAction(input: {
   puntaje?: string;
   orden?: number;
 }): Promise<MutationResult> {
-  const actorResult = await requireActionActor("pregunta_create", ["admin", "docente"]);
+  const actorResult = await requireActionCapability(
+    "pregunta_create",
+    "evaluaciones.write_questions",
+  );
   if (!actorResult.ok) return actorResult.result;
 
   const enunciado = sanitizeText(input.enunciado).trim();
@@ -1160,14 +1580,16 @@ export async function agregarPreguntaAction(input: {
   const db = getDb();
 
   try {
-    const [ev] = await db
-      .select({ id: evaluaciones.id })
-      .from(evaluaciones)
-      .where(and(eq(evaluaciones.id, input.evaluacionId), isNull(evaluaciones.eliminadoAt)))
-      .limit(1);
+    const ev = await getEvaluacionAccessRow(input.evaluacionId);
 
     if (!ev) {
       return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+    }
+
+    if (!actorCanManageEvaluacion(actorResult.actor, ev)) {
+      return forbiddenMutationResult(
+        "Solo puedes editar preguntas de evaluaciones asociadas a tus secciones.",
+      );
     }
 
     const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(input.evaluacionId);
@@ -1247,6 +1669,7 @@ export async function agregarPreguntaFormAction(formData: FormData): Promise<voi
   const evaluacionId = getStringField(formData, "evaluacionId");
   const asignaturaId = getStringField(formData, "asignaturaId");
   const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
   const tipo = getStringField(formData, "tipo") as
     | "opcion_multiple"
     | "verdadero_falso"
@@ -1279,17 +1702,25 @@ export async function agregarPreguntaFormAction(formData: FormData): Promise<voi
   });
 
   revalidatePath("/admin/evaluaciones");
-  const periodoQuery = periodoId ? `&periodoId=${encodeURIComponent(periodoId)}` : "";
-  const filterQuery = asignaturaId ? `&asignaturaId=${encodeURIComponent(asignaturaId)}` : "";
-  const evaluacionQuery = evaluacionId ? `&evaluacionId=${encodeURIComponent(evaluacionId)}` : "";
-  redirect(`/admin/evaluaciones?state=${result.ok ? result.code : "error"}${periodoQuery}${filterQuery}${evaluacionQuery}`);
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function enviarRespuestasAction(input: {
   evaluacionId: string;
+  intentoId?: string;
   respuestas: { preguntaId: string; respuesta: string }[];
 }): Promise<MutationResult> {
-  const actorResult = await requireActionActor("alumno_enviar_respuestas", ["alumno"]);
+  const actorResult = await requireActionCapability(
+    "alumno_enviar_respuestas",
+    "evaluaciones.respond",
+  );
   if (!actorResult.ok) return actorResult.result;
 
   if (!input.evaluacionId || input.respuestas.length === 0) {
@@ -1306,6 +1737,7 @@ export async function enviarRespuestasAction(input: {
         publicada: evaluaciones.publicada,
         asignaturaId: evaluaciones.asignaturaId,
         intentosMax: evaluaciones.intentosMax,
+        duracionMinutos: evaluaciones.duracionMinutos,
         fechaInicio: evaluaciones.fechaInicio,
         fechaLimite: evaluaciones.fechaLimite,
       })
@@ -1344,6 +1776,7 @@ export async function enviarRespuestasAction(input: {
         and(
           eq(matriculas.alumnoId, actorResult.actor.userId),
           eq(matriculas.asignaturaId, ev.asignaturaId),
+          eq(matriculas.activa, true),
           isNull(matriculas.eliminadoAt),
         ),
       )
@@ -1382,7 +1815,61 @@ export async function enviarRespuestasAction(input: {
     if (intentosUsados >= intentosMax) {
       return { ok: false, code: "max_intentos_reached", message: "Límite de intentos alcanzado." };
     }
-    const currentIntento = intentosUsados + 1;
+    let currentIntento = intentosUsados + 1;
+
+    if (ev.duracionMinutos) {
+      if (!input.intentoId) {
+        return {
+          ok: false,
+          code: "attempt_required",
+          message: "Debes iniciar un intento temporizado antes de responder.",
+        };
+      }
+
+      const [attempt] = await db
+        .select({
+          id: evaluacionIntentos.id,
+          intento: evaluacionIntentos.intento,
+          iniciadoAt: evaluacionIntentos.iniciadoAt,
+          enviadoAt: evaluacionIntentos.enviadoAt,
+          expiradoAt: evaluacionIntentos.expiradoAt,
+        })
+        .from(evaluacionIntentos)
+        .where(
+          and(
+            eq(evaluacionIntentos.id, input.intentoId),
+            eq(evaluacionIntentos.evaluacionId, input.evaluacionId),
+            eq(evaluacionIntentos.matriculaId, matricula.id),
+          ),
+        )
+        .limit(1);
+
+      if (!attempt || attempt.enviadoAt || attempt.expiradoAt) {
+        return {
+          ok: false,
+          code: "attempt_invalid",
+          message: "Tu intento activo ya no está disponible.",
+        };
+      }
+
+      const expiracionAt = new Date(
+        attempt.iniciadoAt.getTime() + ev.duracionMinutos * 60_000,
+      );
+      if (expiracionAt <= now) {
+        await db
+          .update(evaluacionIntentos)
+          .set({ expiradoAt: now })
+          .where(eq(evaluacionIntentos.id, attempt.id));
+
+        return {
+          ok: false,
+          code: "attempt_expired",
+          message: "El tiempo disponible para este intento ya expiró.",
+        };
+      }
+
+      currentIntento = attempt.intento;
+    }
 
     const preguntaRows = await db
       .select({
@@ -1398,109 +1885,99 @@ export async function enviarRespuestasAction(input: {
     let puntosObtenidos = 0;
     let puntosAutocalificables = 0;
     const scaleAnswers: number[] = [];
+    let notaCalculada: number | null = null;
 
-    for (const resp of input.respuestas) {
-      const pregunta = preguntaMap.get(resp.preguntaId);
-      if (!pregunta) continue;
+    await db.transaction(async (tx) => {
+      for (const resp of input.respuestas) {
+        const pregunta = preguntaMap.get(resp.preguntaId);
+        if (!pregunta) continue;
 
-      const respuesta = sanitizeRespuesta(resp.respuesta);
-      if (!respuesta) {
-        return {
-          ok: false,
-          code: "invalid_input",
-          message: "Se detectaron respuestas vacias o invalidas.",
-        };
-      }
-
-      const puntaje = Number(pregunta.puntaje ?? "1");
-
-      let esCorrecta: boolean | null = null;
-      if (pregunta.tipo === "opcion_multiple") {
-        const scaleOptions = coerceScaleQuestionOptions(pregunta.opciones);
-        if (scaleOptions) {
-          const parsedValue = parseScaleAnswer(respuesta, scaleOptions);
-          if (parsedValue === null) {
-            return {
-              ok: false,
-              code: "invalid_input",
-              message: "Se detecto una respuesta fuera del rango permitido.",
-            };
-          }
-
-          scaleAnswers.push(parsedValue);
-
-          if (typeof scaleOptions.correcta === "number") {
-            esCorrecta = parsedValue === scaleOptions.correcta;
-          }
-        } else {
-          const opts = pregunta.opciones as { opciones: string[]; correcta?: number } | null;
-          if (opts && typeof opts.correcta === "number") {
-            esCorrecta = respuesta === String(opts.correcta);
-          }
+        const respuesta = sanitizeRespuesta(resp.respuesta);
+        if (!respuesta) {
+          throw new Error("invalid_input:empty_respuesta");
         }
-      } else if (pregunta.tipo === "verdadero_falso") {
-        const opts = pregunta.opciones as { correcta?: string } | null;
-        if (typeof opts?.correcta === "string") esCorrecta = respuesta === opts.correcta;
+
+        const puntaje = Number(pregunta.puntaje ?? "1");
+
+        let esCorrecta: boolean | null = null;
+        if (pregunta.tipo === "opcion_multiple") {
+          const scaleOptions = coerceScaleQuestionOptions(pregunta.opciones);
+          if (scaleOptions) {
+            const parsedValue = parseScaleAnswer(respuesta, scaleOptions);
+            if (parsedValue === null) throw new Error("invalid_input:invalid_scale_answer");
+            scaleAnswers.push(parsedValue);
+            if (typeof scaleOptions.correcta === "number") {
+              esCorrecta = parsedValue === scaleOptions.correcta;
+            }
+          } else {
+            const opts = pregunta.opciones as { opciones: string[]; correcta?: number } | null;
+            if (opts && typeof opts.correcta === "number") {
+              esCorrecta = respuesta === String(opts.correcta);
+            }
+          }
+        } else if (pregunta.tipo === "verdadero_falso") {
+          const opts = pregunta.opciones as { correcta?: string } | null;
+          if (typeof opts?.correcta === "string") esCorrecta = respuesta === opts.correcta;
+        }
+
+        if (esCorrecta !== null) puntosAutocalificables += puntaje;
+        if (esCorrecta === true) puntosObtenidos += puntaje;
+
+        await tx.insert(respuestasFormulario).values({
+          evaluacionId: input.evaluacionId,
+          matriculaId: matricula.id,
+          preguntaId: resp.preguntaId,
+          respuesta,
+          esCorrecta,
+          intento: currentIntento,
+          createdAt: now,
+        });
       }
 
-      if (esCorrecta !== null) puntosAutocalificables += puntaje;
-      if (esCorrecta === true) puntosObtenidos += puntaje;
-
-      await db.insert(respuestasFormulario).values({
-        evaluacionId: input.evaluacionId,
-        matriculaId: matricula.id,
-        preguntaId: resp.preguntaId,
-        respuesta,
-        esCorrecta,
-        intento: currentIntento,
-        createdAt: now,
-      });
-    }
-
-    const scaleAverage =
-      scaleAnswers.length > 0
-        ? scaleAnswers.reduce((accumulator, value) => accumulator + value, 0) /
-          scaleAnswers.length
-        : null;
-
-    const rawNota =
-      puntosAutocalificables > 0
-        ? 1 + 6 * (puntosObtenidos / puntosAutocalificables)
-        : scaleAverage !== null
-          ? scaleAverage
+      // Calculate nota
+      const scaleAverage =
+        scaleAnswers.length > 0
+          ? scaleAnswers.reduce((a, v) => a + v, 0) / scaleAnswers.length
           : null;
+      const rawNota =
+        puntosAutocalificables > 0
+          ? 1 + 6 * (puntosObtenidos / puntosAutocalificables)
+          : scaleAverage !== null
+            ? scaleAverage
+            : null;
+      notaCalculada =
+        rawNota === null ? null : Math.round(Math.max(1, Math.min(7, rawNota)) * 10) / 10;
 
-    const notaCalculada =
-      rawNota === null ? null : Math.round(Math.max(1, Math.min(7, rawNota)) * 10) / 10;
+      if (notaCalculada !== null) {
+        const [existingNota] = await tx
+          .select({ id: notas.id })
+          .from(notas)
+          .where(and(eq(notas.evaluacionId, input.evaluacionId), eq(notas.matriculaId, matricula.id)))
+          .limit(1);
 
-    if (notaCalculada !== null) {
-      const [existingNota] = await db
-        .select({ id: notas.id })
-        .from(notas)
-        .where(and(eq(notas.evaluacionId, input.evaluacionId), eq(notas.matriculaId, matricula.id)))
-        .limit(1);
-
-      if (existingNota) {
-        await db
-          .update(notas)
-          .set({
+        if (existingNota) {
+          await tx
+            .update(notas)
+            .set({ nota: String(notaCalculada), calificadoPor: null, fechaNota: now, eliminadoAt: null, eliminadoPor: null })
+            .where(eq(notas.id, existingNota.id));
+        } else {
+          await tx.insert(notas).values({
+            evaluacionId: input.evaluacionId,
+            matriculaId: matricula.id,
             nota: String(notaCalculada),
             calificadoPor: null,
             fechaNota: now,
-            eliminadoAt: null,
-            eliminadoPor: null,
-          })
-          .where(eq(notas.id, existingNota.id));
-      } else {
-        await db.insert(notas).values({
-          evaluacionId: input.evaluacionId,
-          matriculaId: matricula.id,
-          nota: String(notaCalculada),
-          calificadoPor: null,
-          fechaNota: now,
-        });
+          });
+        }
       }
-    }
+
+      if (ev.duracionMinutos && input.intentoId) {
+        await tx
+          .update(evaluacionIntentos)
+          .set({ enviadoAt: now })
+          .where(eq(evaluacionIntentos.id, input.intentoId));
+      }
+    });
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -1512,7 +1989,6 @@ export async function enviarRespuestasAction(input: {
       payload: {
         intento: currentIntento,
         nota: notaCalculada,
-        escalaPromedio: scaleAverage,
         puntosAutocalificables,
       },
       exitoso: true,
@@ -1535,6 +2011,7 @@ export async function enviarRespuestasAction(input: {
 
 export async function enviarRespuestasFormAction(formData: FormData): Promise<void> {
   const evaluacionId = getStringField(formData, "evaluacionId");
+  const intentoId = getStringField(formData, "intentoId") || undefined;
   const respuestas: { preguntaId: string; respuesta: string }[] = [];
 
   for (const [key, value] of Array.from(formData.entries())) {
@@ -1546,9 +2023,9 @@ export async function enviarRespuestasFormAction(formData: FormData): Promise<vo
     }
   }
 
-  const result = await enviarRespuestasAction({ evaluacionId, respuestas });
+  const result = await enviarRespuestasAction({ evaluacionId, intentoId, respuestas });
   revalidatePath(`/alumno/evaluaciones/${evaluacionId}`);
-  redirect(`/alumno/evaluaciones/${evaluacionId}?state=${result.ok ? result.code : "error"}`);
+  redirect(`/alumno/evaluaciones/${evaluacionId}?state=${result.code}`);
 }
 
 const SUPERVISION_EVENT_TYPES = new Set([
@@ -1569,7 +2046,10 @@ export async function registrarEventoSupervisionAction(input: {
   tipo: string;
   payload?: Record<string, unknown>;
 }): Promise<MutationResult> {
-  const actorResult = await requireActionActor("supervision_event_create", ["alumno"]);
+  const actorResult = await requireActionCapability(
+    "supervision_event_create",
+    "evaluaciones.respond",
+  );
   if (!actorResult.ok) return actorResult.result;
 
   if (!input.evaluacionId || !SUPERVISION_EVENT_TYPES.has(input.tipo)) {

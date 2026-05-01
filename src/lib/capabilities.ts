@@ -1,0 +1,164 @@
+import type { AppRole } from "@/lib/authz";
+
+export const APP_CAPABILITIES = [
+  "agenda.admin",
+  "anuncios.read",
+  "anuncios.write",
+  "app.install",
+  "asignaturas.admin",
+  "asignaturas.alumno",
+  "asignaturas.docente",
+  "asistencia.alumno",
+  "asistencia.docente",
+  "asistencia.manage",
+  "auditoria.admin",
+  "calendario.alumno",
+  "calendario.docente",
+  "certificados.admin",
+  "clases.admin",
+  "clases.alumno",
+  "cursos.admin",
+  "dashboard.admin",
+  "dashboard.alumno",
+  "dashboard.docente",
+  "encuestas.admin",
+  "encuestas.alumno",
+  "encuestas.docente",
+  "evaluaciones.create",
+  "evaluaciones.delete",
+  "evaluaciones.import_local",
+  "evaluaciones.publish",
+  "evaluaciones.read_admin",
+  "evaluaciones.read_answer_key",
+  "evaluaciones.read_assigned",
+  "evaluaciones.read_results",
+  "evaluaciones.read_supervision",
+  "evaluaciones.read_own",
+  "evaluaciones.respond",
+  "evaluaciones.supervision",
+  "evaluaciones.write_questions",
+  "finanzas.admin",
+  "historial.admin",
+  "historial.alumno",
+  "historial.docente",
+  "horarios.admin",
+  "horario.alumno",
+  "horario.docente",
+  "importaciones.admin",
+  "matriculas.admin",
+  "notas.admin",
+  "notas.alumno",
+  "notificaciones.admin",
+  "notificaciones.self",
+  "perfil.self",
+  "personas.admin",
+  "reportes.admin",
+  "solicitudes.admin",
+  "solicitudes.alumno",
+  "test_estilos.alumno",
+] as const;
+
+export type AppCapability = (typeof APP_CAPABILITIES)[number];
+
+const CAPABILITY_SET = new Set<string>(APP_CAPABILITIES);
+
+export const isAppCapability = (value: string): value is AppCapability =>
+  CAPABILITY_SET.has(value);
+
+const ADMIN_CAPABILITIES: AppCapability[] = [
+  "agenda.admin",
+  "anuncios.read",
+  "anuncios.write",
+  "app.install",
+  "asignaturas.admin",
+  "asistencia.manage",
+  "auditoria.admin",
+  "certificados.admin",
+  "clases.admin",
+  "cursos.admin",
+  "dashboard.admin",
+  "encuestas.admin",
+  "evaluaciones.create",
+  "evaluaciones.delete",
+  "evaluaciones.import_local",
+  "evaluaciones.publish",
+  "evaluaciones.read_admin",
+  "evaluaciones.read_answer_key",
+  "evaluaciones.read_results",
+  "evaluaciones.read_supervision",
+  "evaluaciones.supervision",
+  "evaluaciones.write_questions",
+  "finanzas.admin",
+  "historial.admin",
+  "horarios.admin",
+  "importaciones.admin",
+  "matriculas.admin",
+  "notas.admin",
+  "notificaciones.admin",
+  "notificaciones.self",
+  "perfil.self",
+  "personas.admin",
+  "reportes.admin",
+  "solicitudes.admin",
+];
+
+const DOCENTE_CAPABILITIES: AppCapability[] = [
+  "anuncios.read",
+  "anuncios.write",
+  "app.install",
+  "asignaturas.docente",
+  "asistencia.docente",
+  "calendario.docente",
+  "dashboard.docente",
+  "encuestas.docente",
+  "evaluaciones.create",
+  "evaluaciones.read_answer_key",
+  "evaluaciones.read_assigned",
+  "evaluaciones.read_results",
+  "evaluaciones.read_supervision",
+  "evaluaciones.supervision",
+  "evaluaciones.write_questions",
+  "historial.docente",
+  "horario.docente",
+  "notificaciones.self",
+  "perfil.self",
+];
+
+const ALUMNO_CAPABILITIES: AppCapability[] = [
+  "anuncios.read",
+  "app.install",
+  "asignaturas.alumno",
+  "asistencia.alumno",
+  "calendario.alumno",
+  "clases.alumno",
+  "dashboard.alumno",
+  "encuestas.alumno",
+  "evaluaciones.read_own",
+  "evaluaciones.respond",
+  "historial.alumno",
+  "horario.alumno",
+  "notas.alumno",
+  "notificaciones.self",
+  "perfil.self",
+  "solicitudes.alumno",
+  "test_estilos.alumno",
+];
+
+const ROLE_CAPABILITIES: Record<AppRole, Set<AppCapability>> = {
+  admin: new Set(ADMIN_CAPABILITIES),
+  docente: new Set(DOCENTE_CAPABILITIES),
+  alumno: new Set(ALUMNO_CAPABILITIES),
+};
+
+export const getCapabilitiesForRole = (role: AppRole): AppCapability[] =>
+  Array.from(ROLE_CAPABILITIES[role]);
+
+export const roleHasCapability = (
+  role: AppRole,
+  capability: AppCapability,
+): boolean => ROLE_CAPABILITIES[role].has(capability);
+
+export const roleHasAnyCapability = (
+  role: AppRole,
+  capabilities: readonly AppCapability[],
+): boolean => capabilities.some((capability) => roleHasCapability(role, capability));

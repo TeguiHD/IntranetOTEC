@@ -836,6 +836,25 @@ export const historialEstadoAlumno = pgTable(
   }),
 );
 
+export const anuncios = pgTable(
+  "anuncios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    asignaturaId: uuid("asignatura_id").notNull().references(() => asignaturas.id),
+    autorId: uuid("autor_id").notNull().references(() => usuarios.id),
+    titulo: text("titulo").notNull(),
+    contenido: text("contenido").notNull(),
+    fijado: boolean("fijado").default(false).notNull(),
+    eliminadoAt: tstz("eliminado_at"),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    asignaturaIdx: index("anuncios_asignatura_idx")
+      .on(t.asignaturaId)
+      .where(sql`${t.eliminadoAt} IS NULL`),
+  }),
+);
+
 export const rateLimitLog = pgTable(
   "rate_limit_log",
   {

@@ -22,6 +22,12 @@ import {
   listarMaterialPorAsignatura,
   subirMaterialFormAction,
 } from "@/actions/material";
+import {
+  eliminarAnuncioFormAction,
+  listarAnunciosAsignatura,
+  publicarAnuncioFormAction,
+} from "@/actions/anuncios";
+import { AnunciosBoard } from "@/components/shared/AnunciosBoard";
 import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
@@ -44,6 +50,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   observacion_not_found: { tone: "error", text: "La observación ya no existe o fue eliminada." },
   material_uploaded: { tone: "success", text: "Material subido correctamente." },
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
+  anuncio_publicado: { tone: "success", text: "Anuncio publicado correctamente." },
+  anuncio_eliminado: { tone: "success", text: "Anuncio eliminado correctamente." },
+  anuncio_not_found: { tone: "error", text: "El anuncio no fue encontrado." },
+  anuncio_invalid: { tone: "error", text: "El anuncio requiere título y contenido válidos (mínimo 3 caracteres, título máximo 200)." },
   file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
   invalid_type: { tone: "error", text: "Tipo de archivo no permitido." },
   import_empty: { tone: "error", text: "El archivo no contiene filas para importar." },
@@ -89,7 +99,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
       ? params.asignaturaId
       : asignaturas[0]?.id;
 
-  const [clases, matriculas, notas, observaciones, materiales, resumenAlumnos, alumnosEnRiesgo] = selectedAsignaturaId
+  const [clases, matriculas, notas, observaciones, materiales, resumenAlumnos, alumnosEnRiesgo, anunciosAsignatura] = selectedAsignaturaId
     ? await Promise.all([
         listarClasesDocente(selectedAsignaturaId),
         listarMatriculasDocente(selectedAsignaturaId),
@@ -98,8 +108,9 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
         listarMaterialPorAsignatura(selectedAsignaturaId),
         listarResumenAlumnosDocente(selectedAsignaturaId),
         listarAlumnosEnRiesgo(selectedAsignaturaId),
+        listarAnunciosAsignatura(selectedAsignaturaId),
       ])
-    : [[], [], [], [], [], [], []] as [
+    : [[], [], [], [], [], [], [], []] as [
         Awaited<ReturnType<typeof listarClasesDocente>>,
         Awaited<ReturnType<typeof listarMatriculasDocente>>,
         Awaited<ReturnType<typeof listarNotasDocente>>,
@@ -107,6 +118,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
         Awaited<ReturnType<typeof listarMaterialPorAsignatura>>,
         Awaited<ReturnType<typeof listarResumenAlumnosDocente>>,
         AlumnoEnRiesgo[],
+        Awaited<ReturnType<typeof listarAnunciosAsignatura>>,
       ];
 
   const anioParam =
@@ -338,6 +350,57 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
               </div>
             )}
           </article>
+
+          {/* Tablero de anuncios */}
+          <details className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-text-primary dark:text-white">
+              + Publicar anuncio
+            </summary>
+            <form action={publicarAnuncioFormAction} className="space-y-3 border-t border-gray-100 p-4 dark:border-gray-800">
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+              <div>
+                <label className="mb-1 block text-xs font-medium text-text-secondary dark:text-gray-400">
+                  Título
+                </label>
+                <input
+                  name="titulo"
+                  required
+                  maxLength={200}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  placeholder="Ej: Aviso importante sobre el examen"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-text-secondary dark:text-gray-400">
+                  Contenido
+                </label>
+                <textarea
+                  name="contenido"
+                  required
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  placeholder="Escribe el contenido del anuncio..."
+                />
+              </div>
+              <label className="flex items-center gap-2 text-xs text-text-secondary dark:text-gray-400">
+                <input type="checkbox" name="fijado" />
+                Fijar este anuncio al tope
+              </label>
+              <button
+                type="submit"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+              >
+                Publicar
+              </button>
+            </form>
+          </details>
+
+          <AnunciosBoard
+            anuncios={anunciosAsignatura}
+            asignaturaId={selectedAsignaturaId ?? ""}
+            puedeEliminar
+            eliminarAction={eliminarAnuncioFormAction}
+          />
 
           {/* QR por clase */}
           {clases.length > 0 && (

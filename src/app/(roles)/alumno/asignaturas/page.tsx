@@ -10,7 +10,9 @@ import {
 
 import { obtenerResumenAsistenciaAlumno } from "@/actions/asistencia";
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
+import { listarAnunciosAsignatura } from "@/actions/anuncios";
 import { listarMaterialPorAsignatura } from "@/actions/material";
+import { AnunciosBoard } from "@/components/shared/AnunciosBoard";
 import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
 import { calcularNotaFinalPonderada } from "@/lib/notas-utils";
 
@@ -65,6 +67,7 @@ export default async function AlumnoAsignaturasPage() {
   let resumenAsistencia: Awaited<ReturnType<typeof obtenerResumenAsistenciaAlumno>> = [];
   let dashboard: Awaited<ReturnType<typeof obtenerDashboardAlumno>> = null;
   const materialesPorAsig = new Map<string, { id: string; nombre: string; tamanioBytes: number | null; claseTitulo: string }[]>();
+  const anunciosPorAsig = new Map<string, Awaited<ReturnType<typeof listarAnunciosAsignatura>>>();
 
   try {
     [resumenAsistencia, dashboard] = await Promise.all([
@@ -83,6 +86,15 @@ export default async function AlumnoAsignaturasPage() {
         })));
       }
     });
+
+    if (dashboard?.cursos) {
+      await Promise.all(
+        dashboard.cursos.map(async (curso) => {
+          const a = await listarAnunciosAsignatura(curso.asignaturaId);
+          if (a.length > 0) anunciosPorAsig.set(curso.asignaturaId, a);
+        }),
+      );
+    }
   } catch {
     return (
       <section className="space-y-6">
@@ -321,6 +333,17 @@ export default async function AlumnoAsignaturasPage() {
                       asignaturaNombre={asig.asignaturaNombre}
                     />
                   </div>
+
+                  {/* Anuncios */}
+                  {(anunciosPorAsig.get(asig.asignaturaId)?.length ?? 0) > 0 && (
+                    <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
+                      <AnunciosBoard
+                        anuncios={anunciosPorAsig.get(asig.asignaturaId) ?? []}
+                        asignaturaId={asig.asignaturaId}
+                        puedeEliminar={false}
+                      />
+                    </div>
+                  )}
                 </div>
               </article>
             );

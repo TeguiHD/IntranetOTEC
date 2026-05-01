@@ -31,8 +31,7 @@ export async function calcularNotaFinalPonderada(
       ),
     );
 
-  const db2 = getDb();
-  const totalRows = await db2
+  const totalRows = await db
     .select({ id: evaluaciones.id })
     .from(evaluaciones)
     .where(

@@ -5,6 +5,7 @@ import {
   eliminarNotaDocenteFormAction,
   eliminarObservacionDocenteFormAction,
   importarNotasDocenteFormAction,
+  listarAlumnosEnRiesgo,
   listarAsignaturasDocente,
   listarClasesDocente,
   listarMatriculasDocente,
@@ -14,6 +15,7 @@ import {
   registrarAsistenciaDocenteFormAction,
   registrarNotaDocenteFormAction,
   registrarObservacionDocenteFormAction,
+  type AlumnoEnRiesgo,
 } from "@/actions/docente";
 import {
   eliminarMaterialFormAction,
@@ -87,7 +89,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
       ? params.asignaturaId
       : asignaturas[0]?.id;
 
-  const [clases, matriculas, notas, observaciones, materiales, resumenAlumnos] = selectedAsignaturaId
+  const [clases, matriculas, notas, observaciones, materiales, resumenAlumnos, alumnosEnRiesgo] = selectedAsignaturaId
     ? await Promise.all([
         listarClasesDocente(selectedAsignaturaId),
         listarMatriculasDocente(selectedAsignaturaId),
@@ -95,8 +97,17 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
         listarObservacionesDocente(selectedAsignaturaId),
         listarMaterialPorAsignatura(selectedAsignaturaId),
         listarResumenAlumnosDocente(selectedAsignaturaId),
+        listarAlumnosEnRiesgo(selectedAsignaturaId),
       ])
-    : [[], [], [], [], [], []];
+    : [[], [], [], [], [], [], []] as [
+        Awaited<ReturnType<typeof listarClasesDocente>>,
+        Awaited<ReturnType<typeof listarMatriculasDocente>>,
+        Awaited<ReturnType<typeof listarNotasDocente>>,
+        Awaited<ReturnType<typeof listarObservacionesDocente>>,
+        Awaited<ReturnType<typeof listarMaterialPorAsignatura>>,
+        Awaited<ReturnType<typeof listarResumenAlumnosDocente>>,
+        AlumnoEnRiesgo[],
+      ];
 
   const anioParam =
     typeof params.anio === "string" && /^\d{4}$/.test(params.anio)
@@ -424,6 +435,54 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 })}
               </ul>
             </article>
+          )}
+
+          {alumnosEnRiesgo.length > 0 && (
+            <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-950/20">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-800 dark:text-amber-200">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-xs dark:bg-amber-800">
+                  {alumnosEnRiesgo.length}
+                </span>
+                Alumnos que necesitan atención
+              </h3>
+              <ul className="divide-y divide-amber-100 dark:divide-amber-900/30">
+                {alumnosEnRiesgo.map((al) => (
+                  <li key={al.matriculaId} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-text-primary dark:text-white">
+                        {al.alumnoApellido}, {al.alumnoNombre}
+                        {al.alumnoRut && (
+                          <span className="ml-2 text-xs text-text-secondary dark:text-gray-400">
+                            {al.alumnoRut}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-text-secondary dark:text-gray-400">
+                        {al.asistenciaPct !== null && `Asistencia: ${al.asistenciaPct}%`}
+                        {al.notaPromedio !== null && ` · Nota prom: ${al.notaPromedio.toFixed(1)}`}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {al.alertas.includes("asistencia_baja") && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                          Asistencia baja
+                        </span>
+                      )}
+                      {al.alertas.includes("nota_baja") && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                          Nota bajo 4.0
+                        </span>
+                      )}
+                      {al.alertas.includes("evaluacion_expirada") && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Eval. expirada
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           <article id="asistencia" className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -10,7 +10,9 @@ import {
   asignaturas,
   asistencia,
   clases,
+  evaluacionIntentos,
   matriculas,
+  notas as notasEval,
   notasDocente,
   observacionesDocente,
   usuarios,
@@ -195,6 +197,83 @@ export async function listarResumenAlumnosDocente(asignaturaId: string) {
     .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
 
   return rows.map((r) => ({ ...r, totalClases }));
+}
+
+export type AlumnoEnRiesgo = {
+  matriculaId: string;
+  alumnoNombre: string;
+  alumnoApellido: string;
+  alumnoRut: string | null;
+  alertas: ("asistencia_baja" | "nota_baja" | "evaluacion_expirada")[];
+  asistenciaPct: number | null;
+  notaPromedio: number | null;
+};
+
+export async function listarAlumnosEnRiesgo(asignaturaId: string): Promise<AlumnoEnRiesgo[]> {
+  const actorResult = await requireActionActor("docente_alumnos_riesgo", ["docente", "admin"]);
+  if (!actorResult.ok || !asignaturaId) return [];
+
+  if (actorResult.actor.userRol === "docente") {
+    const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+    if (!isOwner) return [];
+  }
+
+  const db = getDb();
+
+  const [totalClasesRow] = await db
+    .select({ total: count() })
+    .from(clases)
+    .where(and(eq(clases.asignaturaId, asignaturaId), isNull(clases.eliminadoAt)));
+  const totalClases = Number(totalClasesRow?.total ?? 0);
+
+  const rows = await db
+    .select({
+      matriculaId: matriculas.id,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+      presentes: sql<number>`cast(count(distinct case when ${asistencia.estado} in ('presente','tardanza') then ${asistencia.id} end) as int)`,
+      notaPromedio: sql<number | null>`avg(${notasEval.nota}::numeric) filter (where ${notasEval.eliminadoAt} is null)`,
+      intentosExpirados: sql<number>`cast(count(distinct case when ${evaluacionIntentos.expiradoAt} is not null and ${evaluacionIntentos.enviadoAt} is null and ${evaluacionIntentos.anuladoAt} is null then ${evaluacionIntentos.id} end) as int)`,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .leftJoin(asistencia, eq(asistencia.matriculaId, matriculas.id))
+    .leftJoin(notasEval, and(eq(notasEval.matriculaId, matriculas.id), isNull(notasEval.eliminadoAt)))
+    .leftJoin(evaluacionIntentos, eq(evaluacionIntentos.matriculaId, matriculas.id))
+    .where(
+      and(
+        eq(matriculas.asignaturaId, asignaturaId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .groupBy(matriculas.id, usuarios.id, usuarios.nombre, usuarios.apellido, usuarios.rut)
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+
+  const resultado: AlumnoEnRiesgo[] = [];
+  for (const row of rows) {
+    const alertas: AlumnoEnRiesgo["alertas"] = [];
+    const asistenciaPct = totalClases > 0 ? Math.round((Number(row.presentes) / totalClases) * 100) : null;
+    const notaPromedio = row.notaPromedio !== null ? Math.round(Number(row.notaPromedio) * 10) / 10 : null;
+
+    if (asistenciaPct !== null && asistenciaPct < 75) alertas.push("asistencia_baja");
+    if (notaPromedio !== null && notaPromedio < 4.0) alertas.push("nota_baja");
+    if (Number(row.intentosExpirados) > 0) alertas.push("evaluacion_expirada");
+
+    if (alertas.length > 0) {
+      resultado.push({
+        matriculaId: row.matriculaId,
+        alumnoNombre: row.alumnoNombre,
+        alumnoApellido: row.alumnoApellido,
+        alumnoRut: row.alumnoRut,
+        alertas,
+        asistenciaPct,
+        notaPromedio,
+      });
+    }
+  }
+  return resultado;
 }
 
 export async function listarClasesDocente(asignaturaId: string) {
@@ -1162,4 +1241,211 @@ export async function eliminarObservacionDocenteFormAction(formData: FormData): 
 
   revalidatePath("/docente/asignaturas");
   redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
+// ─── Asistencia calendar & fidelidad ────────────────────────────────────────
+
+export type AlumnoAsistenciaItem = {
+  matriculaId: string;
+  alumnoNombre: string;
+  alumnoApellido: string;
+  alumnoRut: string | null;
+  estado: "presente" | "ausente" | "tardanza" | "justificado" | null;
+};
+
+export type ClaseMes = {
+  id: string;
+  titulo: string;
+  fecha: string;
+  horaInicio: string | null;
+  horaFin: string | null;
+  sala: string | null;
+  numeroSesion: number;
+  asignaturaId: string;
+  asignaturaNombre: string;
+  alumnos: AlumnoAsistenciaItem[];
+};
+
+export async function listarClasesMesDocente(anio: number, mes: number): Promise<ClaseMes[]> {
+  const actorResult = await requireActionActor("docente_clases_mes", ["docente"]);
+  if (!actorResult.ok) return [];
+
+  const mm = String(mes).padStart(2, "0");
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  const fechaInicio = `${anio}-${mm}-01`;
+  const fechaFin = `${anio}-${mm}-${String(ultimoDia).padStart(2, "0")}`;
+
+  const db = getDb();
+
+  const clasesRows = await db
+    .select({
+      id: clases.id,
+      titulo: clases.titulo,
+      fecha: clases.fecha,
+      horaInicio: clases.horaInicio,
+      horaFin: clases.horaFin,
+      sala: clases.sala,
+      numeroSesion: clases.numeroSesion,
+      asignaturaId: asignaturas.id,
+      asignaturaNombre: asignaturas.nombre,
+    })
+    .from(clases)
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(
+      and(
+        eq(asignaturas.docenteId, actorResult.actor.userId),
+        isNull(clases.eliminadoAt),
+        gte(clases.fecha, fechaInicio),
+        lte(clases.fecha, fechaFin),
+      ),
+    )
+    .orderBy(asc(clases.fecha), asc(clases.horaInicio));
+
+  if (clasesRows.length === 0) return [];
+
+  const claseIds = clasesRows.map((c) => c.id);
+  const asignaturaIds = [...new Set(clasesRows.map((c) => c.asignaturaId))];
+
+  const matriculasRows = await db
+    .select({
+      matriculaId: matriculas.id,
+      asignaturaId: matriculas.asignaturaId,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(
+      and(
+        inArray(matriculas.asignaturaId, asignaturaIds),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+
+  const asistenciaRows = await db
+    .select({
+      claseId: asistencia.claseId,
+      matriculaId: asistencia.matriculaId,
+      estado: asistencia.estado,
+    })
+    .from(asistencia)
+    .where(inArray(asistencia.claseId, claseIds));
+
+  const asistenciaMap = new Map<string, "presente" | "ausente" | "tardanza" | "justificado" | null>();
+  for (const a of asistenciaRows) {
+    asistenciaMap.set(`${a.claseId}::${a.matriculaId}`, a.estado);
+  }
+
+  return clasesRows.map((clase) => ({
+    ...clase,
+    alumnos: matriculasRows
+      .filter((m) => m.asignaturaId === clase.asignaturaId)
+      .map((m) => ({
+        matriculaId: m.matriculaId,
+        alumnoNombre: m.alumnoNombre,
+        alumnoApellido: m.alumnoApellido,
+        alumnoRut: m.alumnoRut,
+        estado: asistenciaMap.get(`${clase.id}::${m.matriculaId}`) ?? null,
+      })),
+  }));
+}
+
+export type SesionFidelidad = {
+  claseId: string;
+  numeroSesion: number;
+  fecha: string;
+  titulo: string;
+  estado: "presente" | "ausente" | "tardanza" | "justificado" | null;
+};
+
+export type AlumnoFidelidad = {
+  matriculaId: string;
+  alumnoNombre: string;
+  alumnoApellido: string;
+  alumnoRut: string | null;
+  sesiones: SesionFidelidad[];
+  presente: number;
+  totalClases: number;
+};
+
+export async function listarFidelidadDocente(asignaturaId: string): Promise<AlumnoFidelidad[]> {
+  const actorResult = await requireActionActor("docente_fidelidad", ["docente"]);
+  if (!actorResult.ok || !asignaturaId) return [];
+
+  const isOwner = await assertDocenteOwnsAsignatura(actorResult.actor.userId, asignaturaId);
+  if (!isOwner) return [];
+
+  const db = getDb();
+
+  const clasesRows = await db
+    .select({
+      id: clases.id,
+      titulo: clases.titulo,
+      fecha: clases.fecha,
+      numeroSesion: clases.numeroSesion,
+    })
+    .from(clases)
+    .where(and(eq(clases.asignaturaId, asignaturaId), isNull(clases.eliminadoAt)))
+    .orderBy(asc(clases.numeroSesion));
+
+  const matriculasRows = await db
+    .select({
+      matriculaId: matriculas.id,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(
+      and(
+        eq(matriculas.asignaturaId, asignaturaId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+
+  if (matriculasRows.length === 0 || clasesRows.length === 0) return [];
+
+  const claseIds = clasesRows.map((c) => c.id);
+
+  const asistenciaRows = await db
+    .select({
+      claseId: asistencia.claseId,
+      matriculaId: asistencia.matriculaId,
+      estado: asistencia.estado,
+    })
+    .from(asistencia)
+    .where(inArray(asistencia.claseId, claseIds));
+
+  const asistenciaMap = new Map<string, "presente" | "ausente" | "tardanza" | "justificado" | null>();
+  for (const a of asistenciaRows) {
+    asistenciaMap.set(`${a.claseId}::${a.matriculaId}`, a.estado);
+  }
+
+  return matriculasRows.map((m) => {
+    const sesiones: SesionFidelidad[] = clasesRows.map((c) => ({
+      claseId: c.id,
+      numeroSesion: c.numeroSesion,
+      fecha: c.fecha,
+      titulo: c.titulo,
+      estado: asistenciaMap.get(`${c.id}::${m.matriculaId}`) ?? null,
+    }));
+    const presente = sesiones.filter(
+      (s) => s.estado === "presente" || s.estado === "tardanza",
+    ).length;
+    return {
+      matriculaId: m.matriculaId,
+      alumnoNombre: m.alumnoNombre,
+      alumnoApellido: m.alumnoApellido,
+      alumnoRut: m.alumnoRut,
+      sesiones,
+      presente,
+      totalClases: clasesRows.length,
+    };
+  });
 }

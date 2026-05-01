@@ -87,7 +87,7 @@ export function AsignaturaFilterSelect({
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative min-w-0">
       {/* Hidden input for form submission */}
       <input ref={hiddenRef} type="hidden" name={name} value={selectedId} />
 
@@ -95,7 +95,7 @@ export function AsignaturaFilterSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left text-sm text-text-primary transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+        className="flex h-11 min-w-0 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left text-sm text-text-primary transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
       >
         <span className="min-w-0 flex-1 truncate font-medium">{displayLabel}</span>
         <div className="flex flex-shrink-0 items-center gap-1">

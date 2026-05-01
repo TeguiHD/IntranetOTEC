@@ -139,3 +139,36 @@ test("supervision rate limiter blocks after 60 events per 60s window", () => {
   assert.equal(check("u1", "ev1"), false);
   assert.equal(check("u2", "ev1"), true);
 });
+
+test("rehabilitar intento: reanudar restarts timer from prorrogadaAt", () => {
+  const iniciadoAt = new Date("2026-04-30T12:00:00Z");
+  const prorrogadaAt = new Date("2026-04-30T12:30:00Z");
+  const duracionMinutos = 45;
+  const baseTime = prorrogadaAt ?? iniciadoAt;
+  const expiracionAt = new Date(baseTime.getTime() + duracionMinutos * 60_000);
+
+  assert.equal(expiracionAt.toISOString(), "2026-04-30T13:15:00.000Z");
+});
+
+test("rehabilitar intento: anulado does not consume limit but next intento stays unique", () => {
+  const intentos = [
+    { intento: 1, anuladoAt: new Date("2026-04-30T12:00:00Z") },
+    { intento: 2, anuladoAt: null },
+  ];
+  const respuestasIntentos = [2];
+  const intentosMax = 2;
+
+  const intentosUsados = Math.max(
+    ...intentos.filter((intento) => !intento.anuladoAt).map((intento) => intento.intento),
+    ...respuestasIntentos,
+    0,
+  );
+  const nextIntento = Math.max(
+    ...intentos.map((intento) => intento.intento),
+    ...respuestasIntentos,
+    0,
+  ) + 1;
+
+  assert.equal(intentosUsados >= intentosMax, true);
+  assert.equal(nextIntento, 3);
+});

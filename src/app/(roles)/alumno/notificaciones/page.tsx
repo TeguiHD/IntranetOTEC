@@ -4,6 +4,7 @@ import {
   listarNotificacionesAlumno,
   marcarNotificacionesLeidasAlumnoAction,
 } from "@/actions/notificaciones";
+import { MarcarLeidasOnMount } from "@/components/shared/MarcarLeidasOnMount";
 
 export const metadata = { title: "Notificaciones" };
 
@@ -19,8 +20,6 @@ export default async function AlumnoNotificacionesPage() {
 
   try {
     notificaciones = await listarNotificacionesAlumno();
-    // Marcar como leidas al abrir la pagina (fire-and-forget — no bloquea render)
-    marcarNotificacionesLeidasAlumnoAction().catch(() => {});
   } catch {
     loadError = true;
   }
@@ -48,6 +47,7 @@ export default async function AlumnoNotificacionesPage() {
 
   return (
     <section className="space-y-5">
+      <MarcarLeidasOnMount action={marcarNotificacionesLeidasAlumnoAction} />
       <header className="flex items-center gap-3">
         <span className="rounded-xl bg-primary/10 p-2 text-primary">
           <Bell className="h-5 w-5" />

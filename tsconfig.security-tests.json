@@ -14,6 +14,9 @@
   "include": [
     "security-tests/**/*.ts",
     "src/lib/authz.ts",
+    "src/lib/capabilities.ts",
+    "src/lib/academic-state.ts",
+    "src/lib/evaluation-status.ts",
     "src/lib/rut.ts",
     "src/lib/spreadsheet.ts",
     "src/lib/sanitizePath.ts",

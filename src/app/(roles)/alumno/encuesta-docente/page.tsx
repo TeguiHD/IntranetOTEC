@@ -1,11 +1,12 @@
-import { CheckCircle, Star } from "lucide-react";
+import { CheckCircle, ClipboardList, Star } from "lucide-react";
 
 import {
   enviarEncuestaDocenteFormAction,
   listarEncuestasDisponiblesAlumno,
 } from "@/actions/encuestas";
-import { PREGUNTAS_DOCENTE, PREGUNTAS_OTEC } from "@/lib/encuestaConstants";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { SurveyCard, SurveyShell } from "@/components/shared/surveys/SurveyShell";
+import { PREGUNTAS_DOCENTE, PREGUNTAS_OTEC } from "@/lib/encuestaConstants";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   encuesta_submitted: { tone: "success", text: "Encuesta enviada correctamente. ¡Gracias por tu participación!" },
@@ -53,6 +54,8 @@ export const metadata = { title: "Evaluar Docente y OTEC" };
 export default async function AlumnoEncuestaDocentePage({ searchParams }: Props) {
   const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string }));
   const encuestas = await listarEncuestasDisponiblesAlumno();
+  const pendientes = encuestas.filter((e) => !e.yaRespondio).length;
+  const respondidas = encuestas.length - pendientes;
 
   const selectedIdRaw = typeof params?.asignaturaId === "string" ? params.asignaturaId : undefined;
   const selectedId =
@@ -63,20 +66,20 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
   const selected = encuestas.find((e) => e.asignaturaId === selectedId);
 
   return (
-    <section className="space-y-5">
+    <SurveyShell
+      icon={ClipboardList}
+      title="Evaluacion Docente y OTEC"
+      description="Evalua a tu docente y al servicio OTEC con escala del 1 al 7. Tus respuestas ayudan a mejorar la calidad academica."
+      stats={[
+        { label: "Cursos con encuesta", value: encuestas.length, tone: "primary" },
+        { label: "Pendientes", value: pendientes, tone: "amber" },
+        { label: "Respondidas", value: respondidas, tone: "emerald" },
+      ]}
+    >
       <RouteStateToast state={params?.state} map={STATUS_MAP} />
 
-      <header>
-        <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-          Evaluación Docente y OTEC
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-          Evalúa a tu docente y al servicio OTEC. Escala del 1 (muy en desacuerdo) al 7 (muy de acuerdo).
-        </p>
-      </header>
-
       {encuestas.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200/80 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <SurveyCard className="p-8 text-center">
           <Star className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
           <p className="text-sm text-text-secondary dark:text-gray-400">
             No tienes encuestas disponibles en este momento.
@@ -84,40 +87,50 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
           <p className="mt-1 text-xs text-text-muted dark:text-gray-500">
             Las encuestas se habilitan al finalizar cada curso.
           </p>
-        </div>
+        </SurveyCard>
       ) : (
         <>
-          {/* Selector de asignatura */}
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {encuestas.map((e) => (
               <a
                 key={e.asignaturaId}
                 href={`/alumno/encuesta-docente?asignaturaId=${encodeURIComponent(e.asignaturaId)}`}
-                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                className={`group rounded-xl border px-4 py-3 text-sm transition-all ${
                   e.asignaturaId === selectedId
-                    ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
-                    : "border-gray-200 text-text-secondary hover:border-gray-300 dark:border-gray-700 dark:text-gray-400"
+                    ? "border-primary bg-primary/10 text-primary shadow-sm shadow-primary/10 dark:bg-primary/20"
+                    : "border-gray-200 bg-white text-text-secondary hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.04] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-primary/10"
                 }`}
               >
-                {e.yaRespondio && <CheckCircle className="h-4 w-4 text-success" />}
-                {e.asignaturaCodigo ? `[${e.asignaturaCodigo}] ` : ""}
-                {e.asignaturaNombre}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">
+                      {e.asignaturaNombre}
+                    </p>
+                    <p className="mt-0.5 text-xs opacity-80">
+                      {e.asignaturaCodigo ? `[${e.asignaturaCodigo}]` : "Sin codigo"}
+                    </p>
+                  </div>
+                  {e.yaRespondio && <CheckCircle className="h-4 w-4 shrink-0 text-success" />}
+                </div>
+                <p className="mt-2 text-xs font-medium opacity-80">
+                  {e.yaRespondio ? "Respondida" : "Pendiente"}
+                </p>
               </a>
             ))}
           </div>
 
           {selected?.yaRespondio ? (
-            <div className="rounded-2xl border border-success/30 bg-success/5 p-6 text-center">
+            <SurveyCard className="border-success/30 bg-success/5 p-6 text-center">
               <CheckCircle className="mx-auto mb-2 h-10 w-10 text-success" />
               <p className="font-semibold text-success">Ya respondiste la encuesta de este curso.</p>
               <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">Gracias por tu participación.</p>
-            </div>
+            </SurveyCard>
           ) : selected ? (
             <form action={enviarEncuestaDocenteFormAction} className="space-y-5">
               <input type="hidden" name="asignaturaId" value={selected.asignaturaId} />
 
               {/* Sección Docente */}
-              <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+              <SurveyCard className="p-5 sm:p-6">
                 <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white">
                   <span className="rounded-lg bg-primary/10 p-1.5 text-primary">👩‍🏫</span>
                   Evaluación del Docente
@@ -135,10 +148,10 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
                     />
                   ))}
                 </div>
-              </article>
+              </SurveyCard>
 
               {/* Sección OTEC */}
-              <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+              <SurveyCard className="p-5 sm:p-6">
                 <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white">
                   <span className="rounded-lg bg-amber-100 p-1.5 dark:bg-amber-900/30">🏫</span>
                   Evaluación de la OTEC
@@ -156,12 +169,12 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
                     />
                   ))}
                 </div>
-              </article>
+              </SurveyCard>
 
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="flex h-12 items-center gap-2 rounded-xl bg-primary px-8 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark hover:shadow-lg active:scale-[0.98]"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-8 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] sm:w-auto"
                 >
                   <Star className="h-4 w-4" />
                   Enviar Evaluación
@@ -171,6 +184,6 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
           ) : null}
         </>
       )}
-    </section>
+    </SurveyShell>
   );
 }

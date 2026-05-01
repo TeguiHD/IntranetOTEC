@@ -352,6 +352,7 @@ export async function resolverSolicitudAdminFormAction(formData: FormData): Prom
   });
 
   revalidatePath("/admin/solicitudes");
+  revalidatePath("/alumno/solicitudes", "layout");
   redirect(`/admin/solicitudes?state=${result.code}`);
 }
 

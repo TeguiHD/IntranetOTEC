@@ -11,6 +11,7 @@ import { HorizontalBar } from "@/components/charts/HorizontalBar";
 import { ProgressRing } from "@/components/charts/ProgressRing";
 import { StatCard } from "@/components/charts/StatCard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { SurveyShell } from "@/components/shared/surveys/SurveyShell";
 import { formatearRut } from "@/lib/rut";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
@@ -51,6 +52,8 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
 
   const selectedAsig = asignaturas.find((a) => a.id === selectedId);
   const totalRespuestas = promedios ? Number(promedios.totalRespuestas) : 0;
+  const promedioDocente = promedios?.promedioDocente ? Number(promedios.promedioDocente).toFixed(1) : "-";
+  const promedioOtec = promedios?.promedioOtec ? Number(promedios.promedioOtec).toFixed(1) : "-";
 
   // Score distribution for docente/otec
   const docenteScores = resultados.filter((r) => r.promedioDocente).map((r) => Number(r.promedioDocente));
@@ -76,23 +79,18 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
   const otecDistribution = buildDistribution(otecScores);
 
   return (
-    <section className="space-y-6">
+    <SurveyShell
+      icon={Star}
+      title="Encuestas de Evaluacion"
+      description="Gestiona estado por asignatura y analiza satisfaccion docente y OTEC con visualizaciones ejecutivas."
+      stats={[
+        { label: "Respuestas", value: totalRespuestas, tone: "primary" },
+        { label: "Prom. Docente", value: promedioDocente, tone: "emerald" },
+        { label: "Prom. OTEC", value: promedioOtec, tone: "amber" },
+        { label: "Asignaturas", value: asignaturas.length, tone: "slate" },
+      ]}
+    >
       <RouteStateToast state={params?.state} map={STATUS_MAP} />
-
-      {/* Header */}
-      <header className="flex items-center gap-3">
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-          <Star className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Encuestas de Evaluación
-          </h1>
-          <p className="text-sm text-text-secondary dark:text-gray-400">
-            Gestiona las encuestas docente/OTEC por asignatura y consulta los resultados.
-          </p>
-        </div>
-      </header>
 
       {/* Metrics row */}
       {totalRespuestas > 0 && (
@@ -421,6 +419,6 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
           </div>
         </aside>
       </div>
-    </section>
+    </SurveyShell>
   );
 }

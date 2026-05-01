@@ -19,6 +19,7 @@ import { LikertDistribution } from "@/components/charts/LikertDistribution";
 import { ProgressRing } from "@/components/charts/ProgressRing";
 import { StatCard } from "@/components/charts/StatCard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { SurveyShell } from "@/components/shared/surveys/SurveyShell";
 import { formatearRut } from "@/lib/rut";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
@@ -94,6 +95,7 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
   const completados = encuesta.asignaciones.filter((a) => a.completada).length;
   const pendientes = encuesta.asignaciones.filter((a) => !a.completada).length;
   const total = encuesta.asignaciones.length;
+  const completionPct = total > 0 ? Math.round((completados / total) * 100) : 0;
 
   // Compute global average across all numeric questions
   const globalAvgs = resultados
@@ -104,61 +106,55 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
     : null;
 
   return (
-    <section className="space-y-6">
+    <SurveyShell
+      icon={BarChart3}
+      title={encuesta.titulo}
+      description={`${encuesta.asignaturaNombre} · ${AUDIENCIA_LABELS[encuesta.audiencia ?? "alumnos"]}`}
+      stats={[
+        { label: "Asignados", value: total, tone: "primary" },
+        { label: "Completados", value: completados, tone: "emerald" },
+        { label: "Pendientes", value: pendientes, tone: "amber" },
+        { label: "Participacion", value: `${completionPct}%`, tone: "slate" },
+      ]}
+      badge={
+        <div className="flex items-center gap-1.5">
+          {encuesta.obligatoria ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <Zap className="h-3 w-3" /> Obligatoria
+            </span>
+          ) : null}
+          {isActive ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+              Activa
+            </span>
+          ) : isClosed ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+              Cerrada
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              Borrador
+            </span>
+          )}
+        </div>
+      }
+    >
       <Suspense><RouteStateToast state={sp.state} map={STATUS_MAP} /></Suspense>
 
-      {/* Header */}
-      <header className="flex items-start gap-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200/80 bg-white px-3 py-2 text-xs text-text-secondary shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
         <Link
           href={`/admin/encuestas-builder?asignaturaId=${encuesta.asignaturaId}`}
-          className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-text-secondary hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
         >
           <ChevronLeft className="h-4 w-4" />
         </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold text-text-primary dark:text-white sm:text-2xl">
-              {encuesta.titulo}
-            </h1>
-            {encuesta.obligatoria && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                <Zap className="h-3 w-3" />
-                Obligatoria
-              </span>
-            )}
-            {isActive && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                Activa
-              </span>
-            )}
-            {isClosed && (
-              <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-400">
-                Cerrada
-              </span>
-            )}
-            {isDraft && (
-              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                Borrador
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-            {encuesta.asignaturaNombre}
-            {encuesta.audiencia && (
-              <> · <Users className="inline h-3 w-3" /> {AUDIENCIA_LABELS[encuesta.audiencia]}</>
-            )}
-            {encuesta.createdAt && (
-              <> · Creada {new Date(encuesta.createdAt).toLocaleDateString("es-CL")}</>
-            )}
-          </p>
-          {encuesta.instrucciones && (
-            <p className="mt-2 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 text-xs italic text-text-muted dark:border-gray-800 dark:bg-gray-800/40 dark:text-gray-500">
-              {encuesta.instrucciones}
-            </p>
-          )}
-        </div>
-      </header>
+        <span>{encuesta.createdAt ? `Creada ${new Date(encuesta.createdAt).toLocaleDateString("es-CL")}` : "Creada recientemente"}</span>
+        {encuesta.instrucciones ? (
+          <span className="rounded-md bg-primary/[0.06] px-2 py-1 text-[11px] text-primary dark:bg-primary/20 dark:text-primary-light">
+            {encuesta.instrucciones}
+          </span>
+        ) : null}
+      </div>
 
       {/* Metrics dashboard (active/closed) */}
       {!isDraft && (
@@ -236,11 +232,11 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
             <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700 ease-out"
-                style={{ width: `${Math.round((completados / total) * 100)}%` }}
+                style={{ width: `${completionPct}%` }}
               />
             </div>
             <p className="mt-1 text-right text-[10px] text-text-muted dark:text-gray-500">
-              {completados} de {total} ({Math.round((completados / total) * 100)}%)
+              {completados} de {total} ({completionPct}%)
             </p>
           </div>
         </div>
@@ -543,6 +539,6 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
           )}
         </aside>
       </div>
-    </section>
+    </SurveyShell>
   );
 }

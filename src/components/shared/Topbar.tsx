@@ -272,87 +272,104 @@ export function Topbar({
           >
             <Bell className="h-5 w-5" />
             {unreadNotifs > 0 && (
-              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white dark:ring-gray-950">
+              <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white shadow ring-2 ring-white dark:ring-gray-950">
                 {unreadNotifs > 99 ? "99+" : unreadNotifs}
               </span>
             )}
           </button>
 
-          {/* Panel recientes (todos los roles) */}
+          {/* Backdrop — solo mobile */}
           {notifOpen && (
-            <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
+            <div
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] md:hidden"
+              onClick={() => setNotifOpen(false)}
+              aria-hidden
+            />
+          )}
+
+          {/* Panel: bottom-sheet en mobile · dropdown en desktop */}
+          {notifOpen && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl border-t border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900 md:absolute md:bottom-auto md:left-auto md:right-0 md:top-[calc(100%+8px)] md:w-[22rem] md:rounded-2xl md:border">
+              {/* Drag handle — solo mobile */}
+              <div className="flex justify-center pt-2.5 md:hidden">
+                <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+              </div>
+
               {/* Header */}
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-                <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-primary dark:text-primary-light" />
                   <span className="text-sm font-semibold text-text-primary dark:text-white">
-                    {role === "admin" ? "Ultimos envios" : "Notificaciones recientes"}
+                    {role === "admin" ? "Últimos envíos" : "Notificaciones recientes"}
                   </span>
                   {role !== "admin" && unreadNotifs > 0 && (
-                    <span className="text-xs text-primary dark:text-primary-light">
-                      Tienes {unreadNotifs} sin leer
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600 dark:bg-red-950 dark:text-red-400">
+                      {unreadNotifs} sin leer
                     </span>
                   )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setNotifOpen(false)}
-                  className="rounded-lg p-1 text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label="Cerrar notificaciones"
+                  className="rounded-lg p-1.5 text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Lista */}
-              <div className="max-h-72 overflow-y-auto">
+              {/* Lista — máximo 3 */}
+              <div className="overflow-y-auto" style={{ maxHeight: "min(55vh, 260px)" }}>
                 {isFetchingNotifs ? (
-                  <div className="flex items-center justify-center py-8">
-                    <span className="text-xs text-text-muted dark:text-gray-500">Cargando…</span>
+                  <div className="flex items-center justify-center py-10">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </div>
                 ) : recentNotifs && recentNotifs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-1 py-8">
-                    <Bell className="h-7 w-7 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
-                    <p className="text-xs text-text-muted dark:text-gray-500">Sin notificaciones</p>
+                  <div className="flex flex-col items-center justify-center gap-2 py-10">
+                    <Bell className="h-8 w-8 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
+                    <p className="text-sm text-text-muted dark:text-gray-500">Sin notificaciones</p>
                   </div>
                 ) : (
-                  <ul className="divide-y divide-gray-50 dark:divide-gray-800">
-                    {(recentNotifs ?? []).map((n) => {
+                  <ul className="divide-y divide-gray-50 dark:divide-gray-800/70">
+                    {(recentNotifs ?? []).slice(0, 3).map((n) => {
                       const showUnreadMarker = role !== "admin" && !n.leidoAt;
-                      const contentPadding = role !== "admin" && n.leidoAt ? "pl-4" : "";
-
                       return (
-                      <li key={n.id} className={`px-4 py-3 ${showUnreadMarker ? "bg-primary/[0.03] dark:bg-primary/5" : ""}`}>
-                        <div className="flex items-start gap-2">
-                          {showUnreadMarker && (
-                            <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" />
-                          )}
-                          <div className={`min-w-0 flex-1 ${contentPadding}`}>
-                            <div className="flex items-baseline justify-between gap-2">
-                              <p className={`truncate text-sm font-medium leading-snug ${showUnreadMarker ? "text-text-primary dark:text-white" : "text-text-secondary dark:text-gray-400"}`}>
-                                {n.titulo}
+                        <li
+                          key={n.id}
+                          className={`px-4 py-3.5 ${showUnreadMarker ? "bg-primary/[0.04] dark:bg-primary/[0.07]" : "hover:bg-gray-50/60 dark:hover:bg-gray-800/40"}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className={`mt-[5px] h-2 w-2 shrink-0 rounded-full ${showUnreadMarker ? "bg-emerald-500" : "bg-transparent"}`} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className={`truncate text-sm font-medium leading-snug ${showUnreadMarker ? "text-text-primary dark:text-white" : "text-text-secondary dark:text-gray-300"}`}>
+                                  {n.titulo}
+                                </p>
+                                <span className="shrink-0 text-[10px] text-text-muted dark:text-gray-500">
+                                  {timeAgo(n.createdAt)}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 line-clamp-2 text-xs text-text-muted dark:text-gray-500">
+                                {role === "admin" ? buildAdminNotifContext(n) : n.contenido}
                               </p>
-                              <span className="flex-shrink-0 text-[10px] text-text-muted dark:text-gray-500">
-                                {timeAgo(n.createdAt)}
-                              </span>
                             </div>
-                            <p className="mt-0.5 line-clamp-1 text-xs text-text-muted dark:text-gray-500">
-                              {role === "admin" ? buildAdminNotifContext(n) : n.contenido}
-                            </p>
                           </div>
-                        </div>
-                      </li>
-                    )})}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
 
               {/* CTA */}
-              <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+              <div className="border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-gray-800">
                 <Link
                   href={`/${role}/notificaciones`}
                   onClick={() => setNotifOpen(false)}
-                  className="block w-full rounded-xl bg-primary/10 py-2 text-center text-xs font-semibold text-primary transition-colors hover:bg-primary/20 dark:bg-primary/20 dark:text-primary-light"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark active:scale-[0.98]"
                 >
-                  {role === "admin" ? "Ver historial de envios →" : "Ver todas las notificaciones →"}
+                  <Bell className="h-4 w-4" />
+                  {role === "admin" ? "Ver historial de envíos" : "Ver todas las notificaciones"}
                 </Link>
               </div>
             </div>

@@ -8,6 +8,8 @@ import { listarMatriculasAdmin } from "@/actions/matriculas";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
+import { MatriculaCombobox } from "./MatriculaCombobox";
+
 const PAGE_SIZE = 20;
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
@@ -47,7 +49,7 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
       filterTipo ? { tipo: filterTipo } : undefined,
     ),
     countCertificadosAdmin(filterTipo ? { tipo: filterTipo } : undefined),
-    listarMatriculasAdmin({ limit: 200 }),
+    listarMatriculasAdmin({ limit: 2000 }),
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -83,20 +85,18 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-text-secondary dark:text-gray-400">
-              Matrícula
+              Alumno / Matrícula
             </label>
-            <select
+            <MatriculaCombobox
+              matriculas={matriculas.map((m) => ({
+                id: m.id,
+                alumnoNombre: m.alumnoNombre ?? "",
+                alumnoApellido: m.alumnoApellido ?? "",
+                asignaturaNombre: m.asignaturaNombre ?? "",
+              }))}
               name="matriculaId"
               required
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            >
-              <option value="">Seleccionar matrícula…</option>
-              {matriculas.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.alumnoNombre} {m.alumnoApellido}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="flex flex-col gap-1">

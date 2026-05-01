@@ -37,6 +37,7 @@ export async function finalizarAsignaturasVencidas(): Promise<number> {
     .select({
       id: asignaturas.id,
       fechaInicio: asignaturas.fechaInicio,
+      fechaFin: asignaturas.fechaFin,
       duracionMeses: asignaturas.duracionMeses,
     })
     .from(asignaturas)
@@ -44,6 +45,11 @@ export async function finalizarAsignaturasVencidas(): Promise<number> {
 
   const expiredIds = rows
     .filter((row) => {
+      const explicitEnd = row.fechaFin ? parseIsoDateUtc(row.fechaFin) : null;
+      if (explicitEnd) {
+        return explicitEnd <= todayStart;
+      }
+
       const startedAt = parseIsoDateUtc(row.fechaInicio);
       if (!startedAt) {
         return false;

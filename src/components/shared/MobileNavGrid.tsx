@@ -9,7 +9,11 @@ import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 
 import type { AppRole } from "@/lib/authz";
-import { GRADIENT_COLORS, ROLE_LABELS, ROLE_SECTIONS } from "./navigationConfig";
+import {
+  GRADIENT_COLORS,
+  ROLE_LABELS,
+  getNavigationSectionsForRole,
+} from "./navigationConfig";
 
 type MobileNavGridProps = {
   role: AppRole;
@@ -20,7 +24,7 @@ type MobileNavGridProps = {
 
 export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridProps) {
   const pathname = usePathname();
-  const sections = ROLE_SECTIONS[role];
+  const sections = getNavigationSectionsForRole(role);
   const homeHref = `/${role}`;
 
   const isActive = (href: string): boolean => {

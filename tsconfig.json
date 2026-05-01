@@ -37,6 +37,9 @@
   "exclude": [
     "node_modules",
     "otec",
-    "backup"
+    "backup",
+    "skills",
+    ".agents",
+    ".claude/skills"
   ]
 }

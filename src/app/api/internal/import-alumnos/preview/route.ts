@@ -9,6 +9,11 @@ import { periodosAcademicos } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { parseAppRole } from "@/lib/authz";
 import {
+  createCourseNameNormalizer,
+  normalizeLookupKey,
+  normalizeWhitespace,
+} from "@/lib/import-course-normalization";
+import {
   formatearRut,
   normalizarRut,
   validarRut,
@@ -23,6 +28,7 @@ type ParsedPreviewRow = {
   codigoCursoKey: string;
   curso: string;
   cursoKey: string;
+  cursoCanonico: string;
   cursoIdentityKey: string;
   personKey: string;
   diasHora: string;
@@ -38,6 +44,7 @@ type PreviewStatus = "ok" | "warning" | "error";
 type PreviewRow = {
   lineNumber: number;
   curso: string;
+  cursoCanonico: string | null;
   nombreCompleto: string;
   rutRaw: string;
   identifier: string | null;
@@ -53,16 +60,6 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-excel",
 ]);
-
-const normalizeWhitespace = (value: string): string =>
-  value.replace(/\s+/g, " ").trim();
-
-const normalizeLookupKey = (value: string): string =>
-  normalizeWhitespace(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
 
 const toCourseIdentityNameKey = (cursoKey: string): string => `curso:${cursoKey}`;
 
@@ -418,7 +415,8 @@ export async function POST(request: Request) {
         codigoCurso,
         codigoCursoKey: normalizeLookupKey(codigoCurso),
         curso,
-        cursoKey: normalizeLookupKey(curso),
+        cursoKey: "",
+        cursoCanonico: "",
         cursoIdentityKey: "",
         personKey: buildPersonKey(nombreCompleto, telefono),
         diasHora,
@@ -430,11 +428,24 @@ export async function POST(request: Request) {
       };
     });
 
+    const courseNormalizer = createCourseNameNormalizer(
+      parsedRows.map((row) => row.curso),
+    );
+
     for (const row of parsedRows) {
-      if (!row.curso || !row.cursoKey) {
+      const resolvedCourse = row.curso
+        ? courseNormalizer.resolveCourseName(row.curso)
+        : null;
+
+      if (!resolvedCourse || !row.curso) {
+        row.cursoKey = "";
+        row.cursoCanonico = "";
         row.cursoIdentityKey = "";
         continue;
       }
+
+      row.cursoKey = resolvedCourse.canonicalKey;
+      row.cursoCanonico = resolvedCourse.canonicalLabel;
 
       row.cursoIdentityKey = buildCourseTemplateIdentityKey(
         row.cursoKey,
@@ -461,6 +472,30 @@ export async function POST(request: Request) {
     const previewRows: PreviewRow[] = [];
     const errors: string[] = [];
     const warnings: string[] = [];
+
+    const exactVariantGroups = courseNormalizer.variantGroups;
+    for (const group of exactVariantGroups.slice(0, 8)) {
+      warnings.push(
+        `Se consolidaron variantes del curso "${group.canonicalLabel}" por normalizacion de mayusculas/tildes/espacios (${group.variants.slice(0, 4).join(" | ")}).`,
+      );
+    }
+    if (exactVariantGroups.length > 8) {
+      warnings.push(
+        `Se detectaron ${exactVariantGroups.length - 8} grupos adicionales de variantes y tambien fueron consolidados.`,
+      );
+    }
+
+    const fuzzyGroups = courseNormalizer.fuzzyGroups;
+    for (const group of fuzzyGroups.slice(0, 6)) {
+      warnings.push(
+        `Se detectaron posibles tipeos consolidados bajo "${group.canonicalLabel}" (${group.mergedLabels.slice(0, 4).join(" | ")}).`,
+      );
+    }
+    if (fuzzyGroups.length > 6) {
+      warnings.push(
+        `Se detectaron ${fuzzyGroups.length - 6} grupos adicionales de posible typo y tambien fueron consolidados.`,
+      );
+    }
 
     let readyRows = 0;
     let warningRows = 0;
@@ -567,6 +602,10 @@ export async function POST(request: Request) {
       previewRows.push({
         lineNumber: row.lineNumber,
         curso: row.curso,
+        cursoCanonico:
+          row.cursoCanonico && normalizeLookupKey(row.cursoCanonico) !== normalizeLookupKey(row.curso)
+            ? row.cursoCanonico
+            : null,
         nombreCompleto: row.nombreCompleto,
         rutRaw: row.rutRaw,
         identifier: identifier ? formatearRut(identifier) : null,

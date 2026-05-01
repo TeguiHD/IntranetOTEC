@@ -2,13 +2,14 @@
 
 import { useRef, useMemo, useState, useTransition } from "react";
 
-import { Archive, BookOpen, Plus, RotateCcw, Search, Trash2, UserCog, Users, X } from "lucide-react";
+import { Archive, BookOpen, Pencil, Plus, RotateCcw, Search, Trash2, UserCog, Users, X } from "lucide-react";
 
 import {
   archivarAsignaturaFormAction,
   asignarDocenteFormAction,
   crearAsignaturaFormAction,
   desarchivariAsignaturaFormAction,
+  editarAsignaturaFormAction,
   eliminarAsignaturaFormAction,
 } from "@/actions/asignaturas";
 import { activarUsuarioAction } from "@/actions/usuarios";
@@ -32,6 +33,7 @@ type Asignatura = {
   codigo: string | null;
   estado: string | null;
   fechaInicio: string;
+  fechaFin: string | null;
   duracionMeses: number;
   maxAlumnos: number | null;
   docenteId: string | null;
@@ -60,6 +62,7 @@ type AsignaturaManagerProps = {
   totalCount: number;
   currentPage: number;
   totalPages: number;
+  pageSize: number;
   buildHref: string;
 };
 
@@ -260,9 +263,11 @@ export function AsignaturaManager({
   totalCount,
   currentPage,
   totalPages,
+  pageSize,
   buildHref,
 }: AsignaturaManagerProps) {
   const [openCreate, setOpenCreate] = useState(false);
+  const [editingAsig, setEditingAsig] = useState<Asignatura | null>(null);
   const [assigningAsig, setAssigningAsig] = useState<Asignatura | null>(null);
   const [confirmDocente, setConfirmDocente] = useState<Docente | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -283,18 +288,28 @@ export function AsignaturaManager({
     });
   };
 
+  const rangeStart = totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const rangeEnd = totalCount > 0 ? Math.min(currentPage * pageSize, totalCount) : 0;
+
   return (
     <>
       {/* Header strip */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-            Asignaturas registradas
-          </h2>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              Secciones registradas
+            </h2>
+            {totalCount > 0 && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                {totalCount}
+              </span>
+            )}
+          </div>
           {totalCount > 0 && (
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
-              {totalCount}
-            </span>
+            <p className="text-xs text-text-secondary dark:text-gray-400">
+              Mostrando {rangeStart} a {rangeEnd} de {totalCount} secciones.
+            </p>
           )}
         </div>
         <button
@@ -303,9 +318,19 @@ export function AsignaturaManager({
           className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-4 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:shadow-lg hover:shadow-primary/35 active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
-          <span>Nueva asignatura</span>
+          <span>Nueva sección</span>
         </button>
       </div>
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          buildHref={(page) => `${buildHref}page=${page}`}
+        />
+      )}
 
       {/* Empty state */}
       {asignaturas.length === 0 && (
@@ -315,7 +340,7 @@ export function AsignaturaManager({
             strokeWidth={1.5}
           />
           <p className="mt-3 text-sm font-medium text-text-secondary dark:text-gray-400">
-            Aún no hay asignaturas
+            Aún no hay secciones
           </p>
           <p className="mt-1 text-xs text-text-muted dark:text-gray-500">
             Crea la primera con el botón de arriba
@@ -382,6 +407,14 @@ export function AsignaturaManager({
                       <Users className="h-3.5 w-3.5" />
                       Alumnos
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => setEditingAsig(a)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Editar
+                    </button>
                     {(a.estado === "activo" || a.estado === "borrador") && (
                       <button
                         type="button"
@@ -434,11 +467,11 @@ export function AsignaturaManager({
           <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                <th className="px-3 py-2.5">Asignatura</th>
+                <th className="px-3 py-2.5">Sección</th>
                 <th className="px-3 py-2.5">Estado</th>
-                <th className="px-3 py-2.5">Periodo</th>
+                <th className="px-3 py-2.5">Vigencia</th>
                 <th className="px-3 py-2.5">Docente</th>
-                <th className="px-3 py-2.5 text-right">Acción</th>
+                <th className="px-3 py-2.5 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -515,6 +548,14 @@ export function AsignaturaManager({
                           <Users className="h-3.5 w-3.5" />
                           Alumnos
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => setEditingAsig(a)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </button>
                         {canAssign && (
                           <button
                             type="button"
@@ -566,6 +607,8 @@ export function AsignaturaManager({
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={pageSize}
         buildHref={(page) => `${buildHref}page=${page}`}
       />
 
@@ -573,8 +616,8 @@ export function AsignaturaManager({
       <Modal
         open={openCreate}
         onClose={() => setOpenCreate(false)}
-        title="Nueva asignatura"
-        description="Completa los datos para crear una nueva asignatura."
+        title="Nueva sección"
+        description="Completa los datos para crear una nueva sección."
         size="max-w-2xl"
       >
         <form action={crearAsignaturaFormAction} className="space-y-4">
@@ -610,7 +653,7 @@ export function AsignaturaManager({
               <option value="">— Selecciona periodo —</option>
               {periodos.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.codigo} · {p.nombre}
+                  {p.nombre}
                 </option>
               ))}
             </select>
@@ -684,7 +727,7 @@ export function AsignaturaManager({
                 className={`${INPUT} font-mono uppercase tracking-wider`}
               />
               <p className="text-[11px] text-text-muted dark:text-gray-500">
-                Identifica la asignatura de forma única. Útil cuando hay cursos con el mismo nombre en distintos períodos.
+                Identifica la sección de forma única. Útil cuando hay cursos con el mismo nombre en distintos períodos.
               </p>
             </div>
 
@@ -756,7 +799,7 @@ export function AsignaturaManager({
               disabled={cursos.length === 0 || periodos.length === 0}
               className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
             >
-              Crear asignatura
+              Crear sección
             </button>
           </div>
 
@@ -766,6 +809,108 @@ export function AsignaturaManager({
             </p>
           )}
         </form>
+      </Modal>
+
+      {/* ── Modal: Editar sección ── */}
+      <Modal
+        open={editingAsig !== null}
+        onClose={() => setEditingAsig(null)}
+        title={editingAsig ? `Editar sección · ${editingAsig.nombre}` : "Editar sección"}
+        description={editingAsig?.codigo ? `Código: ${editingAsig.codigo}` : undefined}
+        size="max-w-xl"
+      >
+        {editingAsig && (
+          <form action={editarAsignaturaFormAction} className="space-y-4">
+            <input type="hidden" name="id" value={editingAsig.id} />
+            <input type="hidden" name="nombre" value={editingAsig.nombre} />
+            <input type="hidden" name="descripcion" value="" />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                  Fecha inicio <span className="text-danger">*</span>
+                </label>
+                <input
+                  name="fechaInicio"
+                  type="date"
+                  required
+                  defaultValue={editingAsig.fechaInicio}
+                  className={INPUT}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                  Fecha término <span className="text-danger">*</span>
+                </label>
+                <input
+                  name="fechaFin"
+                  type="date"
+                  required
+                  defaultValue={editingAsig.fechaFin ?? editingAsig.fechaInicio}
+                  className={INPUT}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                  Duración (meses) <span className="text-danger">*</span>
+                </label>
+                <input
+                  name="duracionMeses"
+                  type="number"
+                  min={1}
+                  max={12}
+                  required
+                  defaultValue={editingAsig.duracionMeses}
+                  className={INPUT}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                  Máximo alumnos <span className="text-danger">*</span>
+                </label>
+                <input
+                  name="maxAlumnos"
+                  type="number"
+                  min={1}
+                  max={300}
+                  required
+                  defaultValue={editingAsig.maxAlumnos ?? 30}
+                  className={INPUT}
+                />
+              </div>
+            </div>
+
+            <DocenteCombobox
+              key={`edit-docente-${editingAsig.id}`}
+              docentes={docentes}
+              defaultId={editingAsig.docenteId}
+              name="docenteId"
+            />
+
+            <p className="text-xs text-text-muted dark:text-gray-500">
+              Puedes dejar el docente vacío para quitar la asignación.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => setEditingAsig(null)}
+                className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* ── Modal: Asignar docente ── */}
@@ -834,7 +979,7 @@ export function AsignaturaManager({
         title="Confirmar asignación de docente"
         description={
           confirmDocente && assigningAsig
-            ? `Vas a asignar a ${confirmDocente.nombre} ${confirmDocente.apellido} como docente responsable de "${assigningAsig.nombre}". Se enviará una notificación por correo al docente.`
+            ? `Vas a asignar a ${confirmDocente.nombre} ${confirmDocente.apellido} como docente responsable de la sección "${assigningAsig.nombre}". Se enviará una notificación por correo al docente.`
             : ""
         }
         confirmLabel="Confirmar asignación"
@@ -853,10 +998,10 @@ export function AsignaturaManager({
           setArchivingAsig(null);
           startTransition(() => { archiveFormRef.current?.requestSubmit(); });
         }}
-        title="Archivar asignatura"
+        title="Archivar sección"
         description={
           archivingAsig
-            ? `¿Archivar "${archivingAsig.nombre}"? La asignatura quedará inactiva y no aparecerá en las vistas activas.`
+            ? `¿Archivar "${archivingAsig.nombre}"? La sección quedará inactiva y no aparecerá en las vistas activas.`
             : ""
         }
         confirmLabel="Sí, archivar"
@@ -875,10 +1020,10 @@ export function AsignaturaManager({
           setUnarchivingAsig(null);
           startTransition(() => { unarchiveFormRef.current?.requestSubmit(); });
         }}
-        title="Desarchivar asignatura"
+        title="Desarchivar sección"
         description={
           unarchivingAsig
-            ? `¿Reactivar "${unarchivingAsig.nombre}"? La asignatura volverá a estado activo y aparecerá en las vistas operativas.`
+            ? `¿Reactivar "${unarchivingAsig.nombre}"? La sección volverá a estado activo y aparecerá en las vistas operativas.`
             : ""
         }
         confirmLabel="Sí, desarchivar"
@@ -897,10 +1042,10 @@ export function AsignaturaManager({
           setDeletingAsig(null);
           startTransition(() => { deleteFormRef.current?.requestSubmit(); });
         }}
-        title="Eliminar asignatura"
+        title="Eliminar sección"
         description={
           deletingAsig
-            ? `¿Eliminar permanentemente "${deletingAsig.nombre}"? Esta acción es irreversible y la asignatura dejará de aparecer en el sistema.`
+            ? `¿Eliminar permanentemente "${deletingAsig.nombre}"? Esta acción es irreversible y la sección dejará de aparecer en el sistema.`
             : ""
         }
         confirmLabel="Sí, eliminar"

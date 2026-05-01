@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { listarEncuestasAdmin } from "@/actions/encuestas-unificadas";
 import { StatCard } from "@/components/charts/StatCard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { SurveyCard, SurveyShell } from "@/components/shared/surveys/SurveyShell";
 import { CampanaGroup, EncuestaRow } from "./CampanaGroup";
 import { EncuestasCrearForm } from "./EncuestasCrearForm";
 
@@ -45,25 +46,20 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
   const campanas = Array.from(campanasMap.values());
 
   return (
-    <section className="space-y-6">
+    <SurveyShell
+      icon={ClipboardList}
+      title="Constructor de Encuestas"
+      description="Crea encuestas con plantillas, ejecuta campañas por seccion y monitorea respuesta en tiempo real."
+      stats={[
+        { label: "Total", value: totalEncuestas, tone: "primary" },
+        { label: "Activas", value: activas, tone: "emerald" },
+        { label: "Borradores", value: borradores, tone: "slate" },
+        { label: "Campanas", value: campanas.length, tone: "amber" },
+      ]}
+    >
       <Suspense>
         <RouteStateToast state={params.state} map={STATUS_MAP} />
       </Suspense>
-
-      {/* ── Header ── */}
-      <header className="flex items-center gap-3">
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-          <ClipboardList className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Constructor de Encuestas
-          </h1>
-          <p className="text-sm text-text-secondary dark:text-gray-400">
-            Crea encuestas desde plantillas, asígnalas a uno o varios cursos y analiza resultados.
-          </p>
-        </div>
-      </header>
 
       {/* ── Stats (only when there are surveys) ── */}
       {totalEncuestas > 0 && (
@@ -111,7 +107,7 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
       <EncuestasCrearForm />
 
       {/* ── Encuestas list ── */}
-      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+      <SurveyCard className="p-5 sm:p-6">
         <div className="mb-4 flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-primary" />
           <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
@@ -144,7 +140,7 @@ export default async function AdminEncuestasBuilderPage({ searchParams }: Props)
             ))}
           </div>
         )}
-      </article>
-    </section>
+      </SurveyCard>
+    </SurveyShell>
   );
 }

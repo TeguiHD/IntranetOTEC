@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, ListChecks, Lock, MessageSquare } from "lucide-react";
+import { CheckCircle2, ClipboardList, Lock, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -6,6 +6,7 @@ import {
   obtenerEncuestaParaResponder,
 } from "@/actions/encuestas-unificadas";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { SurveyCard, SurveyShell } from "@/components/shared/surveys/SurveyShell";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   encuesta_completada: { tone: "success", text: "¡Respuestas enviadas! Gracias por completar la encuesta." },
@@ -49,53 +50,54 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
 
   const completada = sp.state === "encuesta_completada" || Boolean(encuesta.yaRespondio);
   const totalPreguntas = encuesta.preguntas.length;
+  const heroStats: Array<{
+    label: string;
+    value: string | number;
+    tone: "primary" | "emerald" | "amber" | "slate" | "rose";
+  }> = [
+    { label: "Preguntas", value: totalPreguntas, tone: "primary" },
+    {
+      label: "Estado",
+      value: completada ? "Respondida" : "Pendiente",
+      tone: completada ? "emerald" : "slate",
+    },
+    {
+      label: "Tipo",
+      value: encuesta.obligatoria ? "Obligatoria" : "Voluntaria",
+      tone: encuesta.obligatoria ? "amber" : "primary",
+    },
+  ];
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
-      <RouteStateToast state={sp.state} map={STATUS_MAP} />
+    <div className="mx-auto max-w-3xl">
+      <SurveyShell
+        icon={ClipboardList}
+        title={encuesta.titulo}
+        description={encuesta.asignaturaNombre}
+        stats={heroStats}
+        badge={
+          encuesta.obligatoria ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <Lock className="h-3 w-3" />
+              Obligatoria
+            </span>
+          ) : undefined
+        }
+      >
+        <RouteStateToast state={sp.state} map={STATUS_MAP} />
 
-      {/* Header */}
-      <header className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-            <ClipboardList className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-text-primary dark:text-white sm:text-2xl">
-              {encuesta.titulo}
-            </h1>
-            <p className="text-sm text-text-secondary dark:text-gray-400">
-              {encuesta.asignaturaNombre}
-            </p>
-          </div>
-        </div>
         {encuesta.instrucciones && (
-          <div className="mt-3 rounded-lg border border-primary/10 bg-primary/[0.03] px-3 py-2 dark:border-primary/20 dark:bg-primary/5">
-            <p className="flex items-start gap-2 text-xs text-text-secondary dark:text-gray-400">
-              <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+          <SurveyCard className="p-4">
+            <p className="flex items-start gap-2 text-sm text-text-secondary dark:text-gray-300">
+              <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               {encuesta.instrucciones}
             </p>
-          </div>
+          </SurveyCard>
         )}
-        {!completada && totalPreguntas > 0 && (
-          <div className="mt-3 flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-text-muted dark:text-gray-500">
-              <ListChecks className="h-3.5 w-3.5" />
-              {totalPreguntas} pregunta{totalPreguntas !== 1 ? "s" : ""}
-            </div>
-            {encuesta.obligatoria && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                <Lock className="h-2.5 w-2.5" />
-                Obligatoria
-              </span>
-            )}
-          </div>
-        )}
-      </header>
 
       {completada ? (
         /* Already answered */
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 py-12 text-center dark:border-emerald-800/40 dark:bg-emerald-950/20">
+        <SurveyCard className="flex flex-col items-center gap-4 border-emerald-200 bg-emerald-50 py-12 text-center dark:border-emerald-800/40 dark:bg-emerald-950/20">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
             <CheckCircle2 className="h-8 w-8 text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
           </div>
@@ -113,7 +115,7 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
           >
             Volver a mis encuestas
           </Link>
-        </div>
+        </SurveyCard>
       ) : (
         /* Survey form */
         <form action={enviarRespuestasEncuestaFormAction} className="space-y-4">
@@ -221,15 +223,15 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
           })}
 
           {encuesta.preguntas.length === 0 && (
-            <div className="rounded-2xl border border-gray-200/80 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <SurveyCard className="p-8 text-center">
               <p className="text-sm text-text-secondary dark:text-gray-400">
                 Esta encuesta aún no tiene preguntas.
               </p>
-            </div>
+            </SurveyCard>
           )}
 
           {encuesta.preguntas.length > 0 && (
-            <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <SurveyCard className="p-5">
               {encuesta.obligatoria && (
                 <p className="mb-3 flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
                   <Lock className="h-3 w-3 shrink-0" />
@@ -243,10 +245,11 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
                 <CheckCircle2 className="h-4 w-4" />
                 Enviar respuestas
               </button>
-            </div>
+            </SurveyCard>
           )}
         </form>
       )}
-    </section>
+      </SurveyShell>
+    </div>
   );
 }

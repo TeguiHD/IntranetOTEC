@@ -301,21 +301,35 @@ export const crearClaseInputSchema = z
     }
   });
 
-export const editarAsignaturaInputSchema = z.object({
-  id: z.string().uuid("Asignatura inválida."),
-  nombre: z
-    .string()
-    .transform(trimAndCollapse)
-    .pipe(z.string().min(3, "Nombre muy corto.").max(120, "Nombre demasiado largo.")),
-  descripcion: optionalTrimmed(500),
-  maxAlumnos: z
-    .number()
-    .int("Debe ser un número entero.")
-    .min(1, "Debe permitir al menos 1 alumno.")
-    .max(300, "Máximo 300 alumnos."),
-  fechaInicio: isoDate,
-  duracionMeses: z.number().int().min(1, "Mínimo 1 mes.").max(12, "Máximo 12 meses."),
-});
+export const editarAsignaturaInputSchema = z
+  .object({
+    id: z.string().uuid("Asignatura inválida."),
+    nombre: z
+      .string()
+      .transform(trimAndCollapse)
+      .pipe(z.string().min(3, "Nombre muy corto.").max(120, "Nombre demasiado largo.")),
+    descripcion: optionalTrimmed(500),
+    maxAlumnos: z
+      .number()
+      .int("Debe ser un número entero.")
+      .min(1, "Debe permitir al menos 1 alumno.")
+      .max(300, "Máximo 300 alumnos."),
+    fechaInicio: isoDate,
+    fechaFin: isoDate,
+    duracionMeses: z.number().int().min(1, "Mínimo 1 mes.").max(12, "Máximo 12 meses."),
+    docenteId: z
+      .union([z.string().uuid(), z.undefined()])
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.fechaFin < value.fechaInicio) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fechaFin"],
+        message: "La fecha de término no puede ser anterior a la fecha de inicio.",
+      });
+    }
+  });
 
 export const editarClaseInputSchema = z
   .object({

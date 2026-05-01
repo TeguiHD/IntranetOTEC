@@ -2,6 +2,7 @@ import { listarPeriodosParaReportes, reporteDistribucionNotas } from "@/actions/
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
 import { isNull } from "drizzle-orm";
+import { SearchSelect } from "../SearchSelect";
 
 type PageProps = {
   searchParams: Promise<{ asignaturaId?: string; periodoId?: string }>;
@@ -66,30 +67,21 @@ export default async function ReporteNotasPage({ searchParams }: PageProps) {
             >
               Exportar PDF
             </a>
-            <form method="GET" className="flex items-center gap-2">
-              <select
+            <form method="GET" className="flex flex-wrap items-center gap-2">
+              <SearchSelect
                 name="periodoId"
                 defaultValue={periodoId ?? ""}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="">Todos los periodos</option>
-                {periodos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-              </select>
-              <select
+                options={periodos.map((p) => ({ id: p.id, label: p.nombre }))}
+                allLabel="Todos los periodos"
+                placeholder="Buscar periodo..."
+              />
+              <SearchSelect
                 name="asignaturaId"
                 defaultValue={asignaturaId ?? ""}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="">Todas las secciones</option>
-                {todasAsignaturas.map((a) => (
-                  <option key={a.id} value={a.id}>{a.nombre}</option>
-                ))}
-              </select>
-              <button type="submit" className="h-10 rounded-xl bg-primary px-4 text-sm font-medium text-white hover:bg-primary-dark">
-                Filtrar
-              </button>
+                options={todasAsignaturas.map((a) => ({ id: a.id, label: a.nombre }))}
+                allLabel="Todas las secciones"
+                placeholder="Buscar sección..."
+              />
             </form>
           </div>
         )}

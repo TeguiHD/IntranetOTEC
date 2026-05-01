@@ -89,6 +89,11 @@ export type AsignaturaBusqueda = {
   nombre: string;
   codigo: string | null;
   estado: "borrador" | "activo" | "finalizado" | "archivado" | null;
+  cursoNombre?: string | null;
+  cursoCodigo?: string | null;
+  periodoNombre?: string | null;
+  periodoCodigo?: string | null;
+  turno?: "manana" | "tarde" | "vespertino" | null;
 };
 
 export async function obtenerAsignaturaAdminById(
@@ -118,6 +123,11 @@ export async function obtenerAsignaturaAdminById(
 
 export async function buscarAsignaturasAdminAction(
   query: string,
+  options?: {
+    includeFinalizadas?: boolean;
+    includeArchivadas?: boolean;
+    limit?: number;
+  },
 ): Promise<AsignaturaBusqueda[]> {
   const actorResult = await requireActionActor("admin_asignatura_list", ["admin"]);
 
@@ -135,6 +145,23 @@ export async function buscarAsignaturasAdminAction(
 
   const db = getDb();
   const term = `%${escapeLike(parsed.data)}%`;
+  const limit = Number.isFinite(options?.limit)
+    ? Math.max(1, Math.min(Math.trunc(options?.limit ?? 15), 80))
+    : 15;
+
+  const conditions: (SQL | undefined)[] = [
+    isNull(asignaturas.eliminadoAt),
+    options?.includeFinalizadas ? undefined : ne(asignaturas.estado, "finalizado"),
+    options?.includeArchivadas ? undefined : ne(asignaturas.estado, "archivado"),
+    or(
+      ilike(asignaturas.nombre, term),
+      ilike(asignaturas.codigo, term),
+      ilike(cursos.nombre, term),
+      ilike(cursos.codigo, term),
+      ilike(periodosAcademicos.nombre, term),
+      ilike(periodosAcademicos.codigo, term),
+    ),
+  ];
 
   return db
     .select({
@@ -142,17 +169,18 @@ export async function buscarAsignaturasAdminAction(
       nombre: asignaturas.nombre,
       codigo: asignaturas.codigo,
       estado: asignaturas.estado,
+      cursoNombre: cursos.nombre,
+      cursoCodigo: cursos.codigo,
+      periodoNombre: periodosAcademicos.nombre,
+      periodoCodigo: periodosAcademicos.codigo,
+      turno: asignaturas.turno,
     })
     .from(asignaturas)
-    .where(
-      and(
-        ne(asignaturas.estado, "finalizado"),
-        ne(asignaturas.estado, "archivado"),
-        or(ilike(asignaturas.nombre, term), ilike(asignaturas.codigo, term)),
-      ),
-    )
-    .orderBy(desc(asignaturas.createdAt))
-    .limit(15);
+    .innerJoin(cursos, eq(asignaturas.cursoId, cursos.id))
+    .innerJoin(periodosAcademicos, eq(asignaturas.periodoId, periodosAcademicos.id))
+    .where(and(...conditions))
+    .orderBy(desc(asignaturas.fechaInicio), desc(asignaturas.createdAt))
+    .limit(limit);
 }
 
 export async function countAsignaturasAdmin(
@@ -305,6 +333,7 @@ export async function listarAsignaturasAdmin(
       descripcion: asignaturas.descripcion,
       codigo: asignaturas.codigo,
       fechaInicio: asignaturas.fechaInicio,
+      fechaFin: asignaturas.fechaFin,
       duracionMeses: asignaturas.duracionMeses,
       estado: asignaturas.estado,
       maxAlumnos: asignaturas.maxAlumnos,
@@ -693,13 +722,31 @@ export async function crearAsignaturaFormAction(formData: FormData): Promise<voi
   redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
 }
 
+export async function editarAsignaturaFormAction(formData: FormData): Promise<void> {
+  const result = await editarAsignaturaAction({
+    id: getStringField(formData, "id"),
+    nombre: getStringField(formData, "nombre"),
+    descripcion: getStringField(formData, "descripcion"),
+    maxAlumnos: parseIntegerField(getStringField(formData, "maxAlumnos")) ?? 0,
+    fechaInicio: getStringField(formData, "fechaInicio"),
+    fechaFin: getStringField(formData, "fechaFin"),
+    duracionMeses: parseIntegerField(getStringField(formData, "duracionMeses")) ?? 0,
+    docenteId: getStringField(formData, "docenteId") || undefined,
+  });
+
+  revalidatePath("/admin/asignaturas");
+  redirect(`/admin/asignaturas?state=${result.ok ? result.code : "error"}`);
+}
+
 export async function editarAsignaturaAction(input: {
   id: string;
   nombre: string;
   descripcion?: string;
   maxAlumnos: number;
   fechaInicio: string;
+  fechaFin: string;
   duracionMeses: number;
+  docenteId?: string;
 }): Promise<MutationResult> {
   const actorResult = await requireActionActor("admin_asignatura_edit", ["admin"]);
 
@@ -747,6 +794,29 @@ export async function editarAsignaturaAction(input: {
       return periodoCheck.result;
     }
 
+    if (parsed.data.docenteId) {
+      const [docente] = await db
+        .select({ id: usuarios.id })
+        .from(usuarios)
+        .where(
+          and(
+            eq(usuarios.id, parsed.data.docenteId),
+            eq(usuarios.rol, "docente"),
+            eq(usuarios.activo, true),
+            isNull(usuarios.eliminadoAt),
+          ),
+        )
+        .limit(1);
+
+      if (!docente) {
+        return {
+          ok: false,
+          code: "docente_not_found",
+          message: "Docente no disponible para asignación.",
+        };
+      }
+    }
+
     const sanitizedDesc = parsed.data.descripcion
       ? sanitizeText(parsed.data.descripcion).replace(/\s+/g, " ").trim() || undefined
       : undefined;
@@ -758,7 +828,9 @@ export async function editarAsignaturaAction(input: {
         descripcion: sanitizedDesc,
         maxAlumnos: parsed.data.maxAlumnos,
         fechaInicio: parsed.data.fechaInicio,
+        fechaFin: parsed.data.fechaFin,
         duracionMeses: parsed.data.duracionMeses,
+        docenteId: parsed.data.docenteId ?? null,
         updatedAt: new Date(),
       })
       .where(eq(asignaturas.id, parsed.data.id));
@@ -773,6 +845,10 @@ export async function editarAsignaturaAction(input: {
       payload: {
         nombre: parsed.data.nombre,
         maxAlumnos: parsed.data.maxAlumnos,
+        fechaInicio: parsed.data.fechaInicio,
+        fechaFin: parsed.data.fechaFin,
+        duracionMeses: parsed.data.duracionMeses,
+        docenteId: parsed.data.docenteId ?? null,
       },
       exitoso: true,
     });

@@ -4,6 +4,7 @@ import {
   listarMisNotificaciones,
   marcarMisNotificacionesLeidas,
 } from "@/actions/notificaciones";
+import { MarcarLeidasOnMount } from "@/components/shared/MarcarLeidasOnMount";
 
 export const metadata = { title: "Notificaciones" };
 
@@ -16,10 +17,9 @@ const TIPO_BADGE: Record<string, string> = {
 export default async function DocenteNotificacionesPage() {
   const notificaciones = await listarMisNotificaciones();
 
-  await marcarMisNotificacionesLeidas();
-
   return (
     <section className="space-y-5">
+      <MarcarLeidasOnMount action={marcarMisNotificacionesLeidas} />
       <header className="flex items-center gap-3">
         <span className="rounded-xl bg-primary/10 p-2 text-primary">
           <Bell className="h-5 w-5" />

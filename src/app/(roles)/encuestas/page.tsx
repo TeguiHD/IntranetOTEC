@@ -2,29 +2,25 @@ import { CheckCircle2, ClipboardList, Lock } from "lucide-react";
 import Link from "next/link";
 
 import { listarMisEncuestasPendientes } from "@/actions/encuestas-unificadas";
+import { SurveyCard, SurveyShell } from "@/components/shared/surveys/SurveyShell";
 
 export const metadata = { title: "Mis Encuestas" };
 
 export default async function MisEncuestasPage() {
   const encuestas = await listarMisEncuestasPendientes();
+  const obligatorias = encuestas.filter((enc) => enc.obligatoria).length;
 
   return (
-    <section className="space-y-6">
-      <header className="flex items-center gap-3">
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-          <ClipboardList className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Mis Encuestas
-          </h1>
-          <p className="text-sm text-text-secondary dark:text-gray-400">
-            Encuestas pendientes de respuesta asignadas a ti.
-          </p>
-        </div>
-      </header>
-
-      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+    <SurveyShell
+      icon={ClipboardList}
+      title="Mis Encuestas"
+      description="Encuestas pendientes de respuesta asignadas a ti. Completa primero las obligatorias para mantener acceso pleno al portal."
+      stats={[
+        { label: "Pendientes", value: encuestas.length, tone: "primary" },
+        { label: "Obligatorias", value: obligatorias, tone: "amber" },
+      ]}
+    >
+      <SurveyCard className="p-5 sm:p-6">
         {encuestas.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
             <CheckCircle2 className="h-12 w-12 text-emerald-400 dark:text-emerald-500" strokeWidth={1.5} />
@@ -73,7 +69,7 @@ export default async function MisEncuestasPage() {
             ))}
           </div>
         )}
-      </article>
-    </section>
+      </SurveyCard>
+    </SurveyShell>
   );
 }

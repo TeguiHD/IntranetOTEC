@@ -2,6 +2,10 @@ import { CalendarDays, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
 import { listarEvaluacionesAlumno } from "@/actions/evaluaciones";
+import {
+  EVALUATION_WINDOW_LABELS,
+  EVALUATION_WINDOW_TONES,
+} from "@/lib/evaluation-status";
 
 const TIPO_LABELS: Record<string, string> = {
   formulario: "Formulario",
@@ -43,6 +47,17 @@ export default async function AlumnoEvaluacionesPage() {
     );
   }
 
+  const upcomingCount = evaluaciones.filter(
+    (evaluacion) => evaluacion.estadoVentana === "programada",
+  ).length;
+  const overdueCount = evaluaciones.filter(
+    (evaluacion) => evaluacion.estadoVentana === "vencida",
+  ).length;
+  const availableCount = evaluaciones.filter(
+    (evaluacion) => evaluacion.estadoVentana === "disponible",
+  ).length;
+  const answeredCount = evaluaciones.filter((evaluacion) => evaluacion.respondidaPorAlumno).length;
+
   return (
     <section className="space-y-6">
       <header>
@@ -53,6 +68,45 @@ export default async function AlumnoEvaluacionesPage() {
           Evaluaciones disponibles en tus cursos matriculados.
         </p>
       </header>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Disponibles
+          </p>
+          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{availableCount}</p>
+          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+            Puedes responderlas ahora mismo.
+          </p>
+        </article>
+        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Próximas
+          </p>
+          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{upcomingCount}</p>
+          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+            Quedan preparadas, pero aún no abren.
+          </p>
+        </article>
+        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Vencidas
+          </p>
+          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{overdueCount}</p>
+          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+            Sirven como historial, no admiten nuevos envíos.
+          </p>
+        </article>
+        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Respondidas
+          </p>
+          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{answeredCount}</p>
+          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+            Ya forman parte de tu historial académico.
+          </p>
+        </article>
+      </div>
 
       {evaluaciones.length === 0 ? (
         <article className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -66,7 +120,8 @@ export default async function AlumnoEvaluacionesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {evaluaciones.map((ev) => {
-            const isOverdue = ev.fechaLimite && new Date(ev.fechaLimite) < new Date();
+            const isUpcoming = ev.estadoVentana === "programada";
+            const isOverdue = ev.estadoVentana === "vencida";
             return (
               <article
                 key={ev.id}
@@ -90,6 +145,37 @@ export default async function AlumnoEvaluacionesPage() {
                   </span>
                 </div>
 
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                      EVALUATION_WINDOW_TONES[ev.estadoVentana]
+                    }`}
+                  >
+                    {EVALUATION_WINDOW_LABELS[ev.estadoVentana]}
+                  </span>
+                  {ev.respondidaPorAlumno ? (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                      Respondida
+                    </span>
+                  ) : null}
+                  {ev.notaAlumno ? (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      Nota {ev.notaAlumno}
+                    </span>
+                  ) : null}
+                </div>
+
+                {isUpcoming && ev.fechaInicio && (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800/60 dark:bg-blue-950/30 dark:text-blue-100">
+                    Disponible desde{" "}
+                    {new Date(ev.fechaInicio).toLocaleDateString("es-CL", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </div>
+                )}
+
                 {ev.fechaLimite && (
                   <div
                     className={`mt-3 flex items-center gap-1.5 text-xs ${
@@ -112,12 +198,16 @@ export default async function AlumnoEvaluacionesPage() {
                   <Link
                     href={`/alumno/evaluaciones/${ev.id}`}
                     className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
-                      isOverdue
+                      isOverdue || isUpcoming
                         ? "border border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
                         : "bg-primary text-white hover:bg-primary-dark active:scale-[0.98]"
                     }`}
                   >
-                    {isOverdue ? "Ver evaluación" : "Responder"}
+                    {isUpcoming
+                      ? "Aún no disponible"
+                      : ev.respondidaPorAlumno || isOverdue
+                        ? "Ver historial"
+                        : "Responder"}
                   </Link>
                 </div>
               </article>

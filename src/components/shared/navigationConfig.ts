@@ -28,12 +28,17 @@ import {
 } from "lucide-react";
 
 import type { AppRole } from "@/lib/authz";
+import {
+  roleHasCapability,
+  type AppCapability,
+} from "@/lib/capabilities";
 
 export type NavItem = {
   href: string;
   label: string;
   Icon: LucideIcon;
   gradient: string;
+  capability?: AppCapability;
 };
 
 export type NavSection = {
@@ -45,6 +50,7 @@ export const GRADIENT_COLORS: Record<string, string> = {
   "grad-purple": "#8B3A9E",
   "grad-blue": "#3B82F6",
   "grad-cyan": "#06B6D4",
+  "grad-teal": "#14B8A6",
   "grad-amber": "#F5A623",
   "grad-emerald": "#10B981",
   "grad-pink": "#EC4899",
@@ -64,65 +70,63 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Principal",
     items: [
-      { href: "/admin", label: "Panel", Icon: LayoutDashboard, gradient: "grad-purple" },
+      { href: "/admin", label: "Panel", Icon: LayoutDashboard, gradient: "grad-purple", capability: "dashboard.admin" },
+      { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays, gradient: "grad-teal", capability: "agenda.admin" },
     ],
   },
   {
-    title: "Academico",
+    title: "Oferta academica",
     items: [
-      { href: "/admin/cursos", label: "Cursos", Icon: BookOpen, gradient: "grad-indigo" },
-      { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen, gradient: "grad-blue" },
-      { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange, gradient: "grad-teal" },
-      { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
-      { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
-      { href: "/admin/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-gold" },
-      { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald" },
-      { href: "/admin/encuestas-builder", label: "Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
+      { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.admin" },
+      { href: "/admin/cursos", label: "Cursos", Icon: BookOpen, gradient: "grad-indigo", capability: "cursos.admin" },
+      { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange, gradient: "grad-teal", capability: "horarios.admin" },
+      { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan", capability: "clases.admin" },
+      { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_admin" },
     ],
   },
   {
-    title: "Personas",
+    title: "Registros academicos",
     items: [
-      { href: "/admin/administradores", label: "Administradores", Icon: Shield, gradient: "grad-purple" },
-      { href: "/admin/docentes", label: "Docentes", Icon: UserCog, gradient: "grad-amber" },
-      { href: "/admin/alumnos", label: "Alumnos", Icon: Users, gradient: "grad-emerald" },
-      { href: "/admin/matriculas", label: "Matriculas", Icon: Wallet, gradient: "grad-pink" },
+      { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.manage" },
+      { href: "/admin/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-gold", capability: "notas.admin" },
+      { href: "/admin/encuestas-builder", label: "Encuestas", Icon: MessageSquare, gradient: "grad-indigo", capability: "encuestas.admin" },
     ],
   },
   {
-    title: "Solicitudes",
+    title: "Personas y matriculas",
     items: [
-      { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet" },
-      { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload, gradient: "grad-emerald" },
+      { href: "/admin/docentes", label: "Docentes", Icon: UserCog, gradient: "grad-amber", capability: "personas.admin" },
+      { href: "/admin/alumnos", label: "Alumnos", Icon: Users, gradient: "grad-emerald", capability: "personas.admin" },
+      { href: "/admin/matriculas", label: "Matriculas", Icon: Wallet, gradient: "grad-pink", capability: "matriculas.admin" },
+      { href: "/admin/administradores", label: "Administradores", Icon: Shield, gradient: "grad-purple", capability: "personas.admin" },
     ],
   },
   {
-    title: "Reportes",
+    title: "Comunicacion y soporte",
     items: [
-      { href: "/admin/reportes", label: "Dashboard", Icon: BarChart3, gradient: "grad-purple" },
-      { href: "/admin/reportes/rendimiento", label: "Rendimiento", Icon: TrendingUp, gradient: "grad-blue" },
-      { href: "/admin/reportes/retencion", label: "Retención", Icon: Users, gradient: "grad-amber" },
-      { href: "/admin/reportes/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald" },
-      { href: "/admin/reportes/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-violet" },
+      { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber", capability: "notificaciones.admin" },
+      { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet", capability: "solicitudes.admin" },
+      { href: "/admin/certificados", label: "Certificados", Icon: FileCheck, gradient: "grad-blue", capability: "certificados.admin" },
+      { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload, gradient: "grad-emerald", capability: "importaciones.admin" },
     ],
   },
   {
-    title: "Finanzas",
+    title: "Inteligencia y control",
     items: [
-      { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp, gradient: "grad-emerald" },
-    ],
-  },
-  {
-    title: "Comunicaciones",
-    items: [
-      { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber" },
+      { href: "/admin/reportes", label: "Dashboard", Icon: BarChart3, gradient: "grad-purple", capability: "reportes.admin" },
+      { href: "/admin/reportes/rendimiento", label: "Rendimiento", Icon: TrendingUp, gradient: "grad-blue", capability: "reportes.admin" },
+      { href: "/admin/reportes/retencion", label: "Retención", Icon: Users, gradient: "grad-amber", capability: "reportes.admin" },
+      { href: "/admin/reportes/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "reportes.admin" },
+      { href: "/admin/reportes/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-violet", capability: "reportes.admin" },
+      { href: "/admin/historial", label: "Historial", Icon: FileText, gradient: "grad-slate", capability: "historial.admin" },
+      { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp, gradient: "grad-emerald", capability: "finanzas.admin" },
+      { href: "/admin/auditoria", label: "Auditoria", Icon: ClipboardList, gradient: "grad-slate", capability: "auditoria.admin" },
     ],
   },
   {
     title: "Sistema",
     items: [
-      { href: "/admin/auditoria", label: "Auditoria", Icon: ClipboardList, gradient: "grad-slate" },
-      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald" },
+      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald", capability: "app.install" },
     ],
   },
 ];
@@ -131,29 +135,31 @@ const DOCENTE_SECTIONS: NavSection[] = [
   {
     title: "Principal",
     items: [
-      { href: "/docente", label: "Panel", Icon: Home, gradient: "grad-purple" },
+      { href: "/docente", label: "Panel", Icon: Home, gradient: "grad-purple", capability: "dashboard.docente" },
     ],
   },
   {
     title: "Academico",
     items: [
-      { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue" },
-      { href: "/docente/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal" },
-      { href: "/docente/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan" },
-      { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
+      { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.docente" },
+      { href: "/docente/historial", label: "Historial", Icon: FileText, gradient: "grad-violet", capability: "historial.docente" },
+      { href: "/docente/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.docente" },
+      { href: "/docente/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.docente" },
+      { href: "/docente/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan", capability: "calendario.docente" },
+      { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo", capability: "encuestas.docente" },
     ],
   },
   {
     title: "Comunicaciones",
     items: [
-      { href: "/docente/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber" },
+      { href: "/docente/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber", capability: "notificaciones.self" },
     ],
   },
   {
     title: "Mi cuenta",
     items: [
-      { href: "/docente/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue" },
-      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald" },
+      { href: "/docente/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue", capability: "perfil.self" },
+      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald", capability: "app.install" },
     ],
   },
 ];
@@ -162,43 +168,44 @@ const ALUMNO_SECTIONS: NavSection[] = [
   {
     title: "Principal",
     items: [
-      { href: "/alumno", label: "Panel", Icon: Home, gradient: "grad-purple" },
+      { href: "/alumno", label: "Panel", Icon: Home, gradient: "grad-purple", capability: "dashboard.alumno" },
     ],
   },
   {
     title: "Academico",
     items: [
-      { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue" },
-      { href: "/alumno/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal" },
-      { href: "/alumno/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan" },
-      { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan" },
-      { href: "/alumno/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet" },
-      { href: "/alumno/notas", label: "Mis Notas", Icon: ClipboardList, gradient: "grad-gold" },
-      { href: "/alumno/asistencias", label: "Mi Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald" },
-      { href: "/alumno/encuesta-docente", label: "Evaluar Docente", Icon: Star, gradient: "grad-amber" },
-      { href: "/alumno/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet" },
-      { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo" },
+      { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue", capability: "asignaturas.alumno" },
+      { href: "/alumno/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.alumno" },
+      { href: "/alumno/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan", capability: "calendario.alumno" },
+      { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan", capability: "clases.alumno" },
+      { href: "/alumno/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_own" },
+      { href: "/alumno/historial", label: "Historial", Icon: FileText, gradient: "grad-indigo", capability: "historial.alumno" },
+      { href: "/alumno/notas", label: "Mis Notas", Icon: ClipboardList, gradient: "grad-gold", capability: "notas.alumno" },
+      { href: "/alumno/asistencias", label: "Mi Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.alumno" },
+      { href: "/alumno/encuesta-docente", label: "Evaluar Docente", Icon: Star, gradient: "grad-amber", capability: "encuestas.alumno" },
+      { href: "/alumno/test-estilos", label: "Test Estilos", Icon: Brain, gradient: "grad-violet", capability: "test_estilos.alumno" },
+      { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo", capability: "encuestas.alumno" },
     ],
   },
   {
     title: "Solicitudes",
     items: [
-      { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet" },
-      { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck, gradient: "grad-blue" },
-      { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink" },
+      { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet", capability: "solicitudes.alumno" },
+      { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck, gradient: "grad-blue", capability: "solicitudes.alumno" },
+      { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink", capability: "solicitudes.alumno" },
     ],
   },
   {
     title: "Comunicaciones",
     items: [
-      { href: "/alumno/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber" },
+      { href: "/alumno/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber", capability: "notificaciones.self" },
     ],
   },
   {
     title: "Mi cuenta",
     items: [
-      { href: "/alumno/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue" },
-      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald" },
+      { href: "/alumno/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue", capability: "perfil.self" },
+      { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald", capability: "app.install" },
     ],
   },
 ];
@@ -207,4 +214,15 @@ export const ROLE_SECTIONS: Record<AppRole, NavSection[]> = {
   admin: ADMIN_SECTIONS,
   docente: DOCENTE_SECTIONS,
   alumno: ALUMNO_SECTIONS,
+};
+
+export const getNavigationSectionsForRole = (role: AppRole): NavSection[] => {
+  return ROLE_SECTIONS[role]
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.capability || roleHasCapability(role, item.capability),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 };

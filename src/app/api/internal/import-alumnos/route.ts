@@ -10,6 +10,12 @@ import { asignaturas, cursos, matriculas, periodosAcademicos, usuarios } from "@
 import { registrarAudit } from "@/lib/audit";
 import { parseAppRole } from "@/lib/authz";
 import {
+  buildCourseStrictKey,
+  createCourseNameNormalizer,
+  normalizeLookupKey,
+  normalizeWhitespace,
+} from "@/lib/import-course-normalization";
+import {
   derivarPinPredeterminado,
   esRutExtranjero,
   formatearRut,
@@ -26,6 +32,7 @@ type ParsedImportRow = {
   codigoCursoKey: string;
   curso: string;
   cursoKey: string;
+  cursoCanonico: string;
   cursoIdentityKey: string;
   personKey: string;
   diasHora: string;
@@ -52,15 +59,6 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const sanitizeName = (value: string): string =>
   value.replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
-
-const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
-
-const normalizeLookupKey = (value: string): string =>
-  normalizeWhitespace(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
 
 const toCourseIdentityNameKey = (cursoKey: string): string => `curso:${cursoKey}`;
 
@@ -342,8 +340,6 @@ const buildCourseDescription = (diasHora: string, fechaExplicita: string | null)
   return parts.length > 0 ? parts.join(" | ") : null;
 };
 
-const buildCourseVariantLabel = (rawValue: string): string => normalizeWhitespace(rawValue);
-
 const buildScheduleVariantKey = (fechaInicio: string, diasHora: string): string =>
   `${fechaInicio}|${normalizeLookupKey(diasHora)}`;
 
@@ -513,7 +509,8 @@ export async function POST(request: Request) {
         codigoCurso,
         codigoCursoKey: normalizeLookupKey(codigoCurso),
         curso,
-        cursoKey: normalizeLookupKey(curso),
+        cursoKey: "",
+        cursoCanonico: "",
         cursoIdentityKey: "",
         personKey: buildPersonKey(nombreCompleto, telefono),
         diasHora,
@@ -525,29 +522,30 @@ export async function POST(request: Request) {
       };
     });
 
+    const courseNormalizer = createCourseNameNormalizer(
+      parsedRows.map((row) => row.curso),
+    );
+
     for (const row of parsedRows) {
-      if (!row.cursoKey || !row.curso) {
+      const resolvedCourse = row.curso
+        ? courseNormalizer.resolveCourseName(row.curso)
+        : null;
+
+      if (!resolvedCourse || !row.curso) {
+        row.cursoKey = "";
+        row.cursoCanonico = "";
         row.cursoIdentityKey = "";
         continue;
       }
+
+      row.cursoKey = resolvedCourse.canonicalKey;
+      row.cursoCanonico = resolvedCourse.canonicalLabel;
 
       row.cursoIdentityKey = buildCourseTemplateIdentityKey(
         row.cursoKey,
         row.fechaInicio,
         row.diasHora,
       );
-    }
-
-    const normalizedCourseVariantMap = new Map<string, Set<string>>();
-    for (const row of parsedRows) {
-      if (!row.curso || !row.cursoKey) {
-        continue;
-      }
-
-      const variantGroupKey = toCourseIdentityNameKey(row.cursoKey);
-      const variants = normalizedCourseVariantMap.get(variantGroupKey) ?? new Set<string>();
-      variants.add(buildCourseVariantLabel(row.curso));
-      normalizedCourseVariantMap.set(variantGroupKey, variants);
     }
 
     const [existingCourseTemplates, existingSections, existingSectionCodes] = await Promise.all([
@@ -590,7 +588,7 @@ export async function POST(request: Request) {
 
     const sectionMap = new Map<string, string>();
     for (const section of existingSections) {
-      const normalizedCourseName = normalizeLookupKey(section.cursoNombre);
+      const normalizedCourseName = buildCourseStrictKey(section.cursoNombre);
       if (normalizedCourseName) {
         const identityKey = buildCourseTemplateIdentityKey(
           normalizedCourseName,
@@ -622,24 +620,31 @@ export async function POST(request: Request) {
     let sectionsCreated = 0;
     const warnings: string[] = [];
 
-    const variantGroups = Array.from(normalizedCourseVariantMap.values()).filter(
-      (variants) => variants.size > 1,
-    );
-
-    for (const variants of variantGroups.slice(0, 12)) {
-      const sortedVariants = Array.from(variants).sort((a, b) =>
-        a.localeCompare(b, "es", { sensitivity: "base" }),
-      );
-      const canonical = sortedVariants[0] ?? "curso";
-      const examples = sortedVariants.slice(0, 4).join(" | ");
+    const exactVariantGroups = courseNormalizer.variantGroups;
+    for (const group of exactVariantGroups.slice(0, 12)) {
+      const examples = group.variants.slice(0, 4).join(" | ");
       warnings.push(
-        `Se consolidaron variantes del curso "${canonical}" por normalizacion de tildes/espacios (${examples}).`,
+        `Se consolidaron variantes del curso "${group.canonicalLabel}" por normalizacion de mayusculas/tildes/espacios (${examples}).`,
       );
     }
 
-    if (variantGroups.length > 12) {
+    if (exactVariantGroups.length > 12) {
       warnings.push(
-        `Se detectaron ${variantGroups.length - 12} grupos adicionales de variantes de nombre y tambien fueron consolidados.`,
+        `Se detectaron ${exactVariantGroups.length - 12} grupos adicionales de variantes de nombre y tambien fueron consolidados.`,
+      );
+    }
+
+    const fuzzyGroups = courseNormalizer.fuzzyGroups;
+    for (const group of fuzzyGroups.slice(0, 8)) {
+      const examples = group.mergedLabels.slice(0, 4).join(" | ");
+      warnings.push(
+        `Se consolidaron posibles tipeos bajo "${group.canonicalLabel}" (${examples}).`,
+      );
+    }
+
+    if (fuzzyGroups.length > 8) {
+      warnings.push(
+        `Se detectaron ${fuzzyGroups.length - 8} grupos adicionales de posible typo y tambien fueron consolidados.`,
       );
     }
 
@@ -661,7 +666,7 @@ export async function POST(request: Request) {
 
         await db.insert(cursos).values({
           id: cursoId,
-          nombre: row.curso,
+          nombre: row.cursoCanonico || row.curso,
           codigo: codigoCurso,
           descripcion: buildCourseDescription(row.diasHora, row.fechaExplicita),
           horasTeoricas: 0,
@@ -698,7 +703,7 @@ export async function POST(request: Request) {
 
       await db.insert(asignaturas).values({
         id: asignaturaId,
-        nombre: row.curso,
+        nombre: row.cursoCanonico || row.curso,
         descripcion: buildCourseDescription(row.diasHora, row.fechaExplicita),
         codigo: sectionCode,
         cursoId: template.id,

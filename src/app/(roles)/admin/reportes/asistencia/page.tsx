@@ -1,4 +1,5 @@
 import { listarPeriodosParaReportes, reporteAsistencia } from "@/actions/reportes";
+import { SearchSelect } from "../SearchSelect";
 
 type PageProps = {
   searchParams: Promise<{ periodoId?: string }>;
@@ -42,19 +43,13 @@ export default async function ReporteAsistenciaPage({ searchParams }: PageProps)
               Exportar PDF
             </a>
             <form method="GET" className="flex items-center gap-2">
-            <select
-              name="periodoId"
-              defaultValue={periodoId ?? ""}
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">Todos los periodos</option>
-              {periodos.map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-            <button type="submit" className="h-10 rounded-xl bg-primary px-4 text-sm font-medium text-white hover:bg-primary-dark">
-              Filtrar
-            </button>
+              <SearchSelect
+                name="periodoId"
+                defaultValue={periodoId ?? ""}
+                options={periodos.map((p) => ({ id: p.id, label: p.nombre }))}
+                allLabel="Todos los periodos"
+                placeholder="Buscar periodo..."
+              />
             </form>
           </div>
         )}

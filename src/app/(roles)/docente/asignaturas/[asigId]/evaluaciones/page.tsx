@@ -11,11 +11,17 @@ import {
   crearEvaluacionFormAction,
   listarEvaluacionesByAsignatura,
   listarEventosSupervisionByEvaluacion,
+  listarIntentosRecuperablesEvaluacion,
+  listarParticipacionEvaluacion,
   listarPreguntasByEvaluacion,
   listarRespuestasParaCalificar,
   obtenerResultadosEvaluacion,
+  type EvaluacionParticipacionItem,
+  type IntentoRecuperableItem,
   type RespuestaPendienteItem,
 } from "@/actions/evaluaciones";
+import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
+import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
 import {
@@ -81,14 +87,30 @@ export default async function DocenteEvaluacionesPage({
   const selectedEvaluacion =
     evals.find((evaluacion) => evaluacion.id === selectedEvaluacionId) ?? null;
 
-  const [preguntas, resultados, eventosSupervision, respuestasPendientes] = selectedEvaluacionId
+  const [
+    preguntas,
+    resultados,
+    eventosSupervision,
+    respuestasPendientes,
+    intentosRecuperables,
+    participacionEvaluacion,
+  ] = selectedEvaluacionId
     ? await Promise.all([
         listarPreguntasByEvaluacion(selectedEvaluacionId),
         obtenerResultadosEvaluacion(selectedEvaluacionId),
         listarEventosSupervisionByEvaluacion(selectedEvaluacionId),
         listarRespuestasParaCalificar(selectedEvaluacionId),
+        listarIntentosRecuperablesEvaluacion(selectedEvaluacionId),
+        listarParticipacionEvaluacion(selectedEvaluacionId),
       ])
-    : [[], [], [], [] as RespuestaPendienteItem[]];
+    : [
+        [],
+        [],
+        [],
+        [] as RespuestaPendienteItem[],
+        [] as IntentoRecuperableItem[],
+        [] as EvaluacionParticipacionItem[],
+      ];
 
   const publishedCount = evals.filter((evaluacion) => evaluacion.publicada).length;
   const answeredCount = evals.reduce(
@@ -478,6 +500,8 @@ export default async function DocenteEvaluacionesPage({
           </article>
 
           <div className="space-y-5">
+            <EvaluacionParticipacionPanel participacion={participacionEvaluacion} />
+
             <article className="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
                 <h2 className="text-base font-semibold text-text-primary dark:text-white">
@@ -569,6 +593,70 @@ export default async function DocenteEvaluacionesPage({
                       </form>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {intentosRecuperables.length > 0 && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800/40 dark:bg-blue-900/20">
+                <h3 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
+                  Rehabilitar acceso — intentos de alumnos
+                </h3>
+                <p className="mb-4 text-xs text-blue-700 dark:text-blue-400">
+                  Reanuda un intento con temporizador completo o anúlalo para que el alumno empiece de cero.
+                </p>
+                <div className="divide-y divide-blue-100 dark:divide-blue-900/40">
+                  {intentosRecuperables.map((item) => {
+                    const estadoBadge = {
+                      activo: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+                      expirado: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+                      enviado: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+                      anulado: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+                    }[item.estado];
+                    const estadoLabel = {
+                      activo: "En curso",
+                      expirado: "Expirado",
+                      enviado: "Enviado",
+                      anulado: "Anulado",
+                    }[item.estado];
+
+                    return (
+                      <div key={item.intentoId} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-text-primary dark:text-white">
+                            {item.alumnoApellido}, {item.alumnoNombre}
+                            {item.alumnoRut ? (
+                              <span className="ml-2 text-xs text-text-secondary dark:text-gray-400">
+                                ({item.alumnoRut})
+                              </span>
+                            ) : null}
+                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary dark:text-gray-400">
+                            <span>Intento #{item.intento}</span>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${estadoBadge}`}>
+                              {estadoLabel}
+                            </span>
+                            {item.prorrogadaAt ? (
+                              <span className="italic">
+                                Reanudado el {new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(item.prorrogadaAt)}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        {item.estado !== "enviado" ? (
+                          <RehabilitarIntentoActions
+                            evaluacionId={selectedEvaluacionId ?? ""}
+                            matriculaId={item.matriculaId}
+                            intentoId={item.intentoId}
+                            asignaturaId={asigId}
+                            redirectTo={redirectBase}
+                            disabled={item.estado === "anulado"}
+                            alumnoLabel={`${item.alumnoNombre ?? ""} ${item.alumnoApellido ?? ""}`.trim() || "este alumno"}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

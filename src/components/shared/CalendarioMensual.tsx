@@ -17,9 +17,18 @@ type Props = {
   mesInicial: number;
   anioInicial: number;
   onMesChange?: (mes: number, anio: number) => void;
+  selectedDate?: string;
+  onDateSelect?: (dateIso: string) => void;
 };
 
-export function CalendarioMensual({ eventosPorMes, mesInicial, anioInicial, onMesChange }: Props) {
+export function CalendarioMensual({
+  eventosPorMes,
+  mesInicial,
+  anioInicial,
+  onMesChange,
+  selectedDate,
+  onDateSelect,
+}: Props) {
   const [mes, setMes] = useState(mesInicial);
   const [anio, setAnio] = useState(anioInicial);
 
@@ -101,24 +110,50 @@ export function CalendarioMensual({ eventosPorMes, mesInicial, anioInicial, onMe
       <div className="grid grid-cols-7">
         {celdas.map((dia, idx) => {
           const evs = dia ? eventosPorDia(dia) : [];
+          const dateIso = dia
+            ? `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`
+            : null;
+          const isSelected = Boolean(dateIso && selectedDate === dateIso);
+
           return (
             <div
               key={idx}
               className={`min-h-[72px] border-b border-r border-gray-100 p-1.5 dark:border-gray-800 ${
                 idx % 7 === 6 ? "border-r-0" : ""
-              } ${dia ? "hover:bg-gray-50 dark:hover:bg-gray-800/50" : "bg-gray-50/50 dark:bg-gray-800/20"}`}
+              } ${
+                dia
+                  ? "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  : "bg-gray-50/50 dark:bg-gray-800/20"
+              } ${isSelected ? "ring-2 ring-primary/50 ring-inset" : ""}`}
             >
               {dia && (
                 <>
-                  <span
-                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
-                      esHoy(dia)
-                        ? "bg-primary text-white"
-                        : "text-text-primary dark:text-gray-300"
-                    }`}
-                  >
-                    {dia}
-                  </span>
+                  {onDateSelect && dateIso ? (
+                    <button
+                      type="button"
+                      onClick={() => onDateSelect(dateIso)}
+                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                        isSelected
+                          ? "bg-primary text-white"
+                          : esHoy(dia)
+                            ? "bg-primary/20 text-primary"
+                            : "text-text-primary hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                      }`}
+                      aria-label={`Seleccionar dia ${dia}`}
+                    >
+                      {dia}
+                    </button>
+                  ) : (
+                    <span
+                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                        esHoy(dia)
+                          ? "bg-primary text-white"
+                          : "text-text-primary dark:text-gray-300"
+                      }`}
+                    >
+                      {dia}
+                    </span>
+                  )}
                   <div className="space-y-0.5">
                     {evs.slice(0, 3).map((ev) => (
                       <div

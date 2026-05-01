@@ -31,7 +31,7 @@ function EncuestaRow({ enc }: { enc: EncuestaListItem }) {
       : 0;
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3.5 dark:border-gray-700 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-semibold text-text-primary dark:text-gray-100">
@@ -111,7 +111,7 @@ export function CampanaGroup({ encuestas }: Props) {
       : "cerrada";
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary/[0.02] dark:border-primary/15 dark:bg-primary/5">
+    <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.04] to-indigo-100/40 shadow-sm dark:border-primary/15 dark:from-primary/10 dark:to-indigo-950/30">
       {/* Campaign header */}
       <button
         type="button"

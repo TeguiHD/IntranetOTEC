@@ -197,8 +197,7 @@ export async function reporteDistribucionNotas(asignaturaId?: string, periodoId?
         WHEN ${notas.nota}::numeric >= 3.0 THEN '3.0-3.9'
         ELSE '1.0-2.9'
       END
-    `)
-    .orderBy(sql`rango DESC`);
+    `);
 }
 
 // ---- KPIs del dashboard admin ----

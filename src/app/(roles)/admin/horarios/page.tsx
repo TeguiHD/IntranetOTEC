@@ -99,8 +99,8 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
 
       {/* Selector de sección */}
       <form method="get" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_auto]">
-          <div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto]">
+          <div className="min-w-0">
             <label htmlFor="admin-horario-periodo" className="mb-1.5 block text-sm font-medium text-text-primary dark:text-gray-200">
               Periodo
             </label>
@@ -120,7 +120,7 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
             </select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label htmlFor="admin-horario-asig" className="mb-1.5 block text-sm font-medium text-text-primary dark:text-gray-200">
               Seccion
             </label>
@@ -135,7 +135,7 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
 
           <button
             type="submit"
-            className="h-11 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg"
+            className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg sm:w-auto"
           >
             Ver
           </button>

@@ -8,6 +8,7 @@
 
 # testing
 /coverage
+/.security-build/
 
 # next.js
 /.next/
@@ -30,7 +31,43 @@ yarn-error.log*
 
 # vercel
 .vercel
+/.vscode/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local agent/tooling sandboxes
+/.adal/
+/.agents/
+/.augment/
+/.bob/
+/.claude/skills/
+/.codebuddy/
+/.codex
+/.commandcode/
+/.continue/
+/.cortex/
+/.crush/
+/.factory/
+/.goose/
+/.iflow/
+/.junie/
+/.kilocode/
+/.kiro/
+/.kode/
+/.mcpjam/
+/.mux/
+/.neovate/
+/.openhands/
+/.pi/
+/.pochi/
+/.qoder/
+/.qwen/
+/.roo/
+/.trae/
+/.vibe/
+/.windsurf/
+/.zencoder/
+/skills/
+/skills-lock.json

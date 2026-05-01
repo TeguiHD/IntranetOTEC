@@ -59,14 +59,24 @@ export async function listarCursos(
       horasPracticas: cursos.horasPracticas,
       activo: cursos.activo,
       createdAt: cursos.createdAt,
-      totalSecciones: sql<number>`(
-        SELECT COUNT(*) FROM asignaturas
-        WHERE asignaturas.curso_id = ${cursos.id}
-          AND asignaturas.eliminado_at IS NULL
-      )`.mapWith(Number),
+      totalSecciones: count(asignaturas.id).mapWith(Number),
     })
     .from(cursos)
+    .leftJoin(
+      asignaturas,
+      and(eq(asignaturas.cursoId, cursos.id), isNull(asignaturas.eliminadoAt)),
+    )
     .where(and(...conditions))
+    .groupBy(
+      cursos.id,
+      cursos.nombre,
+      cursos.codigo,
+      cursos.descripcion,
+      cursos.horasTeoricas,
+      cursos.horasPracticas,
+      cursos.activo,
+      cursos.createdAt,
+    )
     .orderBy(asc(cursos.nombre))
     .limit(limit)
     .offset(offset);

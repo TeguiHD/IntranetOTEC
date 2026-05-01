@@ -29,6 +29,7 @@ type PeriodOption = {
 type PreviewRow = {
   lineNumber: number;
   curso: string;
+  cursoCanonico: string | null;
   nombreCompleto: string;
   rutRaw: string;
   identifier: string | null;
@@ -85,19 +86,25 @@ const STATUS_BADGE_CLASS: Record<PeriodStatus, string> = {
   cerrado: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
 };
 
-const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
+const MESES_ES = [
+  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+];
+
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
 
 const buildDefaultNewPeriodDraft = (): NewPeriodDraft => {
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth() + 1;
-  const semester = month <= 6 ? "S1" : "S2";
-
+  const last = lastDayOfMonth(year, month);
   return {
-    codigo: `${year}-${semester}`,
-    nombre: "",
-    fechaInicio: toIsoDate(today),
-    fechaFin: toIsoDate(today),
+    codigo: `${year}-${String(month).padStart(2, "0")}`,
+    nombre: `${MESES_ES[month - 1]} ${year}`,
+    fechaInicio: `${year}-${String(month).padStart(2, "0")}-01`,
+    fechaFin: `${year}-${String(month).padStart(2, "0")}-${String(last).padStart(2, "0")}`,
     estado: "activo",
   };
 };
@@ -438,6 +445,7 @@ export default function AdminImportarPage() {
               return {
                 lineNumber: Number(row.lineNumber ?? 0),
                 curso: String(row.curso ?? ""),
+                cursoCanonico: row.cursoCanonico ? String(row.cursoCanonico) : null,
                 nombreCompleto: String(row.nombreCompleto ?? ""),
                 rutRaw: String(row.rutRaw ?? ""),
                 identifier: row.identifier ? String(row.identifier) : null,
@@ -570,6 +578,9 @@ export default function AdminImportarPage() {
         <p className="mt-3 text-xs text-text-secondary dark:text-gray-400">
           Las asignaturas se crean automaticamente si no existen (sin docente, listas para asignar) y se vinculan al periodo que selecciones antes de importar. Los alumnos se crean o actualizan segun corresponda y quedan matriculados en su curso.
         </p>
+        <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+          El sistema consolida automaticamente variantes de curso por mayusculas, tildes, espacios y posibles tipeos para evitar duplicados operativos.
+        </p>
       </article>
 
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
@@ -587,7 +598,7 @@ export default function AdminImportarPage() {
               {selectedPeriod ? (
                 <div className="mt-2">
                   <p className="text-sm font-semibold text-text-primary dark:text-gray-100">
-                    {selectedPeriod.codigo} - {selectedPeriod.nombre}
+                    {selectedPeriod.nombre}
                   </p>
                   <p className="text-xs text-text-secondary dark:text-gray-400">
                     {formatDisplayDate(selectedPeriod.fechaInicio)} al {formatDisplayDate(selectedPeriod.fechaFin)}
@@ -730,7 +741,7 @@ export default function AdminImportarPage() {
             Archivo: {preview.fileName}
           </p>
           <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-            Periodo destino: {preview.period.codigo} - {preview.period.nombre}
+            Periodo destino: {preview.period.nombre}
             {" "}
             ({formatDisplayDate(preview.period.fechaInicio)} al {formatDisplayDate(preview.period.fechaFin)})
           </p>
@@ -768,6 +779,7 @@ export default function AdminImportarPage() {
                 <tr className="text-text-secondary dark:text-gray-400">
                   <th className="px-3 py-2 font-semibold">Fila</th>
                   <th className="px-3 py-2 font-semibold">Curso</th>
+                  <th className="px-3 py-2 font-semibold">Curso normalizado</th>
                   <th className="px-3 py-2 font-semibold">Nombre</th>
                   <th className="px-3 py-2 font-semibold">RUT</th>
                   <th className="px-3 py-2 font-semibold">Identificador</th>
@@ -779,6 +791,7 @@ export default function AdminImportarPage() {
                   <tr key={row.lineNumber}>
                     <td className="px-3 py-2 text-text-secondary dark:text-gray-400">{row.lineNumber}</td>
                     <td className="px-3 py-2 text-text-primary dark:text-gray-200">{row.curso || "-"}</td>
+                    <td className="px-3 py-2 text-text-primary dark:text-gray-200">{row.cursoCanonico || "-"}</td>
                     <td className="px-3 py-2 text-text-primary dark:text-gray-200">{row.nombreCompleto || "-"}</td>
                     <td className="px-3 py-2 text-text-primary dark:text-gray-200">{row.rutRaw || "-"}</td>
                     <td className="px-3 py-2 text-text-primary dark:text-gray-200">{row.identifier || "-"}</td>
@@ -805,6 +818,32 @@ export default function AdminImportarPage() {
               Se muestran las primeras 300 filas de la previsualizacion.
             </p>
           ) : null}
+
+          {preview.warnings.length > 0 && (
+            <div className="mt-4 max-h-44 overflow-y-auto rounded-xl border border-warning/20 bg-warning/5 p-4 dark:border-warning/30 dark:bg-warning/10">
+              <p className="text-sm font-semibold text-warning">Advertencias de consolidacion:</p>
+              <ul className="mt-2 space-y-1">
+                {preview.warnings.map((warning, i) => (
+                  <li key={i} className="text-xs text-text-secondary dark:text-gray-400">
+                    • {warning}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {preview.errors.length > 0 && (
+            <div className="mt-4 max-h-44 overflow-y-auto rounded-xl border border-danger/20 bg-danger/5 p-4 dark:border-danger/30 dark:bg-danger/10">
+              <p className="text-sm font-semibold text-danger">Errores de previsualizacion:</p>
+              <ul className="mt-2 space-y-1">
+                {preview.errors.map((error, i) => (
+                  <li key={i} className="text-xs text-text-secondary dark:text-gray-400">
+                    • {error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </article>
       )}
 
@@ -818,7 +857,7 @@ export default function AdminImportarPage() {
             Filas procesadas: {result.total}
           </p>
           <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-            Periodo aplicado: {result.period.codigo} - {result.period.nombre}
+            Periodo aplicado: {result.period.nombre}
             {" "}
             ({formatDisplayDate(result.period.fechaInicio)} al {formatDisplayDate(result.period.fechaFin)})
           </p>
@@ -959,7 +998,7 @@ export default function AdminImportarPage() {
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <p className="text-sm font-semibold text-text-primary dark:text-gray-100">
-                                {period.codigo} - {period.nombre}
+                                {period.nombre}
                               </p>
                               <span
                                 className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_BADGE_CLASS[period.estado]}`}
@@ -1036,19 +1075,56 @@ export default function AdminImportarPage() {
             </div>
 
             <form onSubmit={handleCreatePeriod} className="space-y-4 p-5">
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Mes + Año → auto-genera código, nombre y fechas */}
+              <div className="grid gap-4 sm:grid-cols-3">
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Codigo</span>
-                  <input
-                    value={newPeriod.codigo}
-                    onChange={(event) => {
-                      const nextCode = event.target.value.toUpperCase().replace(/\s+/g, "");
-                      setNewPeriod((current) => ({ ...current, codigo: nextCode }));
+                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Mes</span>
+                  <select
+                    value={Number(newPeriod.codigo.split("-")[1] || new Date().getMonth() + 1)}
+                    onChange={(e) => {
+                      const mes = Number(e.target.value);
+                      const anio = Number(newPeriod.codigo.split("-")[0] || new Date().getFullYear());
+                      const last = lastDayOfMonth(anio, mes);
+                      const mm = String(mes).padStart(2, "0");
+                      const dd = String(last).padStart(2, "0");
+                      setNewPeriod((cur) => ({
+                        ...cur,
+                        codigo: `${anio}-${mm}`,
+                        nombre: `${MESES_ES[mes - 1]} ${anio}`,
+                        fechaInicio: `${anio}-${mm}-01`,
+                        fechaFin: `${anio}-${mm}-${dd}`,
+                      }));
                     }}
-                    placeholder="2026-S1"
-                    maxLength={30}
                     className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                    required
+                  >
+                    {MESES_ES.map((m, i) => (
+                      <option key={m} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Año</span>
+                  <input
+                    type="number"
+                    min={2020}
+                    max={2035}
+                    value={Number(newPeriod.codigo.split("-")[0] || new Date().getFullYear())}
+                    onChange={(e) => {
+                      const anio = Number(e.target.value);
+                      const mes = Number(newPeriod.codigo.split("-")[1] || new Date().getMonth() + 1);
+                      const last = lastDayOfMonth(anio, mes);
+                      const mm = String(mes).padStart(2, "0");
+                      const dd = String(last).padStart(2, "0");
+                      setNewPeriod((cur) => ({
+                        ...cur,
+                        codigo: `${anio}-${mm}`,
+                        nombre: `${MESES_ES[mes - 1]} ${anio}`,
+                        fechaInicio: `${anio}-${mm}-01`,
+                        fechaFin: `${anio}-${mm}-${dd}`,
+                      }));
+                    }}
+                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                   />
                 </label>
 
@@ -1071,23 +1147,19 @@ export default function AdminImportarPage() {
                 </label>
               </div>
 
-              <label className="grid gap-1.5">
-                <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Nombre</span>
-                <input
-                  value={newPeriod.nombre}
-                  onChange={(event) => {
-                    setNewPeriod((current) => ({ ...current, nombre: event.target.value }));
-                  }}
-                  placeholder="Semestre 1 2026"
-                  maxLength={120}
-                  className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                  required
-                />
-              </label>
+              {/* Preview del período generado */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 dark:border-primary/30 dark:bg-primary/10">
+                <p className="text-sm font-semibold text-primary dark:text-primary-light">
+                  {newPeriod.nombre}
+                </p>
+                <p className="text-xs text-text-secondary dark:text-gray-400">
+                  {newPeriod.fechaInicio} → {newPeriod.fechaFin} · Código: {newPeriod.codigo}
+                </p>
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Fecha inicio</span>
+                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Fecha inicio (ajustar si necesario)</span>
                   <input
                     type="date"
                     value={newPeriod.fechaInicio}
@@ -1100,7 +1172,7 @@ export default function AdminImportarPage() {
                 </label>
 
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Fecha fin</span>
+                  <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Fecha fin (ajustar si necesario)</span>
                   <input
                     type="date"
                     value={newPeriod.fechaFin}

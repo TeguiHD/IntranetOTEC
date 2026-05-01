@@ -10,6 +10,7 @@ import {
   despublicarEvaluacionFormAction,
   eliminarEvaluacionFormAction,
   importarPruebaLocalFormAction,
+  listarAuditoriaEvaluacion,
   listarEvaluacionesByAsignatura,
   listarEventosSupervisionByEvaluacion,
   listarIntentosRecuperablesEvaluacion,
@@ -25,6 +26,7 @@ import {
   type EvaluacionParticipacionItem,
   type RespuestaPendienteItem,
 } from "@/actions/evaluaciones";
+import { AuditTimeline } from "@/components/evaluaciones/AuditTimeline";
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
 import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
@@ -176,6 +178,9 @@ export default async function AdminEvaluacionesPage({
     : [];
   const eventosSupervision = selectedEvaluacionId
     ? await listarEventosSupervisionByEvaluacion(selectedEvaluacionId)
+    : [];
+  const auditoriaEventos = selectedEvaluacionId
+    ? await listarAuditoriaEvaluacion(selectedEvaluacionId)
     : [];
   const selectedEvaluacion = evaluaciones.find((ev) => ev.id === selectedEvaluacionId) ?? null;
   const draftCount = evaluaciones.filter((evaluacion) => !evaluacion.publicada).length;
@@ -1085,6 +1090,10 @@ export default async function AdminEvaluacionesPage({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="mt-6">
+            <AuditTimeline eventos={auditoriaEventos} />
           </div>
         </article>
       )}

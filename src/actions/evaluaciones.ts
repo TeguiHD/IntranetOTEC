@@ -11,6 +11,7 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import {
   asignaturas,
+  auditLogs,
   evaluacionIntentos,
   evaluaciones,
   eventosSupervision,
@@ -2821,4 +2822,105 @@ export async function registrarEventoSupervisionAction(input: {
     });
     return { ok: false, code: "supervision_event_failed", message: "No fue posible registrar el evento." };
   }
+}
+
+// --- Auditoría legible por evaluación ---
+
+export type AuditoriaEventoLegible = {
+  id: string;
+  fecha: Date | null;
+  descripcion: string;
+  tipo: "info" | "warning" | "success" | "error";
+};
+
+export async function listarAuditoriaEvaluacion(
+  evaluacionId: string,
+): Promise<AuditoriaEventoLegible[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_auditoria_read",
+    "evaluaciones.read_results",
+  );
+  if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) return [];
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: auditLogs.id,
+      accion: auditLogs.accion,
+      entidad: auditLogs.entidad,
+      payload: auditLogs.payload,
+      userRol: auditLogs.userRol,
+      exitoso: auditLogs.exitoso,
+      createdAt: auditLogs.createdAt,
+      userName: sql<string | null>`(
+        select u.nombre || ' ' || u.apellido
+        from usuarios u
+        where u.id = ${auditLogs.userId}
+      )`,
+    })
+    .from(auditLogs)
+    .where(
+      and(
+        sql`${auditLogs.entidadId} = ${evaluacionId}::uuid`,
+        sql`${auditLogs.entidad} IN ('evaluaciones', 'evaluacion_intentos')`,
+      ),
+    )
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(30);
+
+  return rows.map((row) => {
+    const quien =
+      row.userName ??
+      (row.userRol === "admin"
+        ? "Administrador"
+        : row.userRol === "docente"
+          ? "Docente"
+          : "Sistema");
+    const payload = row.payload as Record<string, unknown> | null;
+    let descripcion = "";
+    let tipo: AuditoriaEventoLegible["tipo"] = "info";
+
+    if (row.entidad === "evaluacion_intentos") {
+      const modo = payload?.modo as string | undefined;
+      if (modo === "reanudar") {
+        descripcion = `${quien} reanudó el intento de un alumno.`;
+        tipo = "success";
+      } else if (modo === "nuevo") {
+        descripcion = `${quien} anuló el intento y habilitó comenzar desde cero.`;
+        tipo = "warning";
+      } else if (row.accion === "crear") {
+        descripcion = "Alumno inició un nuevo intento de evaluación.";
+        tipo = "info";
+      } else {
+        descripcion = `${quien} modificó un intento (${row.accion}).`;
+        tipo = "info";
+      }
+    } else if (row.entidad === "evaluaciones") {
+      if (row.accion === "crear") {
+        descripcion = `${quien} creó la evaluación.`;
+        tipo = "success";
+      } else if (row.accion === "editar") {
+        descripcion = `${quien} editó la evaluación.`;
+        tipo = "info";
+      } else if (row.accion === "desactivar") {
+        descripcion = `${quien} eliminó la evaluación.`;
+        tipo = "error";
+      } else {
+        descripcion = `${quien}: ${row.accion} en evaluación.`;
+        tipo = "info";
+      }
+    } else {
+      descripcion = `${quien}: ${row.accion ?? "acción"} en ${row.entidad ?? "entidad"}.`;
+    }
+
+    if (row.exitoso === false) {
+      descripcion += " (falló)";
+      tipo = "error";
+    }
+
+    return { id: row.id, fecha: row.createdAt, descripcion, tipo };
+  });
 }

@@ -172,6 +172,7 @@ export type EvaluacionItem = {
   fechaLimite: Date | null;
   publicada: boolean | null;
   modoSupervision: boolean | null;
+  mostrarResultados: boolean | null;
   asignaturaNombre: string;
   totalPreguntas: number;
   estadoVentana: EvaluationWindowStatus;
@@ -185,6 +186,7 @@ export type IntentoEvaluacionActivo = {
   intentoId: string;
   intento: number;
   iniciadoAt: Date;
+  prorrogadaAt: Date | null;
   expiracionAt: Date | null;
 };
 
@@ -221,6 +223,33 @@ export type RespuestaPendienteItem = {
   alumnoRut: string | null;
   notaActual: string | null;
   esCorrecta: boolean | null;
+};
+
+export type IntentoRecuperableItem = {
+  intentoId: string;
+  matriculaId: string;
+  intento: number;
+  iniciadoAt: Date;
+  prorrogadaAt: Date | null;
+  expiradoAt: Date | null;
+  enviadoAt: Date | null;
+  anuladoAt: Date | null;
+  alumnoNombre: string | null;
+  alumnoApellido: string | null;
+  alumnoRut: string | null;
+  estado: "activo" | "expirado" | "enviado" | "anulado";
+};
+
+export type EvaluacionParticipacionItem = {
+  matriculaId: string;
+  alumnoNombre: string | null;
+  alumnoApellido: string | null;
+  alumnoRut: string | null;
+  estado: "no_iniciado" | "en_curso" | "expirado" | "enviado" | "anulado";
+  ultimoIntento: number | null;
+  respuestasCount: number;
+  nota: string | null;
+  ultimaActividadAt: Date | null;
 };
 
 export type PruebaLocalItem = Pick<
@@ -351,6 +380,7 @@ export async function listarEvaluacionesByAsignatura(
       fechaLimite: evaluaciones.fechaLimite,
       publicada: evaluaciones.publicada,
       modoSupervision: evaluaciones.modoSupervision,
+      mostrarResultados: evaluaciones.mostrarResultados,
       asignaturaNombre: asignaturas.nombre,
     })
     .from(evaluaciones)
@@ -432,6 +462,7 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
       fechaLimite: evaluaciones.fechaLimite,
       publicada: evaluaciones.publicada,
       modoSupervision: evaluaciones.modoSupervision,
+      mostrarResultados: evaluaciones.mostrarResultados,
       asignaturaNombre: asignaturas.nombre,
     })
     .from(evaluaciones)
@@ -604,6 +635,7 @@ export async function asegurarIntentoEvaluacionActivo(
       id: evaluacionIntentos.id,
       intento: evaluacionIntentos.intento,
       iniciadoAt: evaluacionIntentos.iniciadoAt,
+      prorrogadaAt: evaluacionIntentos.prorrogadaAt,
     })
     .from(evaluacionIntentos)
     .where(
@@ -612,20 +644,21 @@ export async function asegurarIntentoEvaluacionActivo(
         eq(evaluacionIntentos.matriculaId, matricula.id),
         isNull(evaluacionIntentos.enviadoAt),
         isNull(evaluacionIntentos.expiradoAt),
+        isNull(evaluacionIntentos.anuladoAt),
       ),
     )
     .orderBy(desc(evaluacionIntentos.intento))
     .limit(1);
 
   if (activeAttempt) {
-    const expiracionAt = new Date(
-      activeAttempt.iniciadoAt.getTime() + ev.duracionMinutos * 60_000,
-    );
+    const baseTime = activeAttempt.prorrogadaAt ?? activeAttempt.iniciadoAt;
+    const expiracionAt = new Date(baseTime.getTime() + ev.duracionMinutos * 60_000);
     if (expiracionAt > now) {
       return {
         intentoId: activeAttempt.id,
         intento: activeAttempt.intento,
         iniciadoAt: activeAttempt.iniciadoAt,
+        prorrogadaAt: activeAttempt.prorrogadaAt,
         expiracionAt,
       };
     }
@@ -638,20 +671,24 @@ export async function asegurarIntentoEvaluacionActivo(
 
   const [maxIntentosRow] = await db
     .select({
-      maxIntentos: sql<number>`greatest(
-        coalesce((select max(i.intento) from evaluacion_intentos i where i.evaluacion_id = ${evaluacionId} and i.matricula_id = ${matricula.id}), 0),
+      intentosUsados: sql<number>`greatest(
+        coalesce((select max(i.intento) from evaluacion_intentos i where i.evaluacion_id = ${evaluacionId} and i.matricula_id = ${matricula.id} and i.anulado_at is null), 0),
         coalesce((select max(r.intento) from respuestas_formulario r where r.evaluacion_id = ${evaluacionId} and r.matricula_id = ${matricula.id}), 0)
       )`.mapWith(Number),
+      nextIntento: sql<number>`greatest(
+        coalesce((select max(i.intento) from evaluacion_intentos i where i.evaluacion_id = ${evaluacionId} and i.matricula_id = ${matricula.id}), 0),
+        coalesce((select max(r.intento) from respuestas_formulario r where r.evaluacion_id = ${evaluacionId} and r.matricula_id = ${matricula.id}), 0)
+      ) + 1`.mapWith(Number),
     })
     .from(matriculas)
     .where(eq(matriculas.id, matricula.id))
     .limit(1);
 
-  const intentosUsados = Number(maxIntentosRow?.maxIntentos ?? 0);
+  const intentosUsados = Number(maxIntentosRow?.intentosUsados ?? 0);
   const intentosMax = ev.intentosMax ?? 1;
   if (intentosUsados >= intentosMax) return null;
 
-  const nextIntento = intentosUsados + 1;
+  const nextIntento = Number(maxIntentosRow?.nextIntento ?? intentosUsados + 1);
   const [created] = await db
     .insert(evaluacionIntentos)
     .values({
@@ -664,6 +701,7 @@ export async function asegurarIntentoEvaluacionActivo(
       id: evaluacionIntentos.id,
       intento: evaluacionIntentos.intento,
       iniciadoAt: evaluacionIntentos.iniciadoAt,
+      prorrogadaAt: evaluacionIntentos.prorrogadaAt,
     });
 
   return created
@@ -671,6 +709,7 @@ export async function asegurarIntentoEvaluacionActivo(
         intentoId: created.id,
         intento: created.intento,
         iniciadoAt: created.iniciadoAt,
+        prorrogadaAt: created.prorrogadaAt,
         expiracionAt: new Date(created.iniciadoAt.getTime() + ev.duracionMinutos * 60_000),
       }
     : null;
@@ -789,6 +828,123 @@ export async function obtenerResultadosEvaluacion(evaluacionId: string) {
   );
 }
 
+export async function listarParticipacionEvaluacion(
+  evaluacionId: string,
+): Promise<EvaluacionParticipacionItem[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_participacion_list",
+    "evaluaciones.read_results",
+  );
+  if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) return [];
+
+  const db = getDb();
+  const latestAttemptId = sql`(
+    select i.id
+    from evaluacion_intentos i
+    where i.evaluacion_id = ${evaluacionId}
+      and i.matricula_id = ${matriculas.id}
+    order by i.intento desc
+    limit 1
+  )`;
+
+  const rows = await db
+    .select({
+      matriculaId: matriculas.id,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+      estado: sql<EvaluacionParticipacionItem["estado"]>`case
+        when exists (
+          select 1 from respuestas_formulario r
+          where r.evaluacion_id = ${evaluacionId}
+            and r.matricula_id = ${matriculas.id}
+        ) then 'enviado'
+        when exists (
+          select 1 from evaluacion_intentos i
+          where i.id = ${latestAttemptId}
+            and i.anulado_at is not null
+        ) then 'anulado'
+        when exists (
+          select 1 from evaluacion_intentos i
+          where i.id = ${latestAttemptId}
+            and i.enviado_at is not null
+        ) then 'enviado'
+        when exists (
+          select 1 from evaluacion_intentos i
+          where i.id = ${latestAttemptId}
+            and i.expirado_at is not null
+        ) then 'expirado'
+        when exists (
+          select 1 from evaluacion_intentos i
+          where i.id = ${latestAttemptId}
+        ) then 'en_curso'
+        else 'no_iniciado'
+      end`,
+      ultimoIntento: sql<number | null>`(
+        select i.intento
+        from evaluacion_intentos i
+        where i.evaluacion_id = ${evaluacionId}
+          and i.matricula_id = ${matriculas.id}
+        order by i.intento desc
+        limit 1
+      )`,
+      respuestasCount: sql<number>`(
+        select count(*)
+        from respuestas_formulario r
+        where r.evaluacion_id = ${evaluacionId}
+          and r.matricula_id = ${matriculas.id}
+      )`.mapWith(Number),
+      nota: sql<string | null>`(
+        select n.nota
+        from notas n
+        where n.evaluacion_id = ${evaluacionId}
+          and n.matricula_id = ${matriculas.id}
+          and n.eliminado_at is null
+        order by n.fecha_nota desc nulls last
+        limit 1
+      )`,
+      ultimaActividadAt: sql<Date | null>`greatest(
+        coalesce((
+          select max(r.created_at)
+          from respuestas_formulario r
+          where r.evaluacion_id = ${evaluacionId}
+            and r.matricula_id = ${matriculas.id}
+        ), '-infinity'::timestamptz),
+        coalesce((
+          select max(coalesce(i.enviado_at, i.expirado_at, i.anulado_at, i.prorrogada_at, i.iniciado_at))
+          from evaluacion_intentos i
+          where i.evaluacion_id = ${evaluacionId}
+            and i.matricula_id = ${matriculas.id}
+        ), '-infinity'::timestamptz)
+      )`,
+    })
+    .from(evaluaciones)
+    .innerJoin(matriculas, eq(matriculas.asignaturaId, evaluaciones.asignaturaId))
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(
+      and(
+        eq(evaluaciones.id, evaluacionId),
+        eq(matriculas.activa, true),
+        isNull(evaluaciones.eliminadoAt),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+
+  return rows.map((row) => ({
+    ...row,
+    ultimoIntento: row.ultimoIntento ? Number(row.ultimoIntento) : null,
+    respuestasCount: Number(row.respuestasCount ?? 0),
+    ultimaActividadAt:
+      row.ultimaActividadAt && Number.isFinite(new Date(row.ultimaActividadAt).getTime())
+        ? row.ultimaActividadAt
+        : null,
+  }));
+}
+
 export async function listarRespuestasParaCalificar(
   evaluacionId: string,
 ): Promise<RespuestaPendienteItem[]> {
@@ -837,6 +993,199 @@ export async function listarRespuestasParaCalificar(
       ),
     )
     .orderBy(asc(usuarios.apellido), asc(usuarios.nombre), asc(preguntas.orden));
+}
+
+export async function listarIntentosRecuperablesEvaluacion(
+  evaluacionId: string,
+): Promise<IntentoRecuperableItem[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_intentos_list",
+    "evaluaciones.read_results",
+  );
+  if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) return [];
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      intentoId: evaluacionIntentos.id,
+      matriculaId: evaluacionIntentos.matriculaId,
+      intento: evaluacionIntentos.intento,
+      iniciadoAt: evaluacionIntentos.iniciadoAt,
+      prorrogadaAt: evaluacionIntentos.prorrogadaAt,
+      expiradoAt: evaluacionIntentos.expiradoAt,
+      enviadoAt: evaluacionIntentos.enviadoAt,
+      anuladoAt: evaluacionIntentos.anuladoAt,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+    })
+    .from(evaluacionIntentos)
+    .innerJoin(matriculas, eq(evaluacionIntentos.matriculaId, matriculas.id))
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(eq(evaluacionIntentos.evaluacionId, evaluacionId))
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre), desc(evaluacionIntentos.intento));
+
+  return rows.map((row) => ({
+    ...row,
+    estado: row.anuladoAt
+      ? "anulado"
+      : row.enviadoAt
+        ? "enviado"
+        : row.expiradoAt
+          ? "expirado"
+          : "activo",
+  }));
+}
+
+export async function rehabilitarIntentoAlumnoAction(input: {
+  evaluacionId: string;
+  matriculaId: string;
+  intentoId: string;
+  modo: "reanudar" | "nuevo";
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_rehabilitar_intento",
+    "evaluaciones.supervision",
+  );
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!input.evaluacionId || !input.matriculaId || !input.intentoId) {
+    return { ok: false, code: "invalid_input", message: "Datos inválidos." };
+  }
+  if (input.modo !== "reanudar" && input.modo !== "nuevo") {
+    return { ok: false, code: "invalid_input", message: "Modo inválido." };
+  }
+
+  const evaluacion = await getEvaluacionAccessRow(input.evaluacionId);
+  if (!evaluacion) {
+    return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+  }
+  if (!actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return forbiddenMutationResult("No tienes permiso para rehabilitar intentos en esta evaluación.");
+  }
+
+  const db = getDb();
+  const [intento] = await db
+    .select({
+      id: evaluacionIntentos.id,
+      intento: evaluacionIntentos.intento,
+      enviadoAt: evaluacionIntentos.enviadoAt,
+    })
+    .from(evaluacionIntentos)
+    .where(
+      and(
+        eq(evaluacionIntentos.id, input.intentoId),
+        eq(evaluacionIntentos.evaluacionId, input.evaluacionId),
+        eq(evaluacionIntentos.matriculaId, input.matriculaId),
+      ),
+    )
+    .limit(1);
+
+  if (!intento) {
+    return { ok: false, code: "intento_not_found", message: "Intento no encontrado." };
+  }
+  if (intento.enviadoAt) {
+    return {
+      ok: false,
+      code: "intento_already_submitted",
+      message: "Este intento ya fue enviado. No se puede rehabilitar.",
+    };
+  }
+
+  const now = new Date();
+
+  try {
+    if (input.modo === "reanudar") {
+      await db
+        .update(evaluacionIntentos)
+        .set({ expiradoAt: null, prorrogadaAt: now, anuladoAt: null, anuladoPor: null })
+        .where(eq(evaluacionIntentos.id, intento.id));
+
+      await registrarAudit({
+        correlationId: actorResult.actor.correlationId,
+        userId: actorResult.actor.userId,
+        userRol: actorResult.actor.userRol,
+        accion: "editar",
+        entidad: "evaluacion_intentos",
+        entidadId: intento.id,
+        payload: { modo: input.modo, evaluacionId: input.evaluacionId, matriculaId: input.matriculaId },
+        exitoso: true,
+      });
+
+      return { ok: true, code: "intento_reanudado" };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(evaluacionIntentos)
+        .set({ anuladoAt: now, anuladoPor: actorResult.actor.userId, expiradoAt: now })
+        .where(eq(evaluacionIntentos.id, intento.id));
+
+      await tx
+        .delete(respuestasFormulario)
+        .where(
+          and(
+            eq(respuestasFormulario.evaluacionId, input.evaluacionId),
+            eq(respuestasFormulario.matriculaId, input.matriculaId),
+            eq(respuestasFormulario.intento, intento.intento),
+          ),
+        );
+    });
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "desactivar",
+      entidad: "evaluacion_intentos",
+      entidadId: intento.id,
+      payload: { modo: input.modo, evaluacionId: input.evaluacionId, matriculaId: input.matriculaId },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "intento_anulado_nuevo" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "rehabilitar_intento_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message, modo: input.modo },
+    });
+    return { ok: false, code: "rehabilitar_failed", message: "No fue posible rehabilitar el intento." };
+  }
+}
+
+export async function rehabilitarIntentoFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const matriculaId = getStringField(formData, "matriculaId");
+  const intentoId = getStringField(formData, "intentoId");
+  const modo = getStringField(formData, "modo") as "reanudar" | "nuevo";
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+
+  const result = await rehabilitarIntentoAlumnoAction({
+    evaluacionId,
+    matriculaId,
+    intentoId,
+    modo,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
 }
 
 export async function calificarRespuestaEvaluacionAction(input: {
@@ -1335,6 +1684,133 @@ export async function toggleModoSupervisionFormAction(formData: FormData): Promi
     periodoId: periodoId || undefined,
     asignaturaId: asignaturaId || undefined,
     evaluacionId: evaluacionId || undefined,
+  });
+}
+
+export type ResultadoPreguntaAlumno = {
+  preguntaId: string;
+  enunciado: string;
+  tipo: string;
+  orden: number | null;
+  respuesta: string | null;
+  esCorrecta: boolean | null;
+  puntaje: string | null;
+};
+
+export async function listarResultadosEvaluacionAlumno(
+  evaluacionId: string,
+): Promise<ResultadoPreguntaAlumno[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_resultados_alumno",
+    "evaluaciones.read_assigned",
+  );
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  // Find this alumno's matricula for this evaluacion
+  const matriculaRows = await db
+    .select({ id: matriculas.id })
+    .from(matriculas)
+    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .innerJoin(evaluaciones, eq(asignaturas.id, evaluaciones.asignaturaId))
+    .where(
+      and(
+        eq(evaluaciones.id, evaluacionId),
+        eq(matriculas.alumnoId, actorResult.actor.userId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .limit(1);
+
+  const matriculaId = matriculaRows[0]?.id ?? null;
+  if (!matriculaId) return [];
+
+  // Only if mostrar_resultados = true
+  const evRows = await db
+    .select({ mostrarResultados: evaluaciones.mostrarResultados })
+    .from(evaluaciones)
+    .where(eq(evaluaciones.id, evaluacionId))
+    .limit(1);
+
+  if (!evRows[0]?.mostrarResultados) return [];
+
+  const rows = await db
+    .select({
+      preguntaId: preguntas.id,
+      enunciado: preguntas.enunciado,
+      tipo: preguntas.tipo,
+      orden: preguntas.orden,
+      puntaje: preguntas.puntaje,
+      respuesta: respuestasFormulario.respuesta,
+      esCorrecta: respuestasFormulario.esCorrecta,
+    })
+    .from(preguntas)
+    .leftJoin(
+      respuestasFormulario,
+      and(
+        eq(respuestasFormulario.preguntaId, preguntas.id),
+        eq(respuestasFormulario.matriculaId, matriculaId),
+        eq(respuestasFormulario.evaluacionId, evaluacionId),
+      ),
+    )
+    .where(and(eq(preguntas.evaluacionId, evaluacionId), isNull(preguntas.eliminadoAt)))
+    .orderBy(asc(preguntas.orden));
+
+  return rows.map((r) => ({
+    preguntaId: r.preguntaId,
+    enunciado: r.enunciado,
+    tipo: r.tipo,
+    orden: r.orden,
+    puntaje: r.puntaje,
+    respuesta: r.respuesta ?? null,
+    esCorrecta: r.esCorrecta ?? null,
+  }));
+}
+
+export async function toggleMostrarResultadosAction(
+  evaluacionId: string,
+  valor: boolean,
+): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_toggle_resultados",
+    "evaluaciones.publish",
+  );
+  if (!actorResult.ok) return actorResult.result;
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion) {
+    return { ok: false, code: "not_found", message: "Evaluación no encontrada." };
+  }
+  if (!actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return forbiddenMutationResult("Sin permiso para modificar esta evaluación.");
+  }
+
+  const db = getDb();
+  await db
+    .update(evaluaciones)
+    .set({ mostrarResultados: valor })
+    .where(eq(evaluaciones.id, evaluacionId));
+
+  revalidatePath("/admin/evaluaciones");
+  return { ok: true, code: "mostrar_resultados_updated" };
+}
+
+export async function toggleMostrarResultadosFormAction(formData: FormData): Promise<void> {
+  const evId = formData.get("evaluacionId") as string;
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const currentValue = formData.get("currentValue") === "true";
+  const redirectTo = getStringField(formData, "redirectTo");
+  await toggleMostrarResultadosAction(evId, !currentValue);
+  revalidatePath("/admin/evaluaciones");
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: "mostrar_resultados_updated",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evId || undefined,
   });
 }
 
@@ -2062,8 +2538,10 @@ export async function enviarRespuestasAction(input: {
           id: evaluacionIntentos.id,
           intento: evaluacionIntentos.intento,
           iniciadoAt: evaluacionIntentos.iniciadoAt,
+          prorrogadaAt: evaluacionIntentos.prorrogadaAt,
           enviadoAt: evaluacionIntentos.enviadoAt,
           expiradoAt: evaluacionIntentos.expiradoAt,
+          anuladoAt: evaluacionIntentos.anuladoAt,
         })
         .from(evaluacionIntentos)
         .where(
@@ -2071,11 +2549,12 @@ export async function enviarRespuestasAction(input: {
             eq(evaluacionIntentos.id, input.intentoId),
             eq(evaluacionIntentos.evaluacionId, input.evaluacionId),
             eq(evaluacionIntentos.matriculaId, matricula.id),
+            isNull(evaluacionIntentos.anuladoAt),
           ),
         )
         .limit(1);
 
-      if (!attempt || attempt.enviadoAt || attempt.expiradoAt) {
+      if (!attempt || attempt.enviadoAt || attempt.expiradoAt || attempt.anuladoAt) {
         return {
           ok: false,
           code: "attempt_invalid",
@@ -2083,9 +2562,8 @@ export async function enviarRespuestasAction(input: {
         };
       }
 
-      const expiracionAt = new Date(
-        attempt.iniciadoAt.getTime() + ev.duracionMinutos * 60_000,
-      );
+      const baseTime = attempt.prorrogadaAt ?? attempt.iniciadoAt;
+      const expiracionAt = new Date(baseTime.getTime() + ev.duracionMinutos * 60_000);
       if (expiracionAt <= now) {
         await db
           .update(evaluacionIntentos)

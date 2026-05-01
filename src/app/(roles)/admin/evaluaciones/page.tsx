@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, Eye, FileUp, ListChecks, Plus, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
+import { CheckCircle2, ClipboardList, Eye, FileUp, ListChecks, Plus, ShieldCheck, ShieldOff, Trash2, BarChart2 } from "lucide-react";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
@@ -12,14 +12,21 @@ import {
   importarPruebaLocalFormAction,
   listarEvaluacionesByAsignatura,
   listarEventosSupervisionByEvaluacion,
+  listarIntentosRecuperablesEvaluacion,
+  listarParticipacionEvaluacion,
   listarPreguntasByEvaluacion,
   listarPruebasLocalesAction,
   listarRespuestasParaCalificar,
   obtenerResultadosEvaluacion,
   publicarEvaluacionFormAction,
   toggleModoSupervisionFormAction,
+  toggleMostrarResultadosFormAction,
+  type IntentoRecuperableItem,
+  type EvaluacionParticipacionItem,
   type RespuestaPendienteItem,
 } from "@/actions/evaluaciones";
+import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
+import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
 import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { describeEvaluationWriteLock } from "@/lib/academic-state";
@@ -45,6 +52,9 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   supervision_enabled: { tone: "success", text: "Modo supervisión activado para la evaluación." },
   supervision_disabled: { tone: "success", text: "Modo supervisión desactivado para la evaluación." },
   supervision_toggle_failed: { tone: "error", text: "No fue posible cambiar el modo supervisión." },
+  mostrar_resultados_updated: { tone: "success", text: "Visibilidad de resultados actualizada." },
+  intento_reanudado: { tone: "success", text: "Intento reanudado con un nuevo temporizador completo." },
+  intento_anulado_nuevo: { tone: "success", text: "Intento anulado. El alumno podrá comenzar desde cero." },
   template_docente_otec_created: {
     tone: "success",
     text: "Plantilla de Evaluación Docente y OTEC creada en borrador.",
@@ -154,6 +164,12 @@ export default async function AdminEvaluacionesPage({
     : [];
   const respuestasPendientes: RespuestaPendienteItem[] = selectedEvaluacionId
     ? await listarRespuestasParaCalificar(selectedEvaluacionId)
+    : [];
+  const intentosRecuperables: IntentoRecuperableItem[] = selectedEvaluacionId
+    ? await listarIntentosRecuperablesEvaluacion(selectedEvaluacionId)
+    : [];
+  const participacionEvaluacion: EvaluacionParticipacionItem[] = selectedEvaluacionId
+    ? await listarParticipacionEvaluacion(selectedEvaluacionId)
     : [];
   const preguntasSeleccionadas = selectedEvaluacionId
     ? await listarPreguntasByEvaluacion(selectedEvaluacionId)
@@ -618,6 +634,23 @@ export default async function AdminEvaluacionesPage({
                         {ev.modoSupervision ? "Supervisada" : "Activar supervisión"}
                       </button>
                     </form>
+                    <form action={toggleMostrarResultadosFormAction}>
+                      <input type="hidden" name="evaluacionId" value={ev.id} />
+                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="currentValue" value={String(ev.mostrarResultados ?? false)} />
+                      <button
+                        type="submit"
+                        className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          ev.mostrarResultados
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700/60 dark:bg-emerald-900/20 dark:text-emerald-300"
+                            : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        }`}
+                      >
+                        <BarChart2 className="h-3.5 w-3.5" />
+                        {ev.mostrarResultados ? "Resultados visibles" : "Mostrar resultados"}
+                      </button>
+                    </form>
                     <a
                       href={`?periodoId=${encodeURIComponent(selectedPeriodoId)}&asignaturaId=${encodeURIComponent(selectedAsignaturaId ?? "")}&evaluacionId=${encodeURIComponent(ev.id)}`}
                       className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
@@ -819,6 +852,10 @@ export default async function AdminEvaluacionesPage({
             )}
           </div>
 
+          <div className="mt-6">
+            <EvaluacionParticipacionPanel participacion={participacionEvaluacion} />
+          </div>
+
           {resultados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Eye className="h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -924,6 +961,71 @@ export default async function AdminEvaluacionesPage({
                     </form>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {intentosRecuperables.length > 0 && (
+            <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800/40 dark:bg-blue-900/20">
+              <h3 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
+                Rehabilitar acceso — intentos de alumnos
+              </h3>
+              <p className="mb-4 text-xs text-blue-700 dark:text-blue-400">
+                Reanuda un intento con temporizador completo o anúlalo para que el alumno empiece de cero.
+              </p>
+              <div className="divide-y divide-blue-100 dark:divide-blue-900/40">
+                {intentosRecuperables.map((item) => {
+                  const estadoBadge = {
+                    activo: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+                    expirado: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+                    enviado: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+                    anulado: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+                  }[item.estado];
+                  const estadoLabel = {
+                    activo: "En curso",
+                    expirado: "Expirado",
+                    enviado: "Enviado",
+                    anulado: "Anulado",
+                  }[item.estado];
+
+                  return (
+                    <div key={item.intentoId} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-text-primary dark:text-white">
+                          {item.alumnoApellido}, {item.alumnoNombre}
+                          {item.alumnoRut ? (
+                            <span className="ml-2 text-xs text-text-secondary dark:text-gray-400">
+                              ({formatRut(item.alumnoRut)})
+                            </span>
+                          ) : null}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary dark:text-gray-400">
+                          <span>Intento #{item.intento}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${estadoBadge}`}>
+                            {estadoLabel}
+                          </span>
+                          {item.prorrogadaAt ? (
+                            <span className="italic">
+                              Reanudado el {new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(item.prorrogadaAt)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      {item.estado !== "enviado" ? (
+                        <RehabilitarIntentoActions
+                          evaluacionId={selectedEvaluacionId ?? ""}
+                          matriculaId={item.matriculaId}
+                          intentoId={item.intentoId}
+                          asignaturaId={selectedAsignaturaId ?? ""}
+                          periodoId={selectedPeriodoId ?? ""}
+                          redirectTo={`/admin/evaluaciones?periodoId=${selectedPeriodoId ?? ""}&asignaturaId=${selectedAsignaturaId ?? ""}&evaluacionId=${selectedEvaluacionId ?? ""}`}
+                          disabled={item.estado === "anulado"}
+                          alumnoLabel={`${item.alumnoNombre ?? ""} ${item.alumnoApellido ?? ""}`.trim() || "este alumno"}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

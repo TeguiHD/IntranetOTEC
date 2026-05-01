@@ -325,10 +325,12 @@ export const evaluaciones = pgTable(
     ponderacion: numeric("ponderacion", { precision: 5, scale: 2 }),
     fechaInicio: tstz("fecha_inicio"),
     fechaLimite: tstz("fecha_limite"),
+    duracionMinutos: integer("duracion_minutos"),
     intentosMax: integer("intentos_max").default(1),
     instrucciones: text("instrucciones"),
     publicada: boolean("publicada").default(false),
     modoSupervision: boolean("modo_supervision").default(false),
+    mostrarResultados: boolean("mostrar_resultados").default(false).notNull(),
     // --- Unified survey fields ---
     esEncuesta: boolean("es_encuesta").default(false),
     audiencia: audienciaEncuestaEnum("audiencia"),
@@ -386,6 +388,33 @@ export const respuestasFormulario = pgTable("respuestas_formulario", {
   intento: integer("intento").default(1),
   createdAt: tstz("created_at").defaultNow(),
 });
+
+export const evaluacionIntentos = pgTable(
+  "evaluacion_intentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    evaluacionId: uuid("evaluacion_id")
+      .notNull()
+      .references(() => evaluaciones.id),
+    matriculaId: uuid("matricula_id")
+      .notNull()
+      .references(() => matriculas.id),
+    intento: integer("intento").notNull().default(1),
+    iniciadoAt: tstz("iniciado_at").defaultNow().notNull(),
+    enviadoAt: tstz("enviado_at"),
+    expiradoAt: tstz("expirado_at"),
+    prorrogadaAt: tstz("prorrogada_at"),
+    anuladoAt: tstz("anulado_at"),
+    anuladoPor: uuid("anulado_por").references(() => usuarios.id),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    intentoIdx: unique().on(t.evaluacionId, t.matriculaId, t.intento),
+    activoIdx: index("evaluacion_intentos_activos_idx")
+      .on(t.evaluacionId, t.matriculaId, t.iniciadoAt)
+      .where(sql`${t.enviadoAt} IS NULL AND ${t.expiradoAt} IS NULL AND ${t.anuladoAt} IS NULL`),
+  }),
+);
 
 export const eventosSupervision = pgTable(
   "eventos_supervision",

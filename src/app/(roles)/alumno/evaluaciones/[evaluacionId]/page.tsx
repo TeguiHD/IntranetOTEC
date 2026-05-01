@@ -1,7 +1,12 @@
 import { CalendarDays, CheckCircle, ClipboardList, Clock, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { listarEvaluacionesAlumno, listarPreguntasAlumnoByEvaluacion } from "@/actions/evaluaciones";
+import {
+  asegurarIntentoEvaluacionActivo,
+  listarEvaluacionesAlumno,
+  listarPreguntasAlumnoByEvaluacion,
+  listarResultadosEvaluacionAlumno,
+} from "@/actions/evaluaciones";
 import { obtenerEntregasAlumno } from "@/actions/entregas";
 
 import { EvaluacionForm } from "./EvaluacionForm";
@@ -38,7 +43,14 @@ export default async function AlumnoEvaluacionPage({
     listarPreguntasAlumnoByEvaluacion(evaluacionId),
     esTareaOProyecto ? obtenerEntregasAlumno(evaluacionId) : Promise.resolve([]),
   ]);
+  const intentoActivo =
+    !esTareaOProyecto && evaluacion.duracionMinutos
+      ? await asegurarIntentoEvaluacionActivo(evaluacionId)
+      : null;
   const isSubmitted = state === "respuestas_enviadas";
+  const resultados = isSubmitted
+    ? await listarResultadosEvaluacionAlumno(evaluacionId)
+    : [];
   const isOverdue = evaluacion.fechaLimite && new Date(evaluacion.fechaLimite) < new Date();
   const hasError = [
     "error",
@@ -46,6 +58,9 @@ export default async function AlumnoEvaluacionPage({
     "not_enrolled",
     "deadline_passed",
     "not_open_yet",
+    "attempt_required",
+    "attempt_invalid",
+    "attempt_expired",
   ].includes(state ?? "");
 
   return (
@@ -105,6 +120,12 @@ export default async function AlumnoEvaluacionPage({
           <Clock className="h-4 w-4" />
           Intentos máximos: {evaluacion.intentosMax ?? 1}
         </span>
+        {evaluacion.duracionMinutos ? (
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-4 w-4" />
+            Tiempo por intento: {evaluacion.duracionMinutos} min
+          </span>
+        ) : null}
       </div>
 
       {evaluacion.instrucciones && (
@@ -141,6 +162,47 @@ export default async function AlumnoEvaluacionPage({
         </article>
       )}
 
+      {isSubmitted && resultados.length > 0 && (
+        <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="mb-4 text-sm font-semibold text-text-primary dark:text-white">
+            Resultados de tu evaluación
+          </h2>
+          <ol className="space-y-3">
+            {resultados.map((r, idx) => (
+              <li
+                key={r.preguntaId}
+                className={`rounded-lg border p-3 ${
+                  r.esCorrecta === true
+                    ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/50 dark:bg-emerald-950/20"
+                    : r.esCorrecta === false
+                      ? "border-red-200 bg-red-50/60 dark:border-red-800/50 dark:bg-red-950/20"
+                      : "border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/40"
+                }`}
+              >
+                <p className="text-sm font-medium text-text-primary dark:text-white">
+                  {idx + 1}. {r.enunciado}
+                </p>
+                <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                  Tu respuesta:{" "}
+                  <span className="font-medium">{r.respuesta ?? "—"}</span>
+                </p>
+                {r.esCorrecta !== null && (
+                  <p
+                    className={`mt-1 text-xs font-semibold ${
+                      r.esCorrecta
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-red-700 dark:text-red-300"
+                    }`}
+                  >
+                    {r.esCorrecta ? "Correcta" : "Incorrecta"}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {hasError && (
         <article className="rounded-xl border border-danger/30 bg-danger/5 p-6 dark:border-danger/40 dark:bg-danger/10">
           <p className="text-sm font-medium text-danger">
@@ -148,12 +210,25 @@ export default async function AlumnoEvaluacionPage({
               ? "Has alcanzado el número máximo de intentos para esta evaluación."
               : state === "not_enrolled"
                 ? "No tienes matrícula en esta asignatura."
-                : state === "deadline_passed"
+              : state === "deadline_passed"
                   ? "La evaluación ya venció y no acepta respuestas."
                   : state === "not_open_yet"
                     ? "La evaluación todavía no se encuentra habilitada."
+                    : state === "attempt_required"
+                      ? "Debes iniciar un intento válido para responder esta evaluación."
+                      : state === "attempt_invalid"
+                        ? "Tu intento activo ya no está disponible. Recarga la página para continuar."
+                        : state === "attempt_expired"
+                          ? "Tu tiempo por intento expiró antes del envío. Puedes continuar solo si aún tienes intentos disponibles."
                     : "No fue posible enviar las respuestas. Intenta nuevamente."}
           </p>
+        </article>
+      )}
+
+      {!esTareaOProyecto && evaluacion.duracionMinutos && !isSubmitted && !intentoActivo && (
+        <article className="rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-100">
+          No hay un intento temporizado disponible ahora mismo. Esto puede ocurrir si agotaste los
+          intentos o si un intento previo venció y la evaluación ya no admite otro.
         </article>
       )}
 
@@ -176,11 +251,16 @@ export default async function AlumnoEvaluacionPage({
         </article>
       )}
 
-      {!esTareaOProyecto && !isSubmitted && preguntas.length > 0 && (
+      {!esTareaOProyecto &&
+        !isSubmitted &&
+        preguntas.length > 0 &&
+        (!evaluacion.duracionMinutos || intentoActivo) && (
         <EvaluacionForm
           evaluacionId={evaluacionId}
           preguntas={preguntas}
           supervisionEnabled={Boolean(evaluacion.modoSupervision)}
+          duracionMinutos={evaluacion.duracionMinutos ?? null}
+          intentoActivo={intentoActivo}
         />
       )}
     </section>

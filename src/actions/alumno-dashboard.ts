@@ -13,6 +13,7 @@ import {
   notas,
   notasDocente,
   solicitudesDocumentos,
+  usuarios,
 } from "@/db/schema";
 
 import { requireActionActor } from "./_security";
@@ -73,6 +74,15 @@ export type ResumenAlumno = {
   solicitudesPendientes: number;
 };
 
+export type ActividadSemana = {
+  tipo: "evaluacion" | "clase";
+  titulo: string;
+  asignaturaNombre: string;
+  fecha: Date;
+  urgente: boolean; // true if < 48h away
+  href: string;
+};
+
 export type AlumnoDashboardData = {
   resumen: ResumenAlumno;
   cursos: CursoAlumno[];
@@ -80,6 +90,7 @@ export type AlumnoDashboardData = {
   evaluacionesPendientes: EvaluacionPendiente[];
   notasRecientes: NotaReciente[];
   notasDocenteRecientes: NotaDocenteReciente[];
+  estaSemanaPendiente: ActividadSemana[];
 };
 
 export async function obtenerDashboardAlumno(): Promise<AlumnoDashboardData | null> {
@@ -94,6 +105,7 @@ export async function obtenerDashboardAlumno(): Promise<AlumnoDashboardData | nu
   const hoy = new Date().toISOString().split("T")[0];
 
   // 1. Enrolled courses
+  const docenteAlias = usuarios;
   const cursos = await db
     .select({
       matriculaId: matriculas.id,
@@ -103,9 +115,11 @@ export async function obtenerDashboardAlumno(): Promise<AlumnoDashboardData | nu
       estado: asignaturas.estado,
       fechaInicio: asignaturas.fechaInicio,
       estadoPago: matriculas.estadoPago,
+      docenteNombre: sql<string | null>`${docenteAlias.nombre} || ' ' || ${docenteAlias.apellido}`,
     })
     .from(matriculas)
     .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .leftJoin(docenteAlias, eq(asignaturas.docenteId, docenteAlias.id))
     .where(
       and(
         eq(matriculas.alumnoId, alumnoId),
@@ -244,6 +258,39 @@ export async function obtenerDashboardAlumno(): Promise<AlumnoDashboardData | nu
 
   const [solPendientes] = solPendientesResult;
 
+  const ahora = new Date();
+  const en7Dias = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const en48h = new Date(ahora.getTime() + 48 * 60 * 60 * 1000);
+  const estaSemanaPendiente: ActividadSemana[] = [];
+
+  for (const ev of evalConEstado) {
+    if (!ev.tieneNota && ev.fechaLimite && ev.fechaLimite > ahora && ev.fechaLimite <= en7Dias) {
+      estaSemanaPendiente.push({
+        tipo: "evaluacion",
+        titulo: ev.titulo,
+        asignaturaNombre: ev.asignaturaNombre,
+        fecha: ev.fechaLimite,
+        urgente: ev.fechaLimite <= en48h,
+        href: `/alumno/evaluaciones/${ev.evaluacionId}`,
+      });
+    }
+  }
+
+  for (const cl of proximasClases) {
+    const fechaClase = new Date(cl.fecha + "T12:00:00");
+    if (fechaClase >= ahora && fechaClase <= en7Dias) {
+      estaSemanaPendiente.push({
+        tipo: "clase",
+        titulo: cl.titulo,
+        asignaturaNombre: cl.asignaturaNombre,
+        fecha: fechaClase,
+        urgente: fechaClase <= en48h,
+        href: `/alumno/asignaturas`,
+      });
+    }
+  }
+  estaSemanaPendiente.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+
   return {
     resumen: {
       totalCursos: cursos.length,
@@ -254,11 +301,11 @@ export async function obtenerDashboardAlumno(): Promise<AlumnoDashboardData | nu
     },
     cursos: cursos.map((c) => ({
       ...c,
-      docenteNombre: null, // simplified
     })),
     proximasClases,
     evaluacionesPendientes: evalConEstado,
     notasRecientes,
     notasDocenteRecientes,
+    estaSemanaPendiente,
   };
 }

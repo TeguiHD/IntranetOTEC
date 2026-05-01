@@ -32,20 +32,25 @@ const GRADIENT_COLORS: Record<string, string> = {
   "grad-indigo": "#6366F1",
 };
 
-const ALUMNO_NAV: { href: string; title: string; gradient: string; Icon: LucideIcon }[] = [
-  { href: "/alumno/asignaturas",              title: "Mis Cursos",           gradient: "grad-blue",    Icon: GraduationCap },
-  { href: "/alumno/clases",                   title: "Clases",               gradient: "grad-cyan",    Icon: CalendarDays },
-  { href: "/alumno/evaluaciones",             title: "Evaluaciones",         gradient: "grad-violet",  Icon: ClipboardList },
-  { href: "/alumno/notas",                    title: "Mis Notas",            gradient: "grad-gold",    Icon: ClipboardList },
-  { href: "/alumno/asistencias",              title: "Mi Asistencia",        gradient: "grad-emerald", Icon: ClipboardCheck },
-  { href: "/alumno/encuesta-docente",         title: "Evaluar Docente",      gradient: "grad-amber",   Icon: Star },
-  { href: "/alumno/test-estilos",             title: "Test Estilos",         gradient: "grad-violet",  Icon: Brain },
-  { href: "/encuestas",                       title: "Mis Encuestas",        gradient: "grad-indigo",  Icon: MessageSquare },
-  { href: "/alumno/solicitudes/credencial",   title: "Credencial",           gradient: "grad-violet",  Icon: IdCard },
-  { href: "/alumno/solicitudes/alumno-regular", title: "Cert. Alumno Regular", gradient: "grad-blue", Icon: FileCheck },
-  { href: "/alumno/solicitudes/tarjeta-beneficio", title: "Tarjeta de Beneficio", gradient: "grad-pink", Icon: CreditCard },
-  { href: "/alumno/notificaciones",           title: "Notificaciones",       gradient: "grad-amber",   Icon: Bell },
-  { href: "/alumno/perfil",                   title: "Mi Perfil",            gradient: "grad-blue",    Icon: User },
+type AlumnoNavItem = { href: string; title: string; gradient: string; Icon: LucideIcon };
+
+const ALUMNO_NAV_ACADEMICO: AlumnoNavItem[] = [
+  { href: "/alumno/asignaturas",  title: "Mis Cursos",    gradient: "grad-blue",    Icon: GraduationCap },
+  { href: "/alumno/clases",       title: "Clases",        gradient: "grad-cyan",    Icon: CalendarDays },
+  { href: "/alumno/evaluaciones", title: "Evaluaciones",  gradient: "grad-violet",  Icon: ClipboardList },
+  { href: "/alumno/notas",        title: "Mis Notas",     gradient: "grad-gold",    Icon: ClipboardList },
+  { href: "/alumno/asistencias",  title: "Mi Asistencia", gradient: "grad-emerald", Icon: ClipboardCheck },
+  { href: "/encuestas",           title: "Encuestas",     gradient: "grad-indigo",  Icon: MessageSquare },
+  { href: "/alumno/encuesta-docente", title: "Evaluar Docente", gradient: "grad-amber", Icon: Star },
+  { href: "/alumno/test-estilos", title: "Test Estilos",  gradient: "grad-violet",  Icon: Brain },
+];
+
+const ALUMNO_NAV_GESTION: AlumnoNavItem[] = [
+  { href: "/alumno/solicitudes/credencial",        title: "Credencial",         gradient: "grad-violet", Icon: IdCard },
+  { href: "/alumno/solicitudes/alumno-regular",    title: "Cert. Alumno Reg.",  gradient: "grad-blue",   Icon: FileCheck },
+  { href: "/alumno/solicitudes/tarjeta-beneficio", title: "Tarjeta Beneficio",  gradient: "grad-pink",   Icon: CreditCard },
+  { href: "/alumno/notificaciones",                title: "Notificaciones",     gradient: "grad-amber",  Icon: Bell },
+  { href: "/alumno/perfil",                        title: "Mi Perfil",          gradient: "grad-blue",   Icon: User },
 ];
 
 const TIPO_EVAL_LABELS: Record<string, string> = {
@@ -134,7 +139,7 @@ export default async function AlumnoDashboardPage() {
     );
   }
 
-  const { resumen, cursos, proximasClases, evaluacionesPendientes, notasRecientes, notasDocenteRecientes } = data;
+  const { resumen, cursos, proximasClases, evaluacionesPendientes, notasRecientes, notasDocenteRecientes, estaSemanaPendiente } = data;
   const evalSinNota = evaluacionesPendientes.filter((e) => !e.tieneNota);
 
   return (
@@ -222,22 +227,104 @@ export default async function AlumnoDashboardPage() {
         </article>
       )}
 
-      {/* Quick nav */}
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        {ALUMNO_NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-4 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
-          >
-            <item.Icon
-              className="h-10 w-10 transition-transform duration-200 group-hover:scale-110"
-              strokeWidth={1.5}
-              style={{ color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
-            />
-            <p className="text-xs font-semibold leading-tight text-text-primary dark:text-white">{item.title}</p>
-          </Link>
-        ))}
+      {/* Esta semana */}
+      {estaSemanaPendiente.length > 0 && (
+        <section className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 dark:border-primary/30 dark:from-primary/10 dark:to-primary/5">
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-primary dark:text-primary-light">
+            Esta semana
+          </h2>
+          <ul className="space-y-2">
+            {estaSemanaPendiente.map((act, i) => {
+              const fechaLabel = new Intl.DateTimeFormat("es-CL", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                ...(act.tipo === "evaluacion" ? { hour: "2-digit", minute: "2-digit" } : {}),
+              }).format(act.fecha);
+              return (
+                <li key={i}>
+                  <Link
+                    href={act.href}
+                    className={`flex items-start gap-3 rounded-xl border p-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-800/50 ${
+                      act.urgente
+                        ? "border-red-200 bg-red-50/60 dark:border-red-800/50 dark:bg-red-950/20"
+                        : "border-gray-200/60 bg-white/60 dark:border-gray-700/40 dark:bg-gray-900/40"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        act.tipo === "evaluacion"
+                          ? "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300"
+                          : "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300"
+                      }`}
+                    >
+                      {act.tipo === "evaluacion" ? "E" : "C"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-text-primary dark:text-white">
+                        {act.titulo}
+                      </p>
+                      <p className="text-xs text-text-secondary dark:text-gray-400">
+                        {act.asignaturaNombre} · {fechaLabel}
+                      </p>
+                    </div>
+                    {act.urgente && (
+                      <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                        Urgente
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Quick nav — Académico */}
+      <div>
+        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted dark:text-gray-500">
+          Académico
+        </p>
+        <div className="grid grid-cols-4 gap-3">
+          {ALUMNO_NAV_ACADEMICO.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-3 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
+            >
+              <item.Icon
+                className="h-8 w-8 transition-transform duration-200 group-hover:scale-110"
+                strokeWidth={1.5}
+                style={{ color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
+              />
+              <p className="text-[11px] font-semibold leading-tight text-text-primary dark:text-white">{item.title}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick nav — Gestiones */}
+      <div>
+        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted dark:text-gray-500">
+          Gestiones
+        </p>
+        <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+          {ALUMNO_NAV_GESTION.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-3 text-center shadow-sm transition-all hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
+            >
+              <item.Icon
+                className="h-8 w-8 transition-transform duration-200 group-hover:scale-110"
+                strokeWidth={1.5}
+                style={{ color: GRADIENT_COLORS[item.gradient] ?? "#6B7280" }}
+              />
+              <p className="text-[11px] font-semibold leading-tight text-text-primary dark:text-white">{item.title}</p>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Upcoming classes */}

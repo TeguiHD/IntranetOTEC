@@ -71,3 +71,12 @@ next-env.d.ts
 /.zencoder/
 /skills/
 /skills-lock.json
+
+# local operational data and transcripts
+/30ABRIL2026*
+/DATOS/
+/LOGOS OTEC/
+/MEJORAS/
+/PRUEBAS/
+/docs/superpowers/
+/scripts/seed-*.mjs

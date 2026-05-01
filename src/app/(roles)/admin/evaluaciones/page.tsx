@@ -1,4 +1,6 @@
-import { CheckCircle2, ClipboardList, Eye, FileUp, ListChecks, Plus, ShieldCheck, ShieldOff, Trash2, BarChart2 } from "lucide-react";
+import Link from "next/link";
+
+import { BarChart2, CheckCircle2, ClipboardList, Eye, FileUp, ListChecks, Plus, Search, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
@@ -24,15 +26,21 @@ import {
   toggleMostrarResultadosFormAction,
   type IntentoRecuperableItem,
   type EvaluacionParticipacionItem,
+  type PreguntaItem,
   type RespuestaPendienteItem,
 } from "@/actions/evaluaciones";
 import { AuditTimeline } from "@/components/evaluaciones/AuditTimeline";
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
 import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
+import { EntityFilterSelect } from "@/components/shared/EntityFilterSelect";
+import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { describeEvaluationWriteLock } from "@/lib/academic-state";
 import { formatearRut } from "@/lib/rut";
+
+const EVALUACIONES_PAGE_SIZE = 12;
+const BANCO_PAGE_SIZE = 8;
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -101,18 +109,89 @@ const PREGUNTA_LABELS: Record<string, string> = {
   desarrollo: "Desarrollo",
 };
 
+const TABS = [
+  { id: "evaluaciones", label: "Evaluaciones" },
+  { id: "banco", label: "Banco Local" },
+  { id: "maquetador", label: "Maquetador" },
+  { id: "resultados", label: "Resultados" },
+  { id: "supervision", label: "Supervisión" },
+] as const;
+
+type EvaluacionesTab = (typeof TABS)[number]["id"];
+
 type AdminEvaluacionesPageProps = {
   searchParams?: Promise<{
     state?: string;
     periodoId?: string;
     asignaturaId?: string;
     evaluacionId?: string;
+    tab?: string;
+    evalQ?: string;
+    evalEstado?: string;
+    evalPage?: string;
+    bankQ?: string;
+    bankTipo?: string;
+    bankPage?: string;
   }>;
 };
 
 const formatRut = (rut: string | null): string => {
   if (!rut) return "-";
   return rut.startsWith("EXT-") ? `Ext: ${rut.replace(/^EXT-/, "")}` : formatearRut(rut);
+};
+
+const normalizePage = (value: string | undefined): number =>
+  Math.max(1, Number.parseInt(value ?? "1", 10) || 1);
+
+const includesNormalized = (value: string | null | undefined, query: string): boolean =>
+  (value ?? "").toLowerCase().includes(query.toLowerCase());
+
+const buildEvaluacionesHref = (input: {
+  periodoId?: string;
+  asignaturaId?: string;
+  evaluacionId?: string;
+  tab?: EvaluacionesTab;
+  evalQ?: string;
+  evalEstado?: string;
+  evalPage?: number;
+  bankQ?: string;
+  bankTipo?: string;
+  bankPage?: number;
+}) => {
+  const query = new URLSearchParams();
+  if (input.periodoId) query.set("periodoId", input.periodoId);
+  if (input.asignaturaId) query.set("asignaturaId", input.asignaturaId);
+  if (input.evaluacionId) query.set("evaluacionId", input.evaluacionId);
+  if (input.tab && input.tab !== "evaluaciones") query.set("tab", input.tab);
+  if (input.evalQ) query.set("evalQ", input.evalQ);
+  if (input.evalEstado && input.evalEstado !== "todos") query.set("evalEstado", input.evalEstado);
+  if (input.evalPage && input.evalPage > 1) query.set("evalPage", String(input.evalPage));
+  if (input.bankQ) query.set("bankQ", input.bankQ);
+  if (input.bankTipo && input.bankTipo !== "todos") query.set("bankTipo", input.bankTipo);
+  if (input.bankPage && input.bankPage > 1) query.set("bankPage", String(input.bankPage));
+  return `/admin/evaluaciones?${query.toString()}`;
+};
+
+const formatDate = (date: Date | null): string =>
+  date ? new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", year: "numeric" }).format(date) : "-";
+
+const getCorrectaLabel = (pregunta: Pick<PreguntaItem, "tipo" | "opciones">): string | null => {
+  const opciones = pregunta.opciones as { correcta?: number | string } | null;
+  if (pregunta.tipo === "opcion_multiple" && typeof opciones?.correcta === "number") {
+    return String.fromCharCode(65 + opciones.correcta);
+  }
+  if (pregunta.tipo === "verdadero_falso" && typeof opciones?.correcta === "string") {
+    return opciones.correcta === "true" ? "Verdadero" : "Falso";
+  }
+  return null;
+};
+
+const isObjectiveQuestion = (tipo: PreguntaItem["tipo"]): boolean =>
+  tipo === "opcion_multiple" || tipo === "verdadero_falso";
+
+const parsePuntaje = (value: string | null): number => {
+  const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 export const metadata = {
@@ -123,7 +202,17 @@ export default async function AdminEvaluacionesPage({
   searchParams,
 }: AdminEvaluacionesPageProps) {
   const params = await (searchParams ??
-    Promise.resolve({} as { state?: string; periodoId?: string; asignaturaId?: string; evaluacionId?: string }));
+    Promise.resolve({} as NonNullable<Awaited<AdminEvaluacionesPageProps["searchParams"]>>));
+  const requestedTab = typeof params?.tab === "string" ? params.tab : "evaluaciones";
+  const activeTab: EvaluacionesTab = TABS.some((tab) => tab.id === requestedTab)
+    ? (requestedTab as EvaluacionesTab)
+    : "evaluaciones";
+  const evalQ = typeof params?.evalQ === "string" ? params.evalQ.trim() : "";
+  const evalEstado = typeof params?.evalEstado === "string" ? params.evalEstado.trim() : "todos";
+  const evalPage = normalizePage(params?.evalPage);
+  const bankQ = typeof params?.bankQ === "string" ? params.bankQ.trim() : "";
+  const bankTipo = typeof params?.bankTipo === "string" ? params.bankTipo.trim() : "todos";
+  const bankPage = normalizePage(params?.bankPage);
 
   const requestedPeriodoId = typeof params?.periodoId === "string" ? params.periodoId.trim() : "";
   const periodos = await listarPeriodosDashboard();
@@ -186,10 +275,98 @@ export default async function AdminEvaluacionesPage({
   const draftCount = evaluaciones.filter((evaluacion) => !evaluacion.publicada).length;
   const publishedCount = evaluaciones.filter((evaluacion) => evaluacion.publicada).length;
   const supervisedCount = evaluaciones.filter((evaluacion) => evaluacion.modoSupervision).length;
+  const filteredEvaluaciones = evaluaciones.filter((evaluacion) => {
+    const matchesQuery =
+      !evalQ ||
+      includesNormalized(evaluacion.titulo, evalQ) ||
+      includesNormalized(TIPO_LABELS[evaluacion.tipo] ?? evaluacion.tipo, evalQ);
+    const matchesEstado =
+      evalEstado === "todos" ||
+      (evalEstado === "borrador" && !evaluacion.publicada) ||
+      (evalEstado === "publicada" && Boolean(evaluacion.publicada)) ||
+      (evalEstado === "supervisada" && Boolean(evaluacion.modoSupervision)) ||
+      (evalEstado === "resultados" && Boolean(evaluacion.mostrarResultados));
+    return matchesQuery && matchesEstado;
+  });
+  const evalTotalPages = Math.max(1, Math.ceil(filteredEvaluaciones.length / EVALUACIONES_PAGE_SIZE));
+  const safeEvalPage = Math.min(evalPage, evalTotalPages);
+  const paginatedEvaluaciones = filteredEvaluaciones.slice(
+    (safeEvalPage - 1) * EVALUACIONES_PAGE_SIZE,
+    safeEvalPage * EVALUACIONES_PAGE_SIZE,
+  );
+  const filteredPruebasLocales = pruebasLocales.filter((prueba) => {
+    const matchesQuery =
+      !bankQ ||
+      includesNormalized(prueba.titulo, bankQ) ||
+      includesNormalized(prueba.archivo, bankQ);
+    const matchesTipo =
+      bankTipo === "todos" ||
+      (bankTipo === "seleccion" && prueba.resumen.opcionMultiple > 0) ||
+      (bankTipo === "vf" && prueba.resumen.verdaderoFalso > 0) ||
+      (bankTipo === "desarrollo" && prueba.resumen.desarrollo > 0);
+    return matchesQuery && matchesTipo;
+  });
+  const bankTotalPages = Math.max(1, Math.ceil(filteredPruebasLocales.length / BANCO_PAGE_SIZE));
+  const safeBankPage = Math.min(bankPage, bankTotalPages);
+  const paginatedPruebasLocales = filteredPruebasLocales.slice(
+    (safeBankPage - 1) * BANCO_PAGE_SIZE,
+    safeBankPage * BANCO_PAGE_SIZE,
+  );
+  const selectedPruebaLocal = paginatedPruebasLocales[0] ?? filteredPruebasLocales[0] ?? null;
   const writeLockMessage = describeEvaluationWriteLock({
     periodoEstado: selectedPeriodo?.estado,
     asignaturaEstado: selectedAsignatura?.estado,
   });
+  const baseRouteState = {
+    periodoId: selectedPeriodoId,
+    asignaturaId: selectedAsignaturaId,
+    evaluacionId: selectedEvaluacionId,
+    evalQ,
+    evalEstado,
+    evalPage: safeEvalPage,
+    bankQ,
+    bankTipo,
+    bankPage: safeBankPage,
+  };
+  const currentEvaluacionesHref = buildEvaluacionesHref({ ...baseRouteState, tab: "evaluaciones" });
+  const currentBancoHref = buildEvaluacionesHref({ ...baseRouteState, tab: "banco" });
+  const currentMaquetadorHref = buildEvaluacionesHref({ ...baseRouteState, tab: "maquetador" });
+  const currentResultadosHref = buildEvaluacionesHref({ ...baseRouteState, tab: "resultados" });
+  const objectiveQuestions = preguntasSeleccionadas.filter((pregunta) => isObjectiveQuestion(pregunta.tipo));
+  const preguntasSinPauta = objectiveQuestions.filter((pregunta) => !getCorrectaLabel(pregunta));
+  const preguntasSinPuntaje = preguntasSeleccionadas.filter((pregunta) => parsePuntaje(pregunta.puntaje) <= 0);
+  const puntajeTotal = preguntasSeleccionadas.reduce(
+    (total, pregunta) => total + parsePuntaje(pregunta.puntaje),
+    0,
+  );
+  const manualQuestions = preguntasSeleccionadas.filter((pregunta) => !isObjectiveQuestion(pregunta.tipo));
+  const publicationChecks = [
+    {
+      label: "Preguntas",
+      ok: preguntasSeleccionadas.length > 0,
+      detail: `${preguntasSeleccionadas.length} cargada${preguntasSeleccionadas.length === 1 ? "" : "s"}`,
+    },
+    {
+      label: "Pauta objetiva",
+      ok: preguntasSinPauta.length === 0,
+      detail: preguntasSinPauta.length === 0 ? "Sin pendientes" : `${preguntasSinPauta.length} sin pauta`,
+    },
+    {
+      label: "Puntajes",
+      ok: preguntasSinPuntaje.length === 0 && preguntasSeleccionadas.length > 0,
+      detail: `${puntajeTotal.toLocaleString("es-CL", { maximumFractionDigits: 2 })} pts`,
+    },
+    {
+      label: "Ventana",
+      ok: Boolean(selectedEvaluacion?.fechaInicio && selectedEvaluacion?.fechaLimite),
+      detail: selectedEvaluacion?.fechaLimite ? `Límite ${formatDate(selectedEvaluacion.fechaLimite)}` : "Sin fecha límite",
+    },
+    {
+      label: "Tiempo",
+      ok: Boolean(selectedEvaluacion?.duracionMinutos),
+      detail: selectedEvaluacion?.duracionMinutos ? `${selectedEvaluacion.duracionMinutos} min` : "Sin temporizador",
+    },
+  ];
 
   return (
     <section className="space-y-5">
@@ -210,6 +387,7 @@ export default async function AdminEvaluacionesPage({
         method="GET"
         className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5"
       >
+        <input type="hidden" name="tab" value={activeTab} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_auto]">
           <div className="space-y-1.5">
             <label
@@ -218,20 +396,22 @@ export default async function AdminEvaluacionesPage({
             >
               Periodo
             </label>
-            <select
-              id="eval-periodo"
-              name="periodoId"
-              defaultValue={selectedPeriodoId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              {periodos.length === 0 ? (
-                <option value="">Sin periodos</option>
-              ) : (
-                periodos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))
-              )}
-            </select>
+            <div id="eval-periodo">
+              <EntityFilterSelect
+                name="periodoId"
+                defaultValue={selectedPeriodoId}
+                placeholder="Buscar periodo"
+                searchPlaceholder="Filtrar por nombre o estado…"
+                countLabel="periodos"
+                autoSubmit={false}
+                options={periodos.map((periodo) => ({
+                  id: periodo.id,
+                  label: periodo.nombre,
+                  description: periodo.estado,
+                  badge: periodo.estado,
+                }))}
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -245,7 +425,7 @@ export default async function AdminEvaluacionesPage({
               options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
               defaultValue={selectedAsignaturaId}
               name="asignaturaId"
-              placeholder="Buscar seccion..."
+              placeholder="Buscar sección…"
               autoSubmit={false}
             />
           </div>
@@ -308,6 +488,64 @@ export default async function AdminEvaluacionesPage({
       )}
 
       {selectedAsignaturaId && (
+        <nav
+          aria-label="Flujo de evaluaciones"
+          className="flex gap-2 overflow-x-auto rounded-2xl border border-gray-200/80 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        >
+          {TABS.map((tab) => (
+            <Link
+              key={tab.id}
+              href={buildEvaluacionesHref({ ...baseRouteState, tab: tab.id })}
+              className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                activeTab === tab.id
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-text-secondary hover:bg-gray-100 hover:text-text-primary dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {selectedAsignaturaId && evaluaciones.length > 0 && (activeTab === "maquetador" || activeTab === "resultados" || activeTab === "supervision") && (
+        <form
+          method="GET"
+          className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        >
+          <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+          <input type="hidden" name="tab" value={activeTab} />
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Evaluación de trabajo
+              </label>
+              <EntityFilterSelect
+                name="evaluacionId"
+                defaultValue={selectedEvaluacionId}
+                placeholder="Seleccionar evaluación"
+                searchPlaceholder="Buscar por título, tipo o estado…"
+                countLabel="evaluaciones"
+                options={evaluaciones.map((evaluacion) => ({
+                  id: evaluacion.id,
+                  label: evaluacion.titulo,
+                  description: `${TIPO_LABELS[evaluacion.tipo] ?? evaluacion.tipo} · ${evaluacion.totalPreguntas} pregunta${evaluacion.totalPreguntas === 1 ? "" : "s"}`,
+                  badge: evaluacion.publicada ? "publicada" : "borrador",
+                }))}
+              />
+            </div>
+            <button
+              type="submit"
+              className="h-11 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+            >
+              Abrir
+            </button>
+          </div>
+        </form>
+      )}
+
+      {selectedAsignaturaId && activeTab === "evaluaciones" && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
@@ -322,6 +560,7 @@ export default async function AdminEvaluacionesPage({
             <form action={crearPlantillaEncuestaFormAction} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
               <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+              <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
               <input type="hidden" name="plantilla" value="docente_otec" />
               <h3 className="text-sm font-semibold text-text-primary dark:text-white">
                 Evaluación Docente y OTEC
@@ -340,6 +579,7 @@ export default async function AdminEvaluacionesPage({
             <form action={crearPlantillaEncuestaFormAction} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
               <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+              <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
               <input type="hidden" name="plantilla" value="estilos_aprendizaje" />
               <h3 className="text-sm font-semibold text-text-primary dark:text-white">
                 Test de Estilos de Aprendizaje
@@ -358,7 +598,7 @@ export default async function AdminEvaluacionesPage({
         </article>
       )}
 
-      {selectedAsignaturaId && (
+      {selectedAsignaturaId && activeTab === "evaluaciones" && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" />
@@ -369,6 +609,7 @@ export default async function AdminEvaluacionesPage({
           <form action={crearEvaluacionFormAction} className="space-y-4">
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
             <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+            <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <input
                 name="titulo"
@@ -428,7 +669,7 @@ export default async function AdminEvaluacionesPage({
             <textarea
               name="instrucciones"
               rows={3}
-              placeholder="Instrucciones para el alumno..."
+              placeholder="Instrucciones para el alumno…"
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
             <div className="flex justify-end">
@@ -444,7 +685,7 @@ export default async function AdminEvaluacionesPage({
         </article>
       )}
 
-      {selectedAsignaturaId && (
+      {selectedAsignaturaId && activeTab === "banco" && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-3">
@@ -470,53 +711,127 @@ export default async function AdminEvaluacionesPage({
               No se encontraron pruebas .txt en la carpeta PRUEBAS.
             </div>
           ) : (
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {pruebasLocales.slice(0, 6).map((prueba) => (
-                  <div key={prueba.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <p className="line-clamp-2 text-sm font-semibold text-text-primary dark:text-gray-100">
-                      {prueba.titulo}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-text-secondary dark:text-gray-400">
-                      {prueba.archivo}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                        {prueba.totalPreguntas} preguntas
-                      </span>
-                      <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                        {prueba.resumen.opcionMultiple} selección
-                      </span>
-                      <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                        {prueba.resumen.verdaderoFalso} V/F
-                      </span>
-                      {prueba.resumen.desarrollo > 0 && (
-                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                          {prueba.resumen.desarrollo} desarrollo
-                        </span>
-                      )}
-                    </div>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="space-y-4">
+                <form method="GET" className="grid gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+                  <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                  <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                  <input type="hidden" name="tab" value="banco" />
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      name="bankQ"
+                      defaultValue={bankQ}
+                      placeholder="Buscar por nombre de prueba o archivo…"
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    />
                   </div>
-                ))}
+                  <select
+                    name="bankTipo"
+                    defaultValue={bankTipo}
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  >
+                    <option value="todos">Todos los tipos</option>
+                    <option value="seleccion">Con selección</option>
+                    <option value="vf">Con V/F</option>
+                    <option value="desarrollo">Con desarrollo</option>
+                  </select>
+                  <button
+                    type="submit"
+                    className="h-11 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                  >
+                    Buscar
+                  </button>
+                </form>
+
+                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-[minmax(0,1fr)_120px_120px] border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-secondary dark:border-gray-800 dark:bg-gray-800/70 dark:text-gray-400">
+                    <span>Prueba</span>
+                    <span>Preguntas</span>
+                    <span>Composición</span>
+                  </div>
+                  {filteredPruebasLocales.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-text-secondary dark:text-gray-400">
+                      No hay pruebas para esos filtros.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {paginatedPruebasLocales.map((prueba) => (
+                        <div
+                          key={prueba.id}
+                          className="grid grid-cols-[minmax(0,1fr)_120px_120px] gap-3 px-4 py-3 text-sm transition-colors hover:bg-primary/5 dark:hover:bg-primary/10"
+                        >
+                          <span className="min-w-0">
+                            <span className="line-clamp-2 font-semibold text-text-primary dark:text-gray-100">
+                              {prueba.titulo}
+                            </span>
+                            <span className="mt-1 block truncate text-xs text-text-secondary dark:text-gray-400">
+                              {prueba.archivo}
+                            </span>
+                          </span>
+                          <span className="self-center font-semibold text-text-primary dark:text-gray-100">
+                            {prueba.totalPreguntas}
+                          </span>
+                          <span className="flex flex-wrap items-center gap-1 self-center text-[11px] font-semibold">
+                            <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                              {prueba.resumen.opcionMultiple} sel.
+                            </span>
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                              {prueba.resumen.verdaderoFalso} V/F
+                            </span>
+                            {prueba.resumen.desarrollo > 0 ? (
+                              <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                {prueba.resumen.desarrollo} des.
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Pagination
+                  currentPage={safeBankPage}
+                  totalPages={bankTotalPages}
+                  totalCount={filteredPruebasLocales.length}
+                  pageSize={BANCO_PAGE_SIZE}
+                  buildHref={(page) => buildEvaluacionesHref({ ...baseRouteState, tab: "banco", bankPage: page })}
+                />
               </div>
 
               <form action={importarPruebaLocalFormAction} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/60">
                 <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                 <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                  Prueba
+                <input type="hidden" name="redirectTo" value={currentBancoHref} />
+                <label htmlFor="bank-selected-file" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Prueba seleccionada
                 </label>
-                <select
-                  name="archivo"
-                  required
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                >
-                  {pruebasLocales.map((prueba) => (
-                    <option key={prueba.id} value={prueba.archivo}>
-                      {prueba.titulo} ({prueba.totalPreguntas})
-                    </option>
-                  ))}
-                </select>
+                <div id="bank-selected-file">
+                  <EntityFilterSelect
+                    name="archivo"
+                    defaultValue={selectedPruebaLocal?.archivo}
+                    placeholder="Seleccionar prueba"
+                    searchPlaceholder="Buscar prueba filtrada…"
+                    countLabel="pruebas"
+                    autoSubmit={false}
+                    options={filteredPruebasLocales.map((prueba) => ({
+                      id: prueba.archivo,
+                      label: `${prueba.titulo} (${prueba.totalPreguntas})`,
+                      description: prueba.archivo,
+                      badge: `${prueba.resumen.opcionMultiple}/${prueba.resumen.verdaderoFalso}/${prueba.resumen.desarrollo}`,
+                    }))}
+                  />
+                </div>
+                {selectedPruebaLocal ? (
+                  <div className="rounded-lg border border-primary/20 bg-white p-3 text-xs text-text-secondary dark:border-primary/40 dark:bg-gray-900 dark:text-gray-400">
+                    <p className="font-semibold text-text-primary dark:text-gray-100">{selectedPruebaLocal.titulo}</p>
+                    <p className="mt-1 truncate">{selectedPruebaLocal.archivo}</p>
+                    <p className="mt-2">
+                      {selectedPruebaLocal.totalPreguntas} preguntas · {selectedPruebaLocal.resumen.opcionMultiple} selección · {selectedPruebaLocal.resumen.verdaderoFalso} V/F · {selectedPruebaLocal.resumen.desarrollo} desarrollo
+                    </p>
+                  </div>
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     name="fechaInicio"
@@ -559,7 +874,8 @@ export default async function AdminEvaluacionesPage({
                 />
                 <button
                   type="submit"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
+                  disabled={filteredPruebasLocales.length === 0}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-gray-700 dark:disabled:text-gray-400"
                 >
                   <FileUp className="h-4 w-4" />
                   Importar en borrador
@@ -570,12 +886,46 @@ export default async function AdminEvaluacionesPage({
         </article>
       )}
 
+      {selectedAsignaturaId && activeTab === "evaluaciones" && (
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <ClipboardList className="h-5 w-5 text-primary" />
-          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-            Evaluaciones registradas
-          </h2>
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              Evaluaciones registradas
+            </h2>
+          </div>
+          <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_180px_auto]">
+            <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+            <input type="hidden" name="tab" value="evaluaciones" />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                name="evalQ"
+                defaultValue={evalQ}
+                placeholder="Buscar evaluación…"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+            <select
+              name="evalEstado"
+              defaultValue={evalEstado}
+              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="borrador">Borradores</option>
+              <option value="publicada">Publicadas</option>
+              <option value="supervisada">Supervisadas</option>
+              <option value="resultados">Resultados visibles</option>
+            </select>
+            <button
+              type="submit"
+              className="h-10 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+            >
+              Aplicar
+            </button>
+          </form>
         </div>
 
         {evaluaciones.length === 0 ? (
@@ -590,28 +940,39 @@ export default async function AdminEvaluacionesPage({
               Usa el formulario &quot;Nueva Evaluación&quot; o las plantillas rápidas de arriba para comenzar.
             </p>
           </div>
+        ) : filteredEvaluaciones.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            No hay evaluaciones que coincidan con los filtros.
+          </div>
         ) : (
-          <div className="space-y-3">
-            {evaluaciones.map((ev) => (
-              <div
-                key={ev.id}
-                className="rounded-xl border border-gray-200 p-4 dark:border-gray-700"
-              >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-text-primary dark:text-gray-100">
-                      {ev.titulo}
-                    </p>
-                    <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                      {TIPO_LABELS[ev.tipo] ?? ev.tipo} · {ev.totalPreguntas} pregunta
-                      {ev.totalPreguntas !== 1 ? "s" : ""}
-                      {ev.ponderacion ? ` · ${ev.ponderacion}%` : ""}
-                      {ev.fechaLimite
-                        ? ` · ${new Date(ev.fechaLimite).toLocaleDateString("es-CL")}`
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
+          <>
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-text-secondary dark:bg-gray-800/70 dark:text-gray-400">
+                  <tr>
+                    <th className="px-4 py-3">Evaluación</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Preguntas</th>
+                    <th className="px-4 py-3">Ponderación</th>
+                    <th className="px-4 py-3">Límite</th>
+                    <th className="px-4 py-3">Operación</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {paginatedEvaluaciones.map((ev) => (
+                    <tr key={ev.id} className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
+                      <td className="min-w-[260px] px-4 py-3">
+                        <p className="font-semibold text-text-primary dark:text-gray-100">
+                          {ev.titulo}
+                        </p>
+                        <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                          {TIPO_LABELS[ev.tipo] ?? ev.tipo}
+                          {ev.duracionMinutos ? ` · ${ev.duracionMinutos} min` : ""}
+                          {ev.intentosMax ? ` · ${ev.intentosMax} intento${ev.intentosMax !== 1 ? "s" : ""}` : ""}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5">
                     {ev.publicada ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
                         <Eye className="h-3 w-3" />
@@ -622,10 +983,36 @@ export default async function AdminEvaluacionesPage({
                         Borrador
                       </span>
                     )}
+                          {ev.modoSupervision ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                              <ShieldCheck className="h-3 w-3" />
+                              Supervisada
+                            </span>
+                          ) : null}
+                          {ev.mostrarResultados ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                              <BarChart2 className="h-3 w-3" />
+                              Resultados
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-text-primary dark:text-gray-100">
+                        {ev.totalPreguntas}
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary dark:text-gray-400">
+                        {ev.ponderacion ? `${ev.ponderacion}%` : "-"}
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary dark:text-gray-400">
+                        {formatDate(ev.fechaLimite)}
+                      </td>
+                      <td className="min-w-[360px] px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
                     <form action={toggleModoSupervisionFormAction}>
                       <input type="hidden" name="evaluacionId" value={ev.id} />
                       <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                       <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
                       <input type="hidden" name="enabled" value={ev.modoSupervision ? "false" : "true"} />
                       <button
                         type="submit"
@@ -643,6 +1030,7 @@ export default async function AdminEvaluacionesPage({
                       <input type="hidden" name="evaluacionId" value={ev.id} />
                       <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                       <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
                       <input type="hidden" name="currentValue" value={String(ev.mostrarResultados ?? false)} />
                       <button
                         type="submit"
@@ -656,17 +1044,18 @@ export default async function AdminEvaluacionesPage({
                         {ev.mostrarResultados ? "Resultados visibles" : "Mostrar resultados"}
                       </button>
                     </form>
-                    <a
-                      href={`?periodoId=${encodeURIComponent(selectedPeriodoId)}&asignaturaId=${encodeURIComponent(selectedAsignaturaId ?? "")}&evaluacionId=${encodeURIComponent(ev.id)}`}
+                    <Link
+                      href={buildEvaluacionesHref({ ...baseRouteState, tab: "resultados", evaluacionId: ev.id })}
                       className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                     >
                       Ver resultados
-                    </a>
+                    </Link>
                     {!ev.publicada && (
                       <form action={publicarEvaluacionFormAction}>
                         <input type="hidden" name="evaluacionId" value={ev.id} />
                         <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                         <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                        <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
                         <button
                           type="submit"
                           className="rounded-lg border border-success/30 bg-success/5 px-3 py-1.5 text-xs font-medium text-success transition-colors hover:bg-success/10"
@@ -680,6 +1069,7 @@ export default async function AdminEvaluacionesPage({
                         <input type="hidden" name="evaluacionId" value={ev.id} />
                         <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                         <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                        <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
                         <button
                           type="submit"
                           className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
@@ -692,6 +1082,7 @@ export default async function AdminEvaluacionesPage({
                       <input type="hidden" name="evaluacionId" value={ev.id} />
                       <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                       <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
                       <button
                         type="submit"
                         className="flex items-center gap-1 rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10"
@@ -700,23 +1091,34 @@ export default async function AdminEvaluacionesPage({
                         Eliminar
                       </button>
                     </form>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              currentPage={safeEvalPage}
+              totalPages={evalTotalPages}
+              totalCount={filteredEvaluaciones.length}
+              pageSize={EVALUACIONES_PAGE_SIZE}
+              buildHref={(page) => buildEvaluacionesHref({ ...baseRouteState, tab: "evaluaciones", evalPage: page })}
+            />
+          </>
         )}
       </article>
+      )}
 
-      {selectedEvaluacionId && (
+      {selectedEvaluacionId && (activeTab === "maquetador" || activeTab === "resultados" || activeTab === "supervision") && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-                Maquetador de prueba
+                {activeTab === "maquetador" ? "Maquetador de prueba" : activeTab === "resultados" ? "Resultados y corrección" : "Supervisión y auditoría"}
               </h2>
               <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-                {selectedEvaluacion?.titulo ?? "Evaluación seleccionada"} · arma la pauta, puntajes y preguntas antes de publicar.
+                {selectedEvaluacion?.titulo ?? "Evaluación seleccionada"}
               </p>
             </div>
             {selectedAsignatura?.codigo && (
@@ -726,10 +1128,78 @@ export default async function AdminEvaluacionesPage({
             )}
           </div>
 
+          {activeTab === "maquetador" && (
+          <>
+          <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+            <aside className="space-y-4">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <h3 className="text-sm font-semibold text-text-primary dark:text-white">
+                  Checklist de publicación
+                </h3>
+                <div className="mt-3 space-y-2">
+                  {publicationChecks.map((item) => (
+                    <div key={item.label} className="flex items-start gap-2 rounded-lg bg-white px-3 py-2 text-xs dark:bg-gray-900">
+                      <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
+                        item.ok ? "bg-success/15 text-success" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                      }`}>
+                        {item.ok ? <CheckCircle2 className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-semibold text-text-primary dark:text-gray-100">{item.label}</span>
+                        <span className="block truncate text-text-secondary dark:text-gray-400">{item.detail}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                  <h3 className="text-sm font-semibold text-text-primary dark:text-white">Índice de preguntas</h3>
+                  <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                    {objectiveQuestions.length} objetivas · {manualQuestions.length} manuales
+                  </p>
+                </div>
+                {preguntasSeleccionadas.length === 0 ? (
+                  <p className="px-4 py-5 text-sm text-text-secondary dark:text-gray-400">
+                    Sin preguntas todavía.
+                  </p>
+                ) : (
+                  <div className="max-h-[420px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                    {preguntasSeleccionadas.map((pregunta, index) => {
+                      const correcta = getCorrectaLabel(pregunta);
+                      const objetiva = isObjectiveQuestion(pregunta.tipo);
+                      return (
+                        <div key={pregunta.id} className="px-4 py-3 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-text-primary dark:text-gray-100">
+                              #{pregunta.orden ?? index + 1}
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                              !objetiva || correcta
+                                ? "bg-success/10 text-success"
+                                : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                            }`}>
+                              {!objetiva ? "Manual" : correcta ? "OK" : "Sin pauta"}
+                            </span>
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-text-secondary dark:text-gray-400">
+                            {pregunta.enunciado}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </aside>
+
+            <div className="min-w-0 space-y-5">
           <form action={agregarPreguntaFormAction} className="mb-6 grid gap-4 rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] p-4 dark:border-primary/40 dark:bg-primary/10">
             <input type="hidden" name="evaluacionId" value={selectedEvaluacionId} />
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
             <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+            <input type="hidden" name="redirectTo" value={currentMaquetadorHref} />
             <div className="flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold text-text-primary dark:text-white">
@@ -739,7 +1209,8 @@ export default async function AdminEvaluacionesPage({
             <textarea
               name="enunciado"
               rows={2}
-              placeholder="Enunciado de la pregunta..."
+              placeholder="Enunciado de la pregunta…"
+              aria-label="Enunciado de la pregunta"
               required
               className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
@@ -747,6 +1218,7 @@ export default async function AdminEvaluacionesPage({
               <select
                 name="tipo"
                 defaultValue="opcion_multiple"
+                aria-label="Tipo de pregunta"
                 className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               >
                 <option value="opcion_multiple">Opción múltiple</option>
@@ -754,9 +1226,9 @@ export default async function AdminEvaluacionesPage({
                 <option value="desarrollo">Desarrollo</option>
                 <option value="respuesta_corta">Respuesta corta</option>
               </select>
-              <input name="puntaje" type="number" min="0" step="0.01" defaultValue="1" placeholder="Puntaje" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
-              <input name="orden" type="number" min="1" placeholder="Orden" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
-              <select name="correcta" defaultValue="" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+              <input name="puntaje" type="number" min="0" step="0.01" defaultValue="1" placeholder="Puntaje" aria-label="Puntaje de la pregunta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
+              <input name="orden" type="number" min="1" placeholder="Orden" aria-label="Orden de la pregunta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
+              <select name="correcta" defaultValue="" aria-label="Respuesta correcta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                 <option value="">Sin pauta</option>
                 <option value="0">Correcta A / Verdadero</option>
                 <option value="1">Correcta B / Falso</option>
@@ -770,6 +1242,7 @@ export default async function AdminEvaluacionesPage({
                   key={label}
                   name="opcion"
                   placeholder={`Alternativa ${label}`}
+                  aria-label={`Alternativa ${label}`}
                   className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 />
               ))}
@@ -809,12 +1282,7 @@ export default async function AdminEvaluacionesPage({
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {preguntasSeleccionadas.map((pregunta, index) => {
                   const opciones = pregunta.opciones as { opciones?: string[]; correcta?: number | string } | null;
-                  const correcta =
-                    pregunta.tipo === "opcion_multiple" && typeof opciones?.correcta === "number"
-                      ? String.fromCharCode(65 + opciones.correcta)
-                      : pregunta.tipo === "verdadero_falso" && typeof opciones?.correcta === "string"
-                        ? opciones.correcta === "true" ? "Verdadero" : "Falso"
-                        : null;
+                  const correcta = getCorrectaLabel(pregunta);
 
                   return (
                     <div key={pregunta.id} className="p-4">
@@ -856,7 +1324,13 @@ export default async function AdminEvaluacionesPage({
               </div>
             )}
           </div>
+            </div>
+          </div>
+          </>
+          )}
 
+          {activeTab === "resultados" && (
+          <>
           <div className="mt-6">
             <EvaluacionParticipacionPanel participacion={participacionEvaluacion} />
           </div>
@@ -929,7 +1403,7 @@ export default async function AdminEvaluacionesPage({
                       <input type="hidden" name="matriculaId" value={item.matriculaId} />
                       <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
                       <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
-                      <input type="hidden" name="redirectTo" value={`/admin/evaluaciones?periodoId=${selectedPeriodoId ?? ""}&asignaturaId=${selectedAsignaturaId ?? ""}&evaluacionId=${selectedEvaluacionId ?? ""}`} />
+                      <input type="hidden" name="redirectTo" value={currentResultadosHref} />
                       <div>
                         <label className="block text-xs font-medium text-text-secondary dark:text-gray-400">
                           Nota (1.0–7.0)
@@ -953,7 +1427,7 @@ export default async function AdminEvaluacionesPage({
                           type="text"
                           name="observacion"
                           maxLength={500}
-                          placeholder="Retroalimentación para el alumno..."
+                          placeholder="Retroalimentación para el alumno…"
                           className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                         />
                       </div>
@@ -1023,7 +1497,7 @@ export default async function AdminEvaluacionesPage({
                           intentoId={item.intentoId}
                           asignaturaId={selectedAsignaturaId ?? ""}
                           periodoId={selectedPeriodoId ?? ""}
-                          redirectTo={`/admin/evaluaciones?periodoId=${selectedPeriodoId ?? ""}&asignaturaId=${selectedAsignaturaId ?? ""}&evaluacionId=${selectedEvaluacionId ?? ""}`}
+                          redirectTo={currentResultadosHref}
                           disabled={item.estado === "anulado"}
                           alumnoLabel={`${item.alumnoNombre ?? ""} ${item.alumnoApellido ?? ""}`.trim() || "este alumno"}
                         />
@@ -1034,7 +1508,11 @@ export default async function AdminEvaluacionesPage({
               </div>
             </div>
           )}
+          </>
+          )}
 
+          {activeTab === "supervision" && (
+          <>
           <div className="mt-6 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
               <div className="flex items-center gap-2">
@@ -1095,6 +1573,26 @@ export default async function AdminEvaluacionesPage({
           <div className="mt-6">
             <AuditTimeline eventos={auditoriaEventos} />
           </div>
+          </>
+          )}
+        </article>
+      )}
+
+      {selectedAsignaturaId && !selectedEvaluacionId && (activeTab === "maquetador" || activeTab === "resultados" || activeTab === "supervision") && (
+        <article className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <ClipboardList className="mx-auto h-9 w-9 text-gray-300 dark:text-gray-600" />
+          <p className="mt-3 text-sm font-semibold text-text-primary dark:text-white">
+            No hay una evaluación seleccionada
+          </p>
+          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+            Crea o importa una evaluación para abrir el maquetador, resultados y supervisión.
+          </p>
+          <Link
+            href={buildEvaluacionesHref({ ...baseRouteState, tab: "evaluaciones" })}
+            className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+          >
+            Ir a Evaluaciones
+          </Link>
         </article>
       )}
     </section>

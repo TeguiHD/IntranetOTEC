@@ -106,6 +106,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber", capability: "notificaciones.admin" },
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet", capability: "solicitudes.admin" },
+      { href: "/admin/beneficios-credenciales", label: "Beneficios y Credenciales", Icon: IdCard, gradient: "grad-pink", capability: "solicitudes.admin" },
       { href: "/admin/certificados", label: "Certificados", Icon: FileCheck, gradient: "grad-blue", capability: "certificados.admin" },
       { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload, gradient: "grad-emerald", capability: "importaciones.admin" },
     ],

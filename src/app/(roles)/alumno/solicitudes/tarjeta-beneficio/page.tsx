@@ -1,15 +1,18 @@
 import { CreditCard } from "lucide-react";
 
-import {
-  obtenerPerfilAlumnoActual,
-} from "@/actions/solicitudes-documentos";
+import { obtenerAccesoDocumentosAlumnoActual } from "@/actions/accesos-documentos";
+import { obtenerPerfilAlumnoActual } from "@/actions/solicitudes-documentos";
 import { TarjetaBeneficio } from "@/components/beneficio/TarjetaBeneficio";
 import { formatearRut } from "@/lib/rut";
 
 export const metadata = { title: "Tarjeta de Beneficio" };
 
 export default async function SolicitudTarjetaBeneficioPage() {
-  const perfil = await obtenerPerfilAlumnoActual();
+  const [perfil, accesos] = await Promise.all([
+    obtenerPerfilAlumnoActual(),
+    obtenerAccesoDocumentosAlumnoActual(),
+  ]);
+  const beneficioHabilitado = accesos?.beneficioHabilitado ?? true;
 
   const rutDisplay = perfil?.rut
     ? perfil.rut.startsWith("EXT-")
@@ -33,7 +36,11 @@ export default async function SolicitudTarjetaBeneficioPage() {
         </div>
       </header>
 
-      {perfil ? (
+      {!beneficioHabilitado ? (
+        <article className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 shadow-sm dark:border-amber-800/70 dark:bg-amber-900/20 dark:text-amber-200">
+          La tarjeta de beneficio no está habilitada para tu usuario o curso. Contacta a administración si necesitas activarla.
+        </article>
+      ) : perfil ? (
         <TarjetaBeneficio
           rut={rutDisplay}
           nombre={perfil.nombre}

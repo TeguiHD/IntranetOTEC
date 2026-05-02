@@ -176,6 +176,13 @@
       "when": 1746316800000,
       "tag": "0024_anuncios_asignatura",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1777651200000,
+      "tag": "0025_alumno_accesos_documentos",
+      "breakpoints": true
     }
   ]
 }

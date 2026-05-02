@@ -16,6 +16,7 @@ import {
   User,
 } from "lucide-react";
 
+import { obtenerAccesoDocumentosAlumnoActual } from "@/actions/accesos-documentos";
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
 import { listarObservacionesAlumno } from "@/actions/docente";
 import { listarMisNotificaciones } from "@/actions/notificaciones";
@@ -141,6 +142,12 @@ export default async function AlumnoDashboardPage() {
 
   const { resumen, cursos, proximasClases, evaluacionesPendientes, notasRecientes, notasDocenteRecientes, estaSemanaPendiente } = data;
   const evalSinNota = evaluacionesPendientes.filter((e) => !e.tieneNota);
+  const accesos = await obtenerAccesoDocumentosAlumnoActual();
+  const gestionItems = ALUMNO_NAV_GESTION.filter((item) => {
+    if (item.href === "/alumno/solicitudes/credencial") return accesos?.credencialHabilitada ?? true;
+    if (item.href === "/alumno/solicitudes/tarjeta-beneficio") return accesos?.beneficioHabilitado ?? true;
+    return true;
+  });
 
   return (
     <section className="space-y-5">
@@ -310,7 +317,7 @@ export default async function AlumnoDashboardPage() {
           Gestiones
         </p>
         <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
-          {ALUMNO_NAV_GESTION.map((item) => (
+          {gestionItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

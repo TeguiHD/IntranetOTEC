@@ -1,12 +1,12 @@
 "use server";
 
-import { and, count, desc, eq, or } from "drizzle-orm";
+import { and, count, desc, eq, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import { solicitudesDocumentos, usuarios } from "@/db/schema";
+import { alumnoAccesosDocumentos, solicitudesDocumentos, usuarios } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import {
   sendEmail,
@@ -99,6 +99,31 @@ export async function solicitarDocumentoAlumnoAction(input: {
   }
 
   const db = getDb();
+
+  if (parsed.data.tipo === "credencial" || parsed.data.tipo === "tarjeta_beneficio") {
+    const [access] = await db
+      .select({
+        beneficioHabilitado: sql<boolean>`coalesce(${alumnoAccesosDocumentos.beneficioHabilitado}, true)`,
+        credencialHabilitada: sql<boolean>`coalesce(${alumnoAccesosDocumentos.credencialHabilitada}, true)`,
+      })
+      .from(usuarios)
+      .leftJoin(alumnoAccesosDocumentos, eq(alumnoAccesosDocumentos.alumnoId, usuarios.id))
+      .where(eq(usuarios.id, actorResult.actor.userId))
+      .limit(1);
+
+    const isAllowed =
+      parsed.data.tipo === "credencial"
+        ? (access?.credencialHabilitada ?? true)
+        : (access?.beneficioHabilitado ?? true);
+
+    if (!isAllowed) {
+      return {
+        ok: false,
+        code: "access_disabled",
+        message: "Este documento no está habilitado para tu usuario o curso.",
+      };
+    }
+  }
 
   const [existingPending] = await db
     .select({ id: solicitudesDocumentos.id })
@@ -193,6 +218,8 @@ export async function solicitarDocumentoAlumnoFormAction(formData: FormData): Pr
   });
 
   revalidatePath("/alumno/solicitudes");
+  revalidatePath("/alumno/solicitudes/credencial");
+  revalidatePath("/alumno/solicitudes/tarjeta-beneficio");
   revalidatePath("/alumno/solicitudes/alumno-regular");
 
   redirect(`/alumno/solicitudes?state=${result.ok ? result.code : result.code}`);

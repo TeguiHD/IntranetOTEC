@@ -516,6 +516,23 @@ export const solicitudesDocumentos = pgTable(
   }),
 );
 
+export const alumnoAccesosDocumentos = pgTable(
+  "alumno_accesos_documentos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alumnoId: uuid("alumno_id").notNull().references(() => usuarios.id),
+    beneficioHabilitado: boolean("beneficio_habilitado").default(true).notNull(),
+    credencialHabilitada: boolean("credencial_habilitada").default(true).notNull(),
+    actualizadoPor: uuid("actualizado_por").references(() => usuarios.id),
+    updatedAt: tstz("updated_at").defaultNow(),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    uniqAlumno: unique().on(t.alumnoId),
+    alumnoIdx: index("alumno_accesos_documentos_alumno_idx").on(t.alumnoId),
+  }),
+);
+
 export const notasDocente = pgTable(
   "notas_docente",
   {

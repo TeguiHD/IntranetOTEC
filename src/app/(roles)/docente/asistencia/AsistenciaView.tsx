@@ -631,7 +631,7 @@ export function AsistenciaView({ clasesMesInicial, asignaturas, mesInicial, anio
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-800 dark:bg-gray-900">
-        {(["calendario", "tarjetas"] as const).map((t) => (
+        {(["calendario"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}

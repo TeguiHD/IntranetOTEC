@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
 
 import type { EventoCalendario } from "@/actions/calendario";
 
@@ -57,6 +57,9 @@ export function CalendarioMensual({
     const fechaStr = `${anio}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     return eventos.filter((e) => e.fecha === fechaStr);
   };
+  const selectedEventos = selectedDate
+    ? eventos.filter((evento) => evento.fecha === selectedDate)
+    : [];
 
   const irMesAnterior = () => {
     const nuevo = mes === 1 ? 12 : mes - 1;
@@ -188,6 +191,43 @@ export function CalendarioMensual({
           <span className="h-2.5 w-2.5 rounded-sm bg-red-500" /> Evaluación / entrega
         </span>
       </div>
+      {selectedDate && (
+        <div className="border-t border-gray-100 px-5 py-4 dark:border-gray-800">
+          <h3 className="text-sm font-semibold text-text-primary dark:text-white">
+            Eventos del día
+          </h3>
+          {selectedEventos.length === 0 ? (
+            <p className="mt-2 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+              No hay clases ni evaluaciones programadas.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {selectedEventos.map((evento) => {
+                const Icon = evento.tipo === "evaluacion" ? ClipboardList : BookOpen;
+                return (
+                  <div key={`${evento.tipo}-${evento.id}`} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50">
+                    <span
+                      className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+                      style={{ backgroundColor: evento.tipo === "evaluacion" ? "#EF4444" : evento.color }}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
+                        {evento.titulo}
+                      </p>
+                      <p className="text-xs text-text-secondary dark:text-gray-400">
+                        {evento.asignaturaNombre}
+                        {evento.hora ? ` · ${evento.hora}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

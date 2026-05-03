@@ -1189,6 +1189,41 @@ export async function registrarAsistenciaDocenteFormAction(formData: FormData): 
   redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
 }
 
+export async function registrarAsistenciaLoteDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const claseId = getStringField(formData, "claseId");
+  const fechaRegistro = getStringField(formData, "fechaRegistro");
+
+  let result: MutationResult = {
+    ok: false,
+    code: "invalid_input",
+    message: "Debes marcar al menos un alumno.",
+  };
+
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("estado__") || typeof value !== "string" || !value) {
+      continue;
+    }
+
+    const matriculaId = key.replace("estado__", "");
+    result = await registrarAsistenciaDocenteAction({
+      claseId,
+      matriculaId,
+      estado: value as "presente" | "ausente" | "tardanza" | "justificado",
+      fechaRegistro,
+    });
+
+    if (!result.ok) {
+      break;
+    }
+  }
+
+  revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/asistencia");
+  revalidatePath("/alumno/asistencias", "layout");
+  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId)}`);
+}
+
 export async function registrarNotaDocenteFormAction(formData: FormData): Promise<void> {
   const asignaturaId = getStringField(formData, "asignaturaId");
   const result = await registrarNotaDocenteAction({

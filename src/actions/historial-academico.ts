@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import {
@@ -84,6 +84,13 @@ type BaseHistoryRow = Omit<
 };
 
 const toNumber = (value: unknown): number => Number(value ?? 0);
+
+const toDateOrNull = (value: Date | string | null): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 const buildStatusRow = (
   row: BaseHistoryRow,
@@ -178,6 +185,9 @@ async function buildHistoryRows(
     ...row,
     publicada: Boolean(row.publicada),
     modoSupervision: Boolean(row.modoSupervision),
+    fechaInicio: toDateOrNull(row.fechaInicio),
+    fechaLimite: toDateOrNull(row.fechaLimite),
+    createdAt: toDateOrNull(row.createdAt),
     totalPreguntas: toNumber(row.totalPreguntas),
     totalRespondidas: toNumber(row.totalRespondidas),
     totalCalificadas: toNumber(row.totalCalificadas),
@@ -188,7 +198,7 @@ async function buildHistoryRows(
 async function buildAlumnoHistoryRows(alumnoId: string): Promise<BaseHistoryRow[]> {
   const db = getDb();
 
-  const alumnoMatriculasSubq = db
+  const alumnoMatriculas = await db
     .select({ asignaturaId: matriculas.asignaturaId })
     .from(matriculas)
     .where(
@@ -197,14 +207,16 @@ async function buildAlumnoHistoryRows(alumnoId: string): Promise<BaseHistoryRow[
         eq(matriculas.activa, true),
         isNull(matriculas.eliminadoAt),
       ),
-    )
-    .as("alumno_mat");
+    );
+
+  const asignaturaIds = alumnoMatriculas.map((row) => row.asignaturaId);
+  if (asignaturaIds.length === 0) return [];
 
   const whereClause = and(
     isNull(evaluaciones.eliminadoAt),
     isNull(asignaturas.eliminadoAt),
     eq(evaluaciones.publicada, true),
-    sql`${evaluaciones.asignaturaId} IN (SELECT asignatura_id FROM ${alumnoMatriculasSubq})`,
+    inArray(evaluaciones.asignaturaId, asignaturaIds),
   );
 
   return buildHistoryRows(whereClause);

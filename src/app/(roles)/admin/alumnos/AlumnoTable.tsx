@@ -11,6 +11,7 @@ import {
   cambiarEstadoAlumno,
   desactivarAlumnoFormAction,
   editarAlumnoAction,
+  eliminarAlumnosMasivoFormAction,
   eliminarAlumnoPermanenteFormAction,
   resetearPasswordAdminAction,
 } from "@/actions/usuarios";
@@ -39,6 +40,10 @@ type PendingAction = {
   userId: string;
   name: string;
   action: "activate" | "deactivate" | "delete";
+} | {
+  userIds: string[];
+  count: number;
+  action: "delete_bulk";
 } | null;
 
 const ESTADO_ALUMNO_CONFIG: Record<EstadoAlumno, { label: string; cls: string }> = {
@@ -78,13 +83,18 @@ export function AlumnoTable({
   const handleConfirm = () => {
     if (!pending) return;
     const formData = new FormData();
-    formData.set("userId", pending.userId);
     startTransition(async () => {
-      if (pending.action === "deactivate") {
+      if (pending.action === "delete_bulk") {
+        pending.userIds.forEach((userId) => formData.append("userId", userId));
+        await eliminarAlumnosMasivoFormAction(formData);
+      } else if (pending.action === "deactivate") {
+        formData.set("userId", pending.userId);
         await desactivarAlumnoFormAction(formData);
       } else if (pending.action === "activate") {
+        formData.set("userId", pending.userId);
         await activarAlumnoFormAction(formData);
       } else if (pending.action === "delete") {
+        formData.set("userId", pending.userId);
         await eliminarAlumnoPermanenteFormAction(formData);
       }
       setPending(null);
@@ -147,6 +157,23 @@ export function AlumnoTable({
         </div>
       ) : (
         <>
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setPending({
+                  userIds: alumnos.map((alumno) => alumno.id),
+                  count: alumnos.length,
+                  action: "delete_bulk",
+                })
+              }
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-danger/25 px-3 text-xs font-semibold text-danger transition-colors hover:border-danger/50 hover:bg-danger/10 dark:text-red-400"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Baja a todos los visibles
+            </button>
+          </div>
+
           {/* Mobile: cards */}
           <div className="space-y-3 sm:hidden">
             {alumnos.map((a) => (
@@ -394,23 +421,27 @@ export function AlumnoTable({
         onConfirm={handleConfirm}
         isPending={isPending}
         title={
+          pending?.action === "delete_bulk" ? "Aplicar baja masiva" :
           pending?.action === "deactivate" ? "Desactivar alumno" :
           pending?.action === "delete" ? "Aplicar baja definitiva al alumno" :
           "Activar alumno"
         }
         description={
-          pending?.action === "deactivate"
+          pending?.action === "delete_bulk"
+            ? `Se aplicara baja definitiva logica a ${pending.count} alumno(s) visibles. Los alumnos con matriculas activas seran omitidos.`
+            : pending?.action === "deactivate"
             ? `¿Seguro que deseas desactivar a ${pending?.name}? Perderá acceso a la plataforma.`
             : pending?.action === "delete"
             ? `¿Seguro que deseas aplicar baja definitiva a ${pending?.name}? No se borrará físicamente, pero quedará inactivo y oculto en operación normal.`
             : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
         }
         confirmLabel={
+          pending?.action === "delete_bulk" ? "Aplicar baja masiva" :
           pending?.action === "deactivate" ? "Desactivar" :
           pending?.action === "delete" ? "Aplicar baja" :
           "Activar"
         }
-        variant={pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
+        variant={pending?.action === "delete_bulk" || pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
       />
     </>
   );

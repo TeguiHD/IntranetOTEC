@@ -12,7 +12,7 @@ import {
   listarNotasDocente,
   listarObservacionesDocente,
   listarResumenAlumnosDocente,
-  registrarAsistenciaDocenteFormAction,
+  registrarAsistenciaLoteDocenteFormAction,
   registrarNotaDocenteFormAction,
   registrarObservacionDocenteFormAction,
   type AlumnoEnRiesgo,
@@ -224,7 +224,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
 
       {selectedAsignaturaId ? (
         <>
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <article className="hidden rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Crear clase del curso</h2>
             <form action={crearClaseDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
@@ -241,7 +241,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
           </article>
 
 
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <article className="hidden rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Editar clase del curso</h2>
             <form action={editarClaseDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
@@ -550,7 +550,10 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
 
           <article id="asistencia" className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar asistencia</h2>
-            <form action={registrarAsistenciaDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
+            <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+              Marca la nómina completa del curso. Cada alumno tiene dos puntos principales: presente o ausente.
+            </p>
+            <form action={registrarAsistenciaLoteDocenteFormAction} className="mt-4 space-y-4">
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
               <select name="claseId" required title="Seleccionar clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
                 <option value="">Selecciona clase</option>
@@ -560,21 +563,41 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                   </option>
                 ))}
               </select>
-              <select name="matriculaId" required title="Seleccionar alumno" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                <option value="">Selecciona alumno</option>
-                {matriculas.map((m) => (
-                  <option key={m.matriculaId} value={m.matriculaId}>
-                    {m.alumnoNombre} {m.alumnoApellido} ({formatRutValue(m.alumnoRut)})
-                  </option>
-                ))}
-              </select>
-              <select name="estado" required title="Estado de asistencia" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                <option value="presente">Presente</option>
-                <option value="ausente">Ausente</option>
-                <option value="tardanza">Tardanza</option>
-                <option value="justificado">Justificado</option>
-              </select>
                 <input name="fechaRegistro" type="date" inputMode="numeric" required title="Fecha de asistencia" placeholder="Fecha de asistencia" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
+              <div className="overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-text-secondary dark:bg-gray-800/60 dark:text-gray-400">
+                  <span>Alumno</span>
+                  <span>Estado</span>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {matriculas.map((m) => (
+                    <div key={m.matriculaId} className="grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-text-primary dark:text-gray-100">
+                          {m.alumnoApellido}, {m.alumnoNombre}
+                        </p>
+                        <p className="text-xs text-text-secondary dark:text-gray-400">
+                          {formatRutValue(m.alumnoRut)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          ["presente", "Presente", "bg-emerald-500"],
+                          ["ausente", "Ausente", "bg-red-500"],
+                          ["tardanza", "Tardanza", "bg-amber-400"],
+                          ["justificado", "Justificado", "bg-blue-500"],
+                        ].map(([value, label, dotClass]) => (
+                          <label key={value} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-text-secondary transition-colors has-[:checked]:border-primary has-[:checked]:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                            <input type="radio" name={`estado__${m.matriculaId}`} value={value} required className="sr-only" />
+                            <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <textarea name="observacion" rows={2} maxLength={300} placeholder="Observación (opcional)" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">

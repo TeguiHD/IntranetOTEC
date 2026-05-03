@@ -1,4 +1,7 @@
-import { listarAsistenciasAlumno } from "@/actions/alumno-asistencias";
+import {
+  listarAsistenciasAlumno,
+  listarTarjetasAsistenciaAlumno,
+} from "@/actions/alumno-asistencias";
 
 const ESTADO_STYLES: Record<string, string> = {
   presente: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
@@ -25,7 +28,10 @@ export const metadata = {
 };
 
 export default async function AlumnoAsistenciasPage() {
-  const asistencias = await listarAsistenciasAlumno();
+  const [asistencias, tarjetas] = await Promise.all([
+    listarAsistenciasAlumno(),
+    listarTarjetasAsistenciaAlumno(),
+  ]);
 
   // Group by asignatura
   const grouped = new Map<string, { nombre: string; items: typeof asistencias }>();
@@ -70,6 +76,61 @@ export default async function AlumnoAsistenciasPage() {
             <p className="text-xs text-text-secondary dark:text-gray-400">Asistencia</p>
           </div>
         </div>
+      )}
+
+      {tarjetas.length > 0 && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          {tarjetas.map((tarjeta) => {
+            const marcadas = tarjeta.sesiones.filter((s) => s.estado !== null).length;
+            return (
+              <article key={tarjeta.matriculaId} className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-text-primary dark:text-white">
+                      Tarjeta de asistencia
+                    </h2>
+                    <p className="mt-0.5 text-sm text-text-secondary dark:text-gray-400">
+                      {tarjeta.asignaturaNombre}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                    {marcadas}/8
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {Array.from({ length: 8 }).map((_, index) => {
+                    const sesion = tarjeta.sesiones[index];
+                    const asistio =
+                      sesion?.estado === "presente" ||
+                      sesion?.estado === "tardanza" ||
+                      sesion?.estado === "justificado";
+                    const claseColor = !sesion
+                      ? "border-gray-200 bg-gray-50 text-text-muted dark:border-gray-800 dark:bg-gray-800 dark:text-gray-500"
+                      : asistio
+                        ? "border-emerald-500 bg-emerald-500 text-white"
+                        : sesion.estado === "ausente"
+                          ? "border-red-500 bg-red-500 text-white"
+                          : "border-gray-300 bg-white text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400";
+                    return (
+                      <div
+                        key={index}
+                        title={sesion ? `${sesion.titulo} - ${ESTADO_LABELS[sesion.estado ?? ""] ?? "Pendiente"}` : "Sin clase programada"}
+                        className={`flex aspect-square min-h-14 items-center justify-center rounded-xl border text-sm font-bold shadow-sm ${claseColor}`}
+                      >
+                        {index + 1}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-text-secondary dark:text-gray-400">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Asiste</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />No asiste</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-300" />Pendiente</span>
+                </div>
+              </article>
+            );
+          })}
+        </section>
       )}
 
       {asistencias.length === 0 ? (

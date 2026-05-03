@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -1672,9 +1672,101 @@ export async function eliminarUsuarioPermanenteAction(input: {
   }
 }
 
+export async function eliminarAlumnosMasivoAction(input: {
+  userIds: string[];
+}): Promise<MutationResult & { procesados?: number; omitidos?: number }> {
+  const actorResult = await requireActionActor("admin_alumnos_bulk_delete", ["admin"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const userIds = Array.from(new Set(input.userIds.filter((id) => id && id !== actorResult.actor.userId)));
+  if (userIds.length === 0) {
+    return { ok: false, code: "invalid_input", message: "Debes seleccionar al menos un alumno." };
+  }
+
+  const db = getDb();
+
+  const alumnosObjetivo = await db
+    .select({
+      id: usuarios.id,
+      eliminadoAt: usuarios.eliminadoAt,
+    })
+    .from(usuarios)
+    .where(and(inArray(usuarios.id, userIds), eq(usuarios.rol, "alumno")));
+
+  if (alumnosObjetivo.length === 0) {
+    return { ok: false, code: "invalid_input", message: "No se encontraron alumnos validos." };
+  }
+
+  const alumnoIds = alumnosObjetivo.map((alumno) => alumno.id);
+  const matriculasActivas = await db
+    .select({ alumnoId: matriculas.alumnoId })
+    .from(matriculas)
+    .where(and(inArray(matriculas.alumnoId, alumnoIds), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
+
+  const bloqueados = new Set(matriculasActivas.map((row) => row.alumnoId));
+  const eligibleIds = alumnosObjetivo
+    .filter((alumno) => !alumno.eliminadoAt && !bloqueados.has(alumno.id))
+    .map((alumno) => alumno.id);
+
+  if (eligibleIds.length === 0) {
+    return {
+      ok: false,
+      code: "alumnos_bulk_none",
+      message: "No hay alumnos visibles disponibles para baja. Algunos pueden tener matriculas activas.",
+      procesados: 0,
+      omitidos: alumnosObjetivo.length,
+    };
+  }
+
+  const now = new Date();
+  await db
+    .update(usuarios)
+    .set({
+      activo: false,
+      estadoAlumno: "retirado",
+      eliminadoAt: now,
+      eliminadoPor: actorResult.actor.userId,
+      updatedAt: now,
+    })
+    .where(inArray(usuarios.id, eligibleIds));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "usuarios",
+    payload: {
+      rolObjetivo: "alumno",
+      bajaMasivaLogica: true,
+      totalSolicitados: userIds.length,
+      totalProcesados: eligibleIds.length,
+      totalOmitidos: alumnosObjetivo.length - eligibleIds.length,
+    },
+    exitoso: true,
+  });
+
+  const omitidos = alumnosObjetivo.length - eligibleIds.length;
+  return {
+    ok: true,
+    code: omitidos > 0 ? "alumnos_bulk_partial" : "alumnos_bulk_deleted",
+    procesados: eligibleIds.length,
+    omitidos,
+  };
+}
+
 export async function eliminarAlumnoPermanenteFormAction(formData: FormData): Promise<void> {
   const result = await eliminarUsuarioPermanenteAction({
     userId: getStringField(formData, "userId"),
+  });
+  revalidatePath("/admin/alumnos");
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function eliminarAlumnosMasivoFormAction(formData: FormData): Promise<void> {
+  const result = await eliminarAlumnosMasivoAction({
+    userIds: formData.getAll("userId").filter((value): value is string => typeof value === "string"),
   });
   revalidatePath("/admin/alumnos");
   redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);

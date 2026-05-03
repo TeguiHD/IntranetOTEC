@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 
-import { KeyRound, Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import { CheckSquare, KeyRound, Loader2, Pencil, Search, Trash2, UserX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
   activarAlumnoFormAction,
   cambiarEstadoAlumno,
+  desactivarAlumnosMasivoFormAction,
   desactivarAlumnoFormAction,
   editarAlumnoAction,
   eliminarAlumnosMasivoFormAction,
@@ -43,7 +44,7 @@ type PendingAction = {
 } | {
   userIds: string[];
   count: number;
-  action: "delete_bulk";
+  action: "deactivate_bulk" | "delete_bulk";
 } | null;
 
 const ESTADO_ALUMNO_CONFIG: Record<EstadoAlumno, { label: string; cls: string }> = {
@@ -78,13 +79,40 @@ export function AlumnoTable({
   const [isResetPending, startResetTransition] = useTransition();
   const [isEstadoPending, startEstadoTransition] = useTransition();
   const [resetResult, setResetResult] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const router = useRouter();
+  const visibleIds = alumnos.map((alumno) => alumno.id);
+  const selectedCount = selectedIds.length;
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const pendingName = pending && "name" in pending ? pending.name : "este alumno";
+
+  const toggleSelected = (userId: string) => {
+    setSelectedIds((current) =>
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId],
+    );
+  };
+
+  const toggleAllVisible = () => {
+    setSelectedIds((current) => {
+      if (visibleIds.every((id) => current.includes(id))) {
+        return current.filter((id) => !visibleIds.includes(id));
+      }
+      return Array.from(new Set([...current, ...visibleIds]));
+    });
+  };
+
+  const clearSelection = () => setSelectedIds([]);
 
   const handleConfirm = () => {
     if (!pending) return;
     const formData = new FormData();
     startTransition(async () => {
-      if (pending.action === "delete_bulk") {
+      if (pending.action === "deactivate_bulk") {
+        pending.userIds.forEach((userId) => formData.append("userId", userId));
+        await desactivarAlumnosMasivoFormAction(formData);
+      } else if (pending.action === "delete_bulk") {
         pending.userIds.forEach((userId) => formData.append("userId", userId));
         await eliminarAlumnosMasivoFormAction(formData);
       } else if (pending.action === "deactivate") {
@@ -97,6 +125,7 @@ export function AlumnoTable({
         formData.set("userId", pending.userId);
         await eliminarAlumnoPermanenteFormAction(formData);
       }
+      clearSelection();
       setPending(null);
     });
   };
@@ -157,28 +186,72 @@ export function AlumnoTable({
         </div>
       ) : (
         <>
-          <div className="mb-3 flex justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                setPending({
-                  userIds: alumnos.map((alumno) => alumno.id),
-                  count: alumnos.length,
-                  action: "delete_bulk",
-                })
-              }
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-danger/25 px-3 text-xs font-semibold text-danger transition-colors hover:border-danger/50 hover:bg-danger/10 dark:text-red-400"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Baja a todos los visibles
-            </button>
+          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-800/50">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleAllVisible}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-text-primary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-primary-light dark:hover:text-primary-light"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  {allVisibleSelected ? "Quitar visibles" : "Seleccionar visibles"}
+                </button>
+                <span className="text-xs font-medium text-text-secondary dark:text-gray-400">
+                  {selectedCount > 0
+                    ? `${selectedCount} alumno${selectedCount === 1 ? "" : "s"} seleccionado${selectedCount === 1 ? "" : "s"}`
+                    : "Selecciona alumnos para acciones masivas"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={selectedCount === 0}
+                  onClick={() =>
+                    setPending({
+                      userIds: selectedIds,
+                      count: selectedCount,
+                      action: "deactivate_bulk",
+                    })
+                  }
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-300 px-3 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                >
+                  <UserX className="h-3.5 w-3.5" />
+                  Desactivar seleccionados
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedCount === 0}
+                  onClick={() =>
+                    setPending({
+                      userIds: selectedIds,
+                      count: selectedCount,
+                      action: "delete_bulk",
+                    })
+                  }
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-danger/30 px-3 text-xs font-semibold text-danger transition-colors hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Baja seleccionados
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Mobile: cards */}
           <div className="space-y-3 sm:hidden">
             {alumnos.map((a) => (
               <div key={a.id} className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-3">
+                  <label className="mt-1 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(a.id)}
+                      onChange={() => toggleSelected(a.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      aria-label={`Seleccionar ${a.nombre} ${a.apellido}`}
+                    />
+                  </label>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-text-primary dark:text-white">
                       {a.nombre} {a.apellido}
@@ -214,6 +287,15 @@ export function AlumnoTable({
             <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  <th className="w-10 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleAllVisible}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      aria-label="Seleccionar alumnos visibles"
+                    />
+                  </th>
                   <th className="px-3 py-2.5">Nombre</th>
                   <th className="px-3 py-2.5">RUT / Credencial</th>
                   <th className="px-3 py-2.5">Correo</th>
@@ -224,6 +306,15 @@ export function AlumnoTable({
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
                 {alumnos.map((a) => (
                   <tr key={a.id} className="transition-colors hover:bg-primary/[0.03] dark:hover:bg-primary/5">
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(a.id)}
+                        onChange={() => toggleSelected(a.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        aria-label={`Seleccionar ${a.nombre} ${a.apellido}`}
+                      />
+                    </td>
                     <td className="px-3 py-3 font-medium text-text-primary dark:text-gray-100">
                       {a.nombre} {a.apellido}
                     </td>
@@ -421,27 +512,31 @@ export function AlumnoTable({
         onConfirm={handleConfirm}
         isPending={isPending}
         title={
+          pending?.action === "deactivate_bulk" ? "Desactivar seleccionados" :
           pending?.action === "delete_bulk" ? "Aplicar baja masiva" :
           pending?.action === "deactivate" ? "Desactivar alumno" :
           pending?.action === "delete" ? "Aplicar baja definitiva al alumno" :
           "Activar alumno"
         }
         description={
-          pending?.action === "delete_bulk"
-            ? `Se aplicara baja definitiva logica a ${pending.count} alumno(s) visibles. Los alumnos con matriculas activas seran omitidos.`
+          pending?.action === "deactivate_bulk"
+            ? `Se desactivara el acceso de ${pending.count} alumno(s) seleccionado(s). Podras reactivarlos despues.`
+            : pending?.action === "delete_bulk"
+            ? `Se aplicara baja definitiva logica a ${pending.count} alumno(s) seleccionado(s). Los alumnos con matriculas activas seran omitidos.`
             : pending?.action === "deactivate"
-            ? `¿Seguro que deseas desactivar a ${pending?.name}? Perderá acceso a la plataforma.`
+            ? `¿Seguro que deseas desactivar a ${pendingName}? Perderá acceso a la plataforma.`
             : pending?.action === "delete"
-            ? `¿Seguro que deseas aplicar baja definitiva a ${pending?.name}? No se borrará físicamente, pero quedará inactivo y oculto en operación normal.`
-            : `¿Seguro que deseas reactivar a ${pending?.name}? Recuperará acceso a la plataforma.`
+            ? `¿Seguro que deseas aplicar baja definitiva a ${pendingName}? No se borrará físicamente, pero quedará inactivo y oculto en operación normal.`
+            : `¿Seguro que deseas reactivar a ${pendingName}? Recuperará acceso a la plataforma.`
         }
         confirmLabel={
+          pending?.action === "deactivate_bulk" ? "Desactivar seleccionados" :
           pending?.action === "delete_bulk" ? "Aplicar baja masiva" :
           pending?.action === "deactivate" ? "Desactivar" :
           pending?.action === "delete" ? "Aplicar baja" :
           "Activar"
         }
-        variant={pending?.action === "delete_bulk" || pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
+        variant={pending?.action === "deactivate_bulk" || pending?.action === "delete_bulk" || pending?.action === "delete" || pending?.action === "deactivate" ? "danger" : "primary"}
       />
     </>
   );

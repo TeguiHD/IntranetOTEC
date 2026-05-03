@@ -1756,9 +1756,90 @@ export async function eliminarAlumnosMasivoAction(input: {
   };
 }
 
+export async function desactivarAlumnosMasivoAction(input: {
+  userIds: string[];
+}): Promise<MutationResult & { procesados?: number; omitidos?: number }> {
+  const actorResult = await requireActionActor("admin_alumnos_bulk_deactivate", ["admin"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const userIds = Array.from(new Set(input.userIds.filter((id) => id && id !== actorResult.actor.userId)));
+  if (userIds.length === 0) {
+    return { ok: false, code: "invalid_input", message: "Debes seleccionar al menos un alumno." };
+  }
+
+  const db = getDb();
+  const alumnosObjetivo = await db
+    .select({
+      id: usuarios.id,
+      activo: usuarios.activo,
+      eliminadoAt: usuarios.eliminadoAt,
+    })
+    .from(usuarios)
+    .where(and(inArray(usuarios.id, userIds), eq(usuarios.rol, "alumno")));
+
+  const eligibleIds = alumnosObjetivo
+    .filter((alumno) => alumno.activo && !alumno.eliminadoAt)
+    .map((alumno) => alumno.id);
+
+  if (eligibleIds.length === 0) {
+    return {
+      ok: false,
+      code: "alumnos_deactivate_none",
+      message: "No hay alumnos activos disponibles para desactivar.",
+      procesados: 0,
+      omitidos: alumnosObjetivo.length,
+    };
+  }
+
+  const now = new Date();
+  await db
+    .update(usuarios)
+    .set({
+      activo: false,
+      estadoAlumno: "retirado",
+      eliminadoAt: now,
+      eliminadoPor: actorResult.actor.userId,
+      updatedAt: now,
+    })
+    .where(inArray(usuarios.id, eligibleIds));
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "desactivar",
+    entidad: "usuarios",
+    payload: {
+      rolObjetivo: "alumno",
+      desactivacionMasiva: true,
+      totalSolicitados: userIds.length,
+      totalProcesados: eligibleIds.length,
+      totalOmitidos: alumnosObjetivo.length - eligibleIds.length,
+    },
+    exitoso: true,
+  });
+
+  const omitidos = alumnosObjetivo.length - eligibleIds.length;
+  return {
+    ok: true,
+    code: omitidos > 0 ? "alumnos_deactivate_partial" : "alumnos_deactivated",
+    procesados: eligibleIds.length,
+    omitidos,
+  };
+}
+
 export async function eliminarAlumnoPermanenteFormAction(formData: FormData): Promise<void> {
   const result = await eliminarUsuarioPermanenteAction({
     userId: getStringField(formData, "userId"),
+  });
+  revalidatePath("/admin/alumnos");
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+}
+
+export async function desactivarAlumnosMasivoFormAction(formData: FormData): Promise<void> {
+  const result = await desactivarAlumnosMasivoAction({
+    userIds: formData.getAll("userId").filter((value): value is string => typeof value === "string"),
   });
   revalidatePath("/admin/alumnos");
   redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);

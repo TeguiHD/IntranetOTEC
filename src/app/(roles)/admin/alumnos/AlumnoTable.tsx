@@ -522,7 +522,7 @@ export function AlumnoTable({
           pending?.action === "deactivate_bulk"
             ? `Se desactivara el acceso de ${pending.count} alumno(s) seleccionado(s). Podras reactivarlos despues.`
             : pending?.action === "delete_bulk"
-            ? `Se aplicara baja definitiva logica a ${pending.count} alumno(s) seleccionado(s). Los alumnos con matriculas activas seran omitidos.`
+            ? `Se aplicara baja definitiva logica a ${pending.count} alumno(s) seleccionado(s). Se cerraran sus matriculas activas y dejaran de aparecer en el padron normal.`
             : pending?.action === "deactivate"
             ? `¿Seguro que deseas desactivar a ${pendingName}? Perderá acceso a la plataforma.`
             : pending?.action === "delete"

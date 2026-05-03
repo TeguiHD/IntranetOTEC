@@ -47,11 +47,11 @@ const buildUserDirectoryWhere = (
   role: "admin" | "docente" | "alumno",
   options?: { incluirInactivos?: boolean; query?: string },
 ) => {
-  const conditions = [eq(usuarios.rol, role)];
+  const conditions = [eq(usuarios.rol, role), isNull(usuarios.eliminadoAt)];
   const searchQuery = normalizeDirectorySearchQuery(options?.query);
 
   if (!options?.incluirInactivos) {
-    conditions.push(eq(usuarios.activo, true), isNull(usuarios.eliminadoAt));
+    conditions.push(eq(usuarios.activo, true));
   }
 
   if (searchQuery) {
@@ -920,8 +920,6 @@ export async function desactivarUsuarioAction(input: {
       .set({
         activo: false,
         estadoAlumno: target.rol === "alumno" ? "retirado" : undefined,
-        eliminadoAt: new Date(),
-        eliminadoPor: actorResult.actor.userId,
         updatedAt: new Date(),
       })
       .where(eq(usuarios.id, target.id));
@@ -1602,32 +1600,32 @@ export async function eliminarUsuarioPermanenteAction(input: {
     };
   }
 
-  if (target.rol === "alumno") {
-    const [hasMatricula] = await db
-      .select({ id: matriculas.id })
-      .from(matriculas)
-      .where(and(eq(matriculas.alumnoId, target.id), eq(matriculas.activa, true)))
-      .limit(1);
-
-    if (hasMatricula) {
-      return {
-        ok: false,
-        code: "has_active_records",
-        message: "El alumno tiene matrículas activas. Desmatrícula primero.",
-      };
-    }
-  }
-
   try {
-    await db
-      .update(usuarios)
-      .set({
-        activo: false,
-        eliminadoAt: target.eliminadoAt ?? new Date(),
-        eliminadoPor: actorResult.actor.userId,
-        updatedAt: new Date(),
-      })
-      .where(eq(usuarios.id, target.id));
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+      if (target.rol === "alumno") {
+        await tx
+          .update(matriculas)
+          .set({
+            activa: false,
+            eliminadoAt: now,
+            eliminadoPor: actorResult.actor.userId,
+          })
+          .where(and(eq(matriculas.alumnoId, target.id), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
+      }
+
+      await tx
+        .update(usuarios)
+        .set({
+          activo: false,
+          estadoAlumno: target.rol === "alumno" ? "retirado" : undefined,
+          eliminadoAt: target.eliminadoAt ?? now,
+          eliminadoPor: actorResult.actor.userId,
+          updatedAt: now,
+        })
+        .where(eq(usuarios.id, target.id));
+    });
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -1698,38 +1696,42 @@ export async function eliminarAlumnosMasivoAction(input: {
     return { ok: false, code: "invalid_input", message: "No se encontraron alumnos validos." };
   }
 
-  const alumnoIds = alumnosObjetivo.map((alumno) => alumno.id);
-  const matriculasActivas = await db
-    .select({ alumnoId: matriculas.alumnoId })
-    .from(matriculas)
-    .where(and(inArray(matriculas.alumnoId, alumnoIds), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
-
-  const bloqueados = new Set(matriculasActivas.map((row) => row.alumnoId));
   const eligibleIds = alumnosObjetivo
-    .filter((alumno) => !alumno.eliminadoAt && !bloqueados.has(alumno.id))
+    .filter((alumno) => !alumno.eliminadoAt)
     .map((alumno) => alumno.id);
 
   if (eligibleIds.length === 0) {
     return {
       ok: false,
       code: "alumnos_bulk_none",
-      message: "No hay alumnos visibles disponibles para baja. Algunos pueden tener matriculas activas.",
+      message: "No hay alumnos visibles disponibles para baja.",
       procesados: 0,
       omitidos: alumnosObjetivo.length,
     };
   }
 
   const now = new Date();
-  await db
-    .update(usuarios)
-    .set({
-      activo: false,
-      estadoAlumno: "retirado",
-      eliminadoAt: now,
-      eliminadoPor: actorResult.actor.userId,
-      updatedAt: now,
-    })
-    .where(inArray(usuarios.id, eligibleIds));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(matriculas)
+      .set({
+        activa: false,
+        eliminadoAt: now,
+        eliminadoPor: actorResult.actor.userId,
+      })
+      .where(and(inArray(matriculas.alumnoId, eligibleIds), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
+
+    await tx
+      .update(usuarios)
+      .set({
+        activo: false,
+        estadoAlumno: "retirado",
+        eliminadoAt: now,
+        eliminadoPor: actorResult.actor.userId,
+        updatedAt: now,
+      })
+      .where(inArray(usuarios.id, eligibleIds));
+  });
 
   await registrarAudit({
     correlationId: actorResult.actor.correlationId,
@@ -1798,8 +1800,6 @@ export async function desactivarAlumnosMasivoAction(input: {
     .set({
       activo: false,
       estadoAlumno: "retirado",
-      eliminadoAt: now,
-      eliminadoPor: actorResult.actor.userId,
       updatedAt: now,
     })
     .where(inArray(usuarios.id, eligibleIds));

@@ -30,6 +30,7 @@ import { listarNotificacionesAdmin } from "@/actions/notificaciones";
 import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
 import { AccordionItem } from "@/components/shared/Accordion";
 import { MessageToast } from "@/components/shared/MessageToast";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 import { formatearRut } from "@/lib/rut";
 import { RutBuscador } from "./RutBuscador";
 
@@ -154,22 +155,21 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
       <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
         <form action="/admin" method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="w-full sm:max-w-md">
-            <label htmlFor="periodo-dashboard" className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Vista por periodo academico
-            </label>
-            <select
-              id="periodo-dashboard"
-              name="periodoId"
-              defaultValue={periodoSeleccionadoId ?? "all"}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              <option value="all">Todos los periodos</option>
-              {periodos.map((periodo) => (
-                <option key={periodo.id} value={periodo.id}>
-                  {periodo.codigo} · {periodo.nombre} ({ESTADO_PERIODO_LABELS[periodo.estado]})
-                </option>
-              ))}
-            </select>
+            <PeriodoCursoSeccionPicker
+              asForm={false}
+              autoSubmit={false}
+              layout="stack"
+              periodos={periodos.map((periodo) => ({
+                id: periodo.id,
+                label: `${periodo.codigo} · ${periodo.nombre}`,
+                description: ESTADO_PERIODO_LABELS[periodo.estado],
+                badge: periodo.estado,
+              }))}
+              selected={{ periodoId: periodoSeleccionadoId ?? undefined }}
+              labels={{ periodo: "Vista por periodo academico" }}
+              emptyLabels={{ periodo: "Todos los periodos" }}
+              allowClear={{ periodo: true }}
+            />
             {periodoSeleccionado && (
               <p className="mt-2 text-xs text-text-secondary dark:text-gray-400">
                 Ventana: {formatIsoDate(periodoSeleccionado.fechaInicio)} - {formatIsoDate(periodoSeleccionado.fechaFin)}

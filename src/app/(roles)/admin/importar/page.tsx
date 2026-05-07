@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import {
   CalendarDays,
+  CheckCircle2,
   FileSpreadsheet,
   Loader2,
   Plus,
@@ -89,6 +90,25 @@ const STATUS_BADGE_CLASS: Record<PeriodStatus, string> = {
 const MESES_ES = [
   "Enero","Febrero","Marzo","Abril","Mayo","Junio",
   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+];
+
+const IMPORT_STEPS = [
+  {
+    title: "Periodo destino",
+    text: "El periodo elegido determina dónde quedarán las secciones creadas o reutilizadas.",
+  },
+  {
+    title: "Cursos del Excel",
+    text: "Cada valor de Curso se consolida como sección operativa para matricular alumnos.",
+  },
+  {
+    title: "Alumnos",
+    text: "Se crean o actualizan por RUT/credencial, evitando duplicados por formato.",
+  },
+  {
+    title: "Matrículas",
+    text: "Los alumnos válidos quedan matriculados en la sección correspondiente.",
+  },
 ];
 
 function lastDayOfMonth(year: number, month: number): number {
@@ -546,11 +566,29 @@ export default function AdminImportarPage() {
   return (
     <section className="space-y-5">
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
-        <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Importar Alumnos y Cursos</h1>
+        <h1 className="text-xl font-bold uppercase text-white sm:text-2xl">Importar Alumnos a Secciones</h1>
         <p className="mt-1 text-sm text-white/80">
-          Sube un archivo Excel .xlsx y define el periodo academico de destino para registrar alumnos, crear asignaturas faltantes y matricularlos automaticamente.
+          Flujo OTEC: selecciona periodo, revisa los cursos del Excel como secciones y matricula alumnos de forma controlada.
         </p>
       </div>
+
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <div className="grid gap-3 md:grid-cols-4">
+          {IMPORT_STEPS.map((step, index) => (
+            <div key={step.title} className="rounded-xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/60">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  {index + 1}
+                </span>
+                <p className="text-sm font-semibold text-text-primary dark:text-white">{step.title}</p>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-text-secondary dark:text-gray-400">
+                {step.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      </article>
 
       <article className="rounded-2xl border border-primary/20 bg-primary/5 p-4 dark:border-primary/30 dark:bg-primary/10">
         <h2 className="text-sm font-semibold text-text-primary dark:text-white">
@@ -576,7 +614,7 @@ export default function AdminImportarPage() {
           </table>
         </div>
         <p className="mt-3 text-xs text-text-secondary dark:text-gray-400">
-          Las asignaturas se crean automaticamente si no existen (sin docente, listas para asignar) y se vinculan al periodo que selecciones antes de importar. Los alumnos se crean o actualizan segun corresponda y quedan matriculados en su curso.
+          Las secciones se crean automaticamente si no existen (sin docente, listas para asignar) y se vinculan al periodo que selecciones antes de importar. Los alumnos se crean o actualizan segun corresponda y quedan matriculados en su sección.
         </p>
         <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
           El sistema consolida automaticamente variantes de curso por mayusculas, tildes, espacios y posibles tipeos para evitar duplicados operativos.
@@ -585,7 +623,7 @@ export default function AdminImportarPage() {
 
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
         <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-          Subir Archivo
+          Destino operativo y archivo
         </h2>
 
         <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/40 p-4 dark:border-gray-700 dark:bg-gray-800/40">
@@ -690,6 +728,10 @@ export default function AdminImportarPage() {
 
         {file && (
           <div className="mt-4 flex flex-wrap justify-end gap-3">
+            <div className="mr-auto flex min-h-11 items-center gap-2 rounded-xl bg-emerald-50 px-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+              <CheckCircle2 className="h-4 w-4" />
+              El importador previsualiza antes de crear alumnos o matrículas.
+            </div>
             <button
               type="button"
               onClick={handlePreview}

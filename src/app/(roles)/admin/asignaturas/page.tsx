@@ -1,4 +1,6 @@
-import { Search } from "lucide-react";
+import Link from "next/link";
+
+import { BookOpen, CalendarDays, ExternalLink, ListFilter, Plus, Search, UserCog } from "lucide-react";
 
 import {
   countAsignaturasAdmin,
@@ -170,19 +172,108 @@ export default async function AdminAsignaturasPage({
     { value: "finalizado", label: "Finalizadas", count: countFinalizado },
     { value: "archivado", label: "Archivadas", count: countArchivado },
   ] as const;
+  const sinDocenteEnPagina = asignaturasSimple.filter((a) => !a.docenteId).length;
+  const resumenOperativo = [
+    {
+      label: "Activas",
+      value: countActivo,
+      helper: "Secciones operando",
+      Icon: CalendarDays,
+      tone: "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-300",
+    },
+    {
+      label: "Borrador",
+      value: countBorrador,
+      helper: "Por preparar",
+      Icon: BookOpen,
+      tone: "text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-300",
+    },
+    {
+      label: "Sin docente",
+      value: sinDocenteEnPagina,
+      helper: "En esta página",
+      Icon: UserCog,
+      tone: sinDocenteEnPagina > 0
+        ? "text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-300"
+        : "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-300",
+    },
+  ];
 
   return (
     <section className="space-y-5">
       <RouteStateToast state={params.state} map={STATUS_MAP} />
 
-      <header>
-        <h1 className="text-xl font-bold uppercase text-text-primary dark:text-gray-100 sm:text-2xl">
-          Secciones
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary dark:text-gray-300">
-          Gestiona secciones, vigencia, cupos y docentes responsables.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold uppercase text-text-primary dark:text-gray-100 sm:text-2xl">
+            Secciones
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary dark:text-gray-300">
+            Gestiona vigencia, cupos, docentes y continuidad académica por sección.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/academico"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-text-primary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-primary-light dark:hover:text-primary-light"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Vista académica
+          </Link>
+          <Link
+            href="/admin/cursos"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+          >
+            <Plus className="h-4 w-4" />
+            Curso / sección
+          </Link>
+        </div>
       </header>
+
+      <div className="grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,1.15fr)]">
+        {resumenOperativo.map((item) => (
+          <article
+            key={item.label}
+            className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">
+                  {item.value}
+                </p>
+                <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">
+                  {item.helper}
+                </p>
+              </div>
+              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${item.tone}`}>
+                <item.Icon className="h-4 w-4" />
+              </span>
+            </div>
+          </article>
+        ))}
+        <article className="rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-sm dark:border-primary/30 dark:bg-primary/10">
+          <div className="flex h-full flex-col justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary dark:text-primary-light">
+                Flujo recomendado
+              </p>
+              <p className="mt-1 text-sm font-semibold text-text-primary dark:text-white">
+                Revisa por curso y periodo cuando necesites contexto completo.
+              </p>
+            </div>
+            <Link
+              href="/admin/academico"
+              className="inline-flex h-9 w-fit items-center gap-2 rounded-xl bg-white px-3 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary hover:text-white dark:bg-gray-900 dark:text-primary-light dark:hover:bg-primary dark:hover:text-white"
+            >
+              Abrir vista académica
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </article>
+      </div>
 
       {/* Tabs por estado */}
       <nav className="flex flex-wrap gap-1.5 rounded-2xl border border-gray-200/80 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -220,7 +311,11 @@ export default async function AdminAsignaturasPage({
 
       {/* Search & Filter */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_auto_auto_auto_auto_auto]">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+          <ListFilter className="h-4 w-4" />
+          Filtros de operación
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_auto_auto_auto_auto]">
           <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
@@ -261,25 +356,6 @@ export default async function AdminAsignaturasPage({
             className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             aria-label="Fecha hasta" inputMode="text"
           />
-          <div className="relative">
-            <select
-              name="pageSize"
-              defaultValue={String(pageSize)}
-              className="h-11 w-full appearance-none rounded-xl border border-gray-200 bg-white py-2 pl-4 pr-9 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 sm:w-32"
-              aria-label="Secciones por página"
-            >
-              {PAGE_SIZE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option} / pág.
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-              <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-              </svg>
-            </div>
-          </div>
           <button
             type="submit"
             className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
@@ -287,11 +363,35 @@ export default async function AdminAsignaturasPage({
             Filtrar
           </button>
         </div>
-        {hasFilter && (
-          <div className="mt-2 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-text-secondary dark:text-gray-400">
+              Mostrar
+            </span>
+            <div className="relative">
+              <select
+                name="pageSize"
+                defaultValue={String(pageSize)}
+                className="h-9 appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-xs font-medium text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                aria-label="Secciones por página"
+              >
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option} secciones
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+                <svg className="h-3.5 w-3.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          {hasFilter ? (
+            <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-text-secondary dark:text-gray-400">
               {totalCount} resultado{totalCount !== 1 ? "s" : ""}
-              {` · ${pageSize} por página`}
               {q && <> para «<strong>{q}</strong>»</>}
               {estadoFilter && <> en estado <strong>{estadoFilter}</strong></>}
               {(fechaDesde || fechaHasta) && (
@@ -307,8 +407,13 @@ export default async function AdminAsignaturasPage({
             >
               Limpiar
             </a>
-          </div>
-        )}
+            </div>
+          ) : (
+            <span className="text-xs text-text-secondary dark:text-gray-400">
+              {totalCount} secciones disponibles
+            </span>
+          )}
+        </div>
       </form>
 
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">

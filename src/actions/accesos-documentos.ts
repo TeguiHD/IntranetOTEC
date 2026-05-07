@@ -140,8 +140,13 @@ export async function listarSeccionesParaAccesosAdmin() {
       id: asignaturas.id,
       nombre: asignaturas.nombre,
       codigo: asignaturas.codigo,
+      cursoId: asignaturas.cursoId,
       cursoNombre: cursos.nombre,
+      cursoCodigo: cursos.codigo,
+      periodoId: asignaturas.periodoId,
       periodoNombre: periodosAcademicos.nombre,
+      periodoCodigo: periodosAcademicos.codigo,
+      periodoEstado: periodosAcademicos.estado,
       matriculados: sql<number>`count(${matriculas.id})::int`,
     })
     .from(asignaturas)
@@ -160,8 +165,13 @@ export async function listarSeccionesParaAccesosAdmin() {
       asignaturas.id,
       asignaturas.nombre,
       asignaturas.codigo,
+      asignaturas.cursoId,
       cursos.nombre,
+      cursos.codigo,
+      asignaturas.periodoId,
       periodosAcademicos.nombre,
+      periodosAcademicos.codigo,
+      periodosAcademicos.estado,
     )
     .orderBy(asc(cursos.nombre), asc(asignaturas.nombre));
 }

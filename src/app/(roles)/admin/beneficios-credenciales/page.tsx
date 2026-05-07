@@ -1,13 +1,14 @@
-import { CreditCard, IdCard, Search, ShieldCheck, Users } from "lucide-react";
+import { IdCard, Search, ShieldCheck, Users } from "lucide-react";
 
 import {
   actualizarAccesoDocumentosAlumnoFormAction,
-  actualizarAccesosCursoFormAction,
   listarAccesosDocumentosAdmin,
   listarSeccionesParaAccesosAdmin,
 } from "@/actions/accesos-documentos";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearIdentificador } from "@/lib/rut";
+
+import { BeneficiosCursoForm } from "./BeneficiosCursoForm";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   acceso_alumno_actualizado: { tone: "success", text: "Acceso del alumno actualizado correctamente." },
@@ -185,50 +186,17 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
         <aside className="space-y-5">
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-amber-600" />
               <IdCard className="h-5 w-5 text-primary" />
               <h2 className="text-base font-semibold text-text-primary dark:text-white">
                 Control por curso
               </h2>
             </div>
             <p className="mt-2 text-sm text-text-secondary dark:text-gray-400">
-              Aplica un cambio masivo a todos los alumnos activos de una sección.
+              Filtra por periodo y curso, elige una sección y revisa el alcance estimado antes
+              de aplicar el cambio masivo.
             </p>
 
-            <form action={actualizarAccesosCursoFormAction} className="mt-4 space-y-4">
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-text-primary dark:text-gray-200">Curso / sección</span>
-                <select name="asignaturaId" required className={selectClass}>
-                  <option value="">Seleccionar curso</option>
-                  {secciones.map((seccion) => (
-                    <option key={seccion.id} value={seccion.id}>
-                      {seccion.cursoNombre} - {seccion.nombre} ({seccion.matriculados})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-text-primary dark:text-gray-200">Acceso</span>
-                <select name="tipoAcceso" required className={selectClass}>
-                  <option value="ambos">Beneficios y credenciales</option>
-                  <option value="beneficio">Solo beneficios</option>
-                  <option value="credencial">Solo credenciales</option>
-                </select>
-              </label>
-
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-text-primary dark:text-gray-200">Estado</span>
-                <select name="habilitado" required className={selectClass}>
-                  <option value="true">Habilitar</option>
-                  <option value="false">Deshabilitar</option>
-                </select>
-              </label>
-
-              <button type="submit" className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark">
-                Aplicar al curso
-              </button>
-            </form>
+            <BeneficiosCursoForm secciones={secciones} />
           </article>
         </aside>
       </div>

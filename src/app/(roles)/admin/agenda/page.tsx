@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 
 import { AdminAgendaBoard } from "./AdminAgendaBoard";
+import { DocenteFilterCombobox } from "./DocenteFilterCombobox";
 
 type PageProps = {
   searchParams?: Promise<{
@@ -420,24 +421,10 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
             emptyLabels={{ asignatura: "Todas las asignaturas" }}
           />
 
-          <div className="space-y-1.5">
-            <label htmlFor="agenda-docente" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Docente
-            </label>
-            <select
-              id="agenda-docente"
-              name="docenteId"
-              defaultValue={selectedDocenteId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              <option value="">Todos los docentes</option>
-              {docentes.map((docente) => (
-                <option key={docente.id} value={docente.id}>
-                  {docente.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+          <DocenteFilterCombobox
+            docentes={docentes}
+            selectedDocenteId={selectedDocenteId}
+          />
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">

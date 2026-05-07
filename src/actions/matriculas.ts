@@ -61,6 +61,41 @@ const parsePageField = (value: string): number | null => {
   return parsed;
 };
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export type ResumenPagoAlumno = {
+  mora: number;
+  pendiente: number;
+};
+
+export async function obtenerResumenPagoAlumnoAction(alumnoId: string): Promise<ResumenPagoAlumno> {
+  const actorResult = await requireActionActor("admin_matricula_pago_alumno", ["admin"]);
+
+  if (!actorResult.ok || !UUID_REGEX.test(alumnoId)) {
+    return { mora: 0, pendiente: 0 };
+  }
+
+  const [row] = await getDb()
+    .select({
+      mora: sql<number>`count(*) filter (where ${matriculas.estadoPago} = 'mora')::int`,
+      pendiente: sql<number>`count(*) filter (where ${matriculas.estadoPago} = 'pendiente')::int`,
+    })
+    .from(matriculas)
+    .where(
+      and(
+        eq(matriculas.alumnoId, alumnoId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+      ),
+    );
+
+  return {
+    mora: Number(row?.mora ?? 0),
+    pendiente: Number(row?.pendiente ?? 0),
+  };
+}
+
 export async function listarMatriculasAdmin(
   pagination: PaginationInput = {},
   options?: { asignaturaId?: string; incluirInactivas?: boolean },

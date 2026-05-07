@@ -2,6 +2,12 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+
+import {
+  obtenerResumenPagoAlumnoAction,
+  type ResumenPagoAlumno,
+} from "@/actions/matriculas";
 import { buscarAlumnosAction, type AlumnoBusqueda } from "@/actions/usuarios";
 import { formatearIdentificador } from "@/lib/rut";
 
@@ -11,6 +17,8 @@ export function AlumnoCombobox() {
   const [selected, setSelected] = useState<AlumnoBusqueda | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pagoResumen, setPagoResumen] = useState<ResumenPagoAlumno | null>(null);
+  const [loadingPago, setLoadingPago] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback((value: string) => {
@@ -39,6 +47,7 @@ export function AlumnoCombobox() {
     setQuery(value);
     if (selected) {
       setSelected(null);
+      setPagoResumen(null);
     }
     search(value);
   };
@@ -48,14 +57,24 @@ export function AlumnoCombobox() {
     setQuery(`${alumno.nombre} ${alumno.apellido}`);
     setOpen(false);
     setResults([]);
+    setLoadingPago(true);
+    obtenerResumenPagoAlumnoAction(alumno.id)
+      .then(setPagoResumen)
+      .catch(() => setPagoResumen(null))
+      .finally(() => setLoadingPago(false));
   };
 
   const handleClear = () => {
     setSelected(null);
     setQuery("");
     setResults([]);
+    setPagoResumen(null);
     setOpen(false);
   };
+
+  const tienePagoObservado = Boolean(
+    pagoResumen && (pagoResumen.mora > 0 || pagoResumen.pendiente > 0),
+  );
 
   return (
     <div className="space-y-1.5">
@@ -165,9 +184,32 @@ export function AlumnoCombobox() {
 
       {/* Indicador de selección */}
       {selected && (
-        <p className="text-xs text-green-700 dark:text-green-400">
-          ✓ Seleccionado: {selected.nombre} {selected.apellido}
-        </p>
+        <div className="space-y-2">
+          <p className="text-xs text-green-700 dark:text-green-400">
+            ✓ Seleccionado: {selected.nombre} {selected.apellido}
+          </p>
+          {loadingPago ? (
+            <p className="text-xs text-text-secondary dark:text-gray-400">
+              Revisando estado de pago previo...
+            </p>
+          ) : tienePagoObservado && pagoResumen ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <p>
+                  Revisión de pago: {pagoResumen.mora > 0 ? `${pagoResumen.mora} matrícula(s) en mora` : ""}
+                  {pagoResumen.mora > 0 && pagoResumen.pendiente > 0 ? " y " : ""}
+                  {pagoResumen.pendiente > 0 ? `${pagoResumen.pendiente} pendiente(s)` : ""}. Confirma antes de guardar.
+                </p>
+              </div>
+            </div>
+          ) : pagoResumen ? (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              Sin matrículas activas en mora o pendientes.
+            </div>
+          ) : null}
+        </div>
       )}
       {!selected && query.length >= 2 && !loading && results.length === 0 && (
         <p className="text-xs text-text-secondary dark:text-gray-400">

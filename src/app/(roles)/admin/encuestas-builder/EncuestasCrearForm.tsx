@@ -25,6 +25,12 @@ const TIPO_LABELS: Record<string, string> = {
   texto_libre: "Texto libre",
 };
 
+const WIZARD_STEPS = [
+  { title: "Plantilla", text: "Elige base y preguntas" },
+  { title: "Contenido", text: "Título e instrucciones" },
+  { title: "Destino", text: "Audiencia y secciones" },
+];
+
 const inputClass =
   "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
 
@@ -51,6 +57,11 @@ export function EncuestasCrearForm() {
   };
 
   const canSubmit = asignaturas.length > 0 && titulo.trim().length >= 2;
+  const currentStep = asignaturas.length > 0 && titulo.trim().length >= 2
+    ? 2
+    : titulo.trim().length >= 2 || audiencia !== "alumnos" || obligatoria
+      ? 1
+      : 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -107,12 +118,37 @@ export function EncuestasCrearForm() {
         </div>
       </div>
 
+      <div className="mb-5 grid gap-2 sm:grid-cols-3">
+        {WIZARD_STEPS.map((step, index) => {
+          const isActive = index === currentStep;
+          const isDone = index < currentStep;
+
+          return (
+            <div
+              key={step.title}
+              className={`rounded-xl border px-3 py-2.5 ${
+                isActive
+                  ? "border-primary bg-primary/5 text-primary dark:border-primary/40 dark:bg-primary/10"
+                  : isDone
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    : "border-gray-200 bg-white text-text-secondary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+              }`}
+            >
+              <p className="text-xs font-bold uppercase tracking-wide">
+                Paso {index + 1} · {step.title}
+              </p>
+              <p className="mt-0.5 text-xs opacity-75">{step.text}</p>
+            </div>
+          );
+        })}
+      </div>
+
       {/* ── Template picker ── */}
       <div className="mb-5">
         <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
           Selecciona una plantilla
         </p>
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PLANTILLAS.map((p) => {
             const Icon = ICON_MAP[p.iconName] ?? PenLine;
             const isSelected = plantilla?.id === p.id;
@@ -121,7 +157,7 @@ export function EncuestasCrearForm() {
                 key={p.id}
                 type="button"
                 onClick={() => selectPlantilla(p)}
-                className={`flex w-[152px] flex-none flex-col rounded-xl border p-3.5 text-left transition-[background-color,border-color,color,box-shadow,opacity,transform] ${
+                className={`flex min-h-36 flex-col rounded-xl border p-3.5 text-left transition-[background-color,border-color,color,box-shadow,opacity,transform] ${
                   isSelected
                     ? "border-primary bg-primary/5 ring-2 ring-primary/20 dark:border-primary dark:bg-primary/10 dark:ring-primary/30"
                     : "border-gray-200 hover:border-primary/40 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/30 dark:hover:bg-gray-800/60"
@@ -246,12 +282,20 @@ export function EncuestasCrearForm() {
           />
         </div>
 
-        <div className="flex items-center justify-between border-t border-gray-100 pt-3 dark:border-gray-800">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-text-secondary dark:text-gray-400">
+        <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3 text-xs text-text-secondary dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
+          <p>
+            Alcance: <strong className="text-text-primary dark:text-white">{asignaturas.length}</strong> sección(es) ·{" "}
+            Audiencia: <strong className="text-text-primary dark:text-white">{audiencia}</strong> ·{" "}
+            Preguntas iniciales: <strong className="text-text-primary dark:text-white">{plantilla?.preguntas.length ?? 0}</strong>
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-gray-100 pt-3 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-text-secondary dark:text-gray-400 sm:items-center">
             <input
               type="checkbox"
               checked={obligatoria}
-              inputMode="text" onChange={(e) => setObligatoria(e.target.checked)}
+              inputMode="none" onChange={(e) => setObligatoria(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 accent-primary"
             />
             <span>Obligatoria — bloquea el portal hasta que sea respondida</span>
@@ -260,7 +304,7 @@ export function EncuestasCrearForm() {
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit || isPending}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Creando...</>

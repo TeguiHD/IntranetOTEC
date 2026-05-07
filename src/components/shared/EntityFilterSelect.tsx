@@ -20,6 +20,8 @@ type Props = {
   emptyLabel?: string;
   autoSubmit?: boolean;
   countLabel?: string;
+  allowClear?: boolean;
+  clearLabel?: string;
 };
 
 export function EntityFilterSelect({
@@ -31,6 +33,8 @@ export function EntityFilterSelect({
   emptyLabel,
   autoSubmit = true,
   countLabel = "opciones",
+  allowClear = false,
+  clearLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -121,6 +125,19 @@ export function EntityFilterSelect({
           </div>
 
           <ul className="max-h-72 overflow-y-auto py-1" role="listbox">
+            {allowClear && !query ? (
+              <li
+                role="option"
+                aria-selected={selectedId === ""}
+                onClick={() => handleSelect("")}
+                className={`flex cursor-pointer items-center gap-2 border-b border-gray-100 px-3 py-2 text-xs uppercase tracking-wide text-text-muted transition-colors hover:bg-primary/8 dark:border-gray-800 dark:text-gray-500 dark:hover:bg-primary/15 ${
+                  selectedId === "" ? "bg-primary/10 text-primary dark:text-primary-light" : ""
+                }`}
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>{clearLabel ?? emptyLabel ?? "Sin selección"}</span>
+              </li>
+            ) : null}
             {filtered.length === 0 ? (
               <li className="px-3 py-4 text-center text-xs text-text-muted dark:text-gray-500">
                 Sin resultados para &ldquo;{query}&rdquo;

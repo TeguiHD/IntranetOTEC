@@ -27,6 +27,11 @@ type Props = {
    * filtros propios de la pagina.
    */
   asForm?: boolean;
+  /**
+   * Permite limpiar la seleccion por nivel desde la lista. Util cuando la
+   * pagina interpreta el valor vacio como "todos".
+   */
+  allowClear?: Partial<{ periodo: boolean; curso: boolean; asignatura: boolean }>;
 };
 
 const DEFAULT_LABELS = {
@@ -61,6 +66,7 @@ export function PeriodoCursoSeccionPicker({
   autoSubmit = true,
   className,
   asForm = true,
+  allowClear,
 }: Props) {
   const labelMap = { ...DEFAULT_LABELS, ...labels };
   const placeholderMap = { ...DEFAULT_PLACEHOLDERS, ...placeholders };
@@ -93,6 +99,7 @@ export function PeriodoCursoSeccionPicker({
           emptyLabel={emptyMap.periodo}
           autoSubmit={autoSubmit}
           countLabel="periodos"
+          allowClear={allowClear?.periodo}
         />
       ) : null}
 
@@ -106,6 +113,7 @@ export function PeriodoCursoSeccionPicker({
           emptyLabel={emptyMap.curso}
           autoSubmit={autoSubmit}
           countLabel="cursos"
+          allowClear={allowClear?.curso}
         />
       ) : null}
 
@@ -119,6 +127,7 @@ export function PeriodoCursoSeccionPicker({
           emptyLabel={emptyMap.asignatura}
           autoSubmit={autoSubmit}
           countLabel="secciones"
+          allowClear={allowClear?.asignatura}
         />
       ) : null}
 
@@ -159,6 +168,7 @@ type FieldProps = {
   emptyLabel: string;
   autoSubmit: boolean;
   countLabel: string;
+  allowClear?: boolean;
 };
 
 function PickerField({
@@ -170,6 +180,7 @@ function PickerField({
   emptyLabel,
   autoSubmit,
   countLabel,
+  allowClear,
 }: FieldProps) {
   return (
     <div className="space-y-1.5">
@@ -187,6 +198,7 @@ function PickerField({
         emptyLabel={emptyLabel}
         autoSubmit={autoSubmit}
         countLabel={countLabel}
+        allowClear={allowClear}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import { listarPeriodosParaReportes, reporteRetencion } from "@/actions/reportes";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 
 type PageProps = {
   searchParams: Promise<{ periodoId?: string }>;
@@ -41,20 +42,22 @@ export default async function ReporteRetencionPage({ searchParams }: PageProps) 
             >
               Exportar PDF
             </a>
-            <form method="GET" className="flex items-center gap-2">
-            <select
-              name="periodoId"
-              defaultValue={periodoId ?? ""}
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">Todos los periodos</option>
-              {periodos.map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-            <button type="submit" className="h-10 rounded-xl bg-primary px-4 text-sm font-medium text-white hover:bg-primary-dark">
-              Filtrar
-            </button>
+            <form method="GET" className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[220px]">
+                <PeriodoCursoSeccionPicker
+                  asForm={false}
+                  autoSubmit={false}
+                  layout="stack"
+                  periodos={periodos.map((p) => ({ id: p.id, label: p.nombre }))}
+                  selected={{ periodoId: periodoId ?? undefined }}
+                  labels={{ periodo: "Periodo" }}
+                  emptyLabels={{ periodo: "Todos los periodos" }}
+                  allowClear={{ periodo: true }}
+                />
+              </div>
+              <button type="submit" className="h-11 rounded-xl bg-primary px-4 text-sm font-medium text-white hover:bg-primary-dark">
+                Filtrar
+              </button>
             </form>
           </div>
         )}

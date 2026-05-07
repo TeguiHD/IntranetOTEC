@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { getDb } from "@/db";
 import { asignaturas, bloquesHorario, periodosAcademicos, usuarios } from "@/db/schema";
-import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 import { WeeklyScheduleGrid } from "@/components/shared/WeeklyScheduleGrid";
 
 export const metadata = { title: "Horarios" };
@@ -99,39 +99,27 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
 
       {/* Selector de sección */}
       <form method="get" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto]">
-          <div className="min-w-0">
-            <label htmlFor="admin-horario-periodo" className="mb-1.5 block text-sm font-medium text-text-primary dark:text-gray-200">
-              Periodo
-            </label>
-            <select
-              id="admin-horario-periodo"
-              name="periodoId"
-              defaultValue={selectedPeriodoId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              {periodos.length === 0 ? (
-                <option value="">Sin periodos</option>
-              ) : (
-                periodos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div className="min-w-0">
-            <label htmlFor="admin-horario-asig" className="mb-1.5 block text-sm font-medium text-text-primary dark:text-gray-200">
-              Seccion
-            </label>
-            <AsignaturaFilterSelect
-              options={secciones.map((s) => ({ id: s.id, nombre: s.nombre, codigo: s.codigo }))}
-              defaultValue={asignaturaSelId}
-              name="asignaturaId"
-              placeholder="Buscar seccion..."
-              autoSubmit={false}
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <PeriodoCursoSeccionPicker
+            asForm={false}
+            autoSubmit={false}
+            layout="inline"
+            periodos={periodos.map((p) => ({
+              id: p.id,
+              label: p.nombre,
+              badge: p.estado,
+            }))}
+            asignaturas={secciones.map((s) => ({
+              id: s.id,
+              label: s.nombre,
+              badge: s.codigo,
+            }))}
+            selected={{
+              periodoId: selectedPeriodoId,
+              asignaturaId: asignaturaSelId,
+            }}
+            placeholders={{ asignatura: "Buscar seccion..." }}
+          />
 
           <button
             type="submit"

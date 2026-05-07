@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { resolverSolicitudAdminFormAction, eliminarSolicitudesResueltasAction } from "@/actions/solicitudes-documentos";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { SearchInput } from "@/components/shared/SearchInput";
 import { formatearRut } from "@/lib/rut";
 
 type Solicitud = {
@@ -78,38 +77,12 @@ const buildSolicitudesCsvHref = (items: Solicitud[]): string => {
 };
 
 export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
-  const [search, setSearch] = useState("");
-  const [filterTipo, setFilterTipo] = useState<string>("all");
-  const [filterEstado, setFilterEstado] = useState<string>("all");
   const [pending, setPending] = useState<PendingAction>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const filtered = useMemo(() => {
-    let result = solicitudes;
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (s) =>
-          `${s.alumnoNombre} ${s.alumnoApellido}`.toLowerCase().includes(q) ||
-          s.alumnoRut?.toLowerCase().includes(q),
-      );
-    }
-
-    if (filterTipo !== "all") {
-      result = result.filter((s) => s.tipo === filterTipo);
-    }
-
-    if (filterEstado !== "all") {
-      result = result.filter((s) => s.estado === filterEstado);
-    }
-
-    return result;
-  }, [solicitudes, search, filterTipo, filterEstado]);
-
-  const pendientes = filtered.filter((s) => s.estado === "pendiente");
-  const resueltas = filtered.filter((s) => s.estado !== "pendiente");
+  const pendientes = solicitudes.filter((s) => s.estado === "pendiente");
+  const resueltas = solicitudes.filter((s) => s.estado !== "pendiente");
 
   const handleConfirm = () => {
     if (!pending) return;
@@ -129,49 +102,8 @@ export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
     });
   };
 
-  const selectClass =
-    "h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
-
   return (
     <>
-      {/* Filters bar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <SearchInput
-            placeholder="Buscar por nombre o RUT del alumno…"
-            value={search}
-            onChange={setSearch}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={filterTipo}
-            onChange={(e) => setFilterTipo(e.target.value)}
-            className={selectClass}
-            aria-label="Filtrar por tipo de documento"
-          >
-            <option value="all">Todos los tipos</option>
-            <option value="credencial">Credencial</option>
-            <option value="alumno_regular">Alumno regular</option>
-            <option value="tarjeta_beneficio">Tarjeta beneficio</option>
-          </select>
-          <select
-            value={filterEstado}
-            onChange={(e) => setFilterEstado(e.target.value)}
-            className={selectClass}
-            aria-label="Filtrar por estado"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="aprobada">Aprobada</option>
-            <option value="rechazada">Rechazada</option>
-          </select>
-        </div>
-        <p className="text-sm text-text-secondary dark:text-gray-400">
-          {filtered.length} resultados
-        </p>
-      </div>
-
       {/* Pending */}
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
         <div className="flex items-center gap-3">

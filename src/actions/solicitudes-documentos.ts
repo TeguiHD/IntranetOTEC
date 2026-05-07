@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -395,7 +395,49 @@ export async function countSolicitudesPendientesAdmin(): Promise<number> {
   return Number(result?.total ?? 0);
 }
 
-export async function listarSolicitudesDocumentosAdmin() {
+const SOLICITUDES_PAGE_SIZE_DEFAULT = 30;
+const SOLICITUDES_PAGE_SIZE_MAX = 100;
+
+const escapeLikeSolicitud = (s: string) =>
+  s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+type SolicitudesFilters = {
+  q?: string;
+  tipo?: "credencial" | "alumno_regular" | "tarjeta_beneficio";
+  estado?: "pendiente" | "aprobada" | "rechazada";
+};
+
+const buildSolicitudesFilters = (options?: SolicitudesFilters): SQL[] => {
+  const conditions: SQL[] = [];
+
+  if (options?.tipo) {
+    conditions.push(eq(solicitudesDocumentos.tipo, options.tipo));
+  }
+
+  if (options?.estado) {
+    conditions.push(eq(solicitudesDocumentos.estado, options.estado));
+  }
+
+  if (options?.q) {
+    const term = `%${escapeLikeSolicitud(options.q)}%`;
+    const ors = or(
+      ilike(usuarios.nombre, term),
+      ilike(usuarios.apellido, term),
+      ilike(usuarios.rut, term),
+      ilike(
+        sql<string>`concat_ws(' ', ${usuarios.nombre}, ${usuarios.apellido})`,
+        term,
+      ),
+    );
+    if (ors) conditions.push(ors);
+  }
+
+  return conditions;
+};
+
+export async function listarSolicitudesDocumentosAdmin(
+  options?: SolicitudesFilters & { limit?: number; offset?: number },
+) {
   const actorResult = await requireActionActor("admin_solicitudes_list", ["admin"]);
 
   if (!actorResult.ok) {
@@ -403,8 +445,14 @@ export async function listarSolicitudesDocumentosAdmin() {
   }
 
   const db = getDb();
+  const limit = Math.max(
+    1,
+    Math.min(options?.limit ?? SOLICITUDES_PAGE_SIZE_DEFAULT, SOLICITUDES_PAGE_SIZE_MAX),
+  );
+  const offset = Math.max(0, options?.offset ?? 0);
+  const conditions = buildSolicitudesFilters(options);
 
-  return db
+  const baseQuery = db
     .select({
       id: solicitudesDocumentos.id,
       tipo: solicitudesDocumentos.tipo,
@@ -417,9 +465,74 @@ export async function listarSolicitudesDocumentosAdmin() {
       alumnoRut: usuarios.rut,
     })
     .from(solicitudesDocumentos)
-    .innerJoin(usuarios, eq(solicitudesDocumentos.alumnoId, usuarios.id))
+    .innerJoin(usuarios, eq(solicitudesDocumentos.alumnoId, usuarios.id));
+
+  const filtered = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+
+  return filtered
     .orderBy(desc(solicitudesDocumentos.createdAt))
-    .limit(100);
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function countSolicitudesDocumentosAdmin(
+  options?: SolicitudesFilters,
+): Promise<number> {
+  const actorResult = await requireActionActor("admin_solicitudes_list", ["admin"]);
+  if (!actorResult.ok) return 0;
+
+  const db = getDb();
+  const conditions = buildSolicitudesFilters(options);
+
+  const baseQuery = db
+    .select({ total: count(solicitudesDocumentos.id) })
+    .from(solicitudesDocumentos)
+    .innerJoin(usuarios, eq(solicitudesDocumentos.alumnoId, usuarios.id));
+
+  const filtered = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+  const [row] = await filtered;
+  return Number(row?.total ?? 0);
+}
+
+export type ResumenSolicitudesAdmin = {
+  total: number;
+  pendientes: number;
+  aprobadas: number;
+  rechazadas: number;
+  autoEvaluadas: number;
+};
+
+export async function resumenSolicitudesAdmin(
+  options?: SolicitudesFilters,
+): Promise<ResumenSolicitudesAdmin> {
+  const actorResult = await requireActionActor("admin_solicitudes_list", ["admin"]);
+  if (!actorResult.ok) {
+    return { total: 0, pendientes: 0, aprobadas: 0, rechazadas: 0, autoEvaluadas: 0 };
+  }
+
+  const db = getDb();
+  const conditions = buildSolicitudesFilters(options);
+
+  const baseQuery = db
+    .select({
+      total: count(solicitudesDocumentos.id),
+      pendientes: sql<number>`count(*) filter (where ${solicitudesDocumentos.estado} = 'pendiente')::int`,
+      aprobadas: sql<number>`count(*) filter (where ${solicitudesDocumentos.estado} = 'aprobada')::int`,
+      rechazadas: sql<number>`count(*) filter (where ${solicitudesDocumentos.estado} = 'rechazada')::int`,
+      autoEvaluadas: sql<number>`count(*) filter (where ${solicitudesDocumentos.observacion} ilike 'Auto-evaluacion:%')::int`,
+    })
+    .from(solicitudesDocumentos)
+    .innerJoin(usuarios, eq(solicitudesDocumentos.alumnoId, usuarios.id));
+
+  const filtered = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+  const [row] = await filtered;
+  return {
+    total: Number(row?.total ?? 0),
+    pendientes: Number(row?.pendientes ?? 0),
+    aprobadas: Number(row?.aprobadas ?? 0),
+    rechazadas: Number(row?.rechazadas ?? 0),
+    autoEvaluadas: Number(row?.autoEvaluadas ?? 0),
+  };
 }
 
 const resolverSolicitudSchema = z.object({

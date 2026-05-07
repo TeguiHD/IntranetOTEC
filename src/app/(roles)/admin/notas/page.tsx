@@ -2,9 +2,16 @@ import { BookOpen, CheckCircle2, Search, TrendingUp } from "lucide-react";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
-import { listarNotasAdmin } from "@/actions/admin-notas";
+import {
+  countNotasAdmin,
+  listarNotasAdmin,
+  resumenNotasAdmin,
+} from "@/actions/admin-notas";
 import { formatearRut } from "@/lib/rut";
+import { Pagination } from "@/components/shared/Pagination";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
+
+const PAGE_SIZE = 50;
 
 const NOTA_COLOR = (nota: string) =>
   Number(nota) >= 4.0 ? "text-success" : "text-danger";
@@ -24,11 +31,12 @@ type AdminNotasPageProps = {
     q?: string;
     periodoId?: string;
     asignaturaId?: string;
+    page?: string;
   }>;
 };
 
 export default async function AdminNotasPage({ searchParams }: AdminNotasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string; page?: string }));
   const q = typeof params.q === "string" ? params.q.trim() : undefined;
   const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
 
@@ -50,19 +58,26 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
       ? requestedAsignaturaId
       : undefined;
 
-  const notas = await listarNotasAdmin({ q: q || undefined, asignaturaId, periodoId: selectedPeriodoId || undefined });
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const allNotas = (!q && !asignaturaId)
-    ? notas
-    : await listarNotasAdmin({ periodoId: selectedPeriodoId || undefined });
+  const filterCommon = {
+    q: q || undefined,
+    asignaturaId,
+    periodoId: selectedPeriodoId || undefined,
+  };
 
-  // Métricas globales
-  const totalNotas = allNotas.length;
-  const promedio =
-    totalNotas > 0
-      ? allNotas.reduce((acc, n) => acc + Number(n.nota), 0) / totalNotas
-      : 0;
-  const aprobados = allNotas.filter((n) => Number(n.nota) >= 4.0).length;
+  const [notas, totalCount, resumenGlobal] = await Promise.all([
+    listarNotasAdmin({ ...filterCommon, limit: PAGE_SIZE, offset }),
+    countNotasAdmin(filterCommon),
+    resumenNotasAdmin({ periodoId: selectedPeriodoId || undefined }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalNotas = resumenGlobal.total;
+  const promedio = resumenGlobal.promedio ?? 0;
+  const aprobados = resumenGlobal.aprobados;
   const pctAprobados = totalNotas > 0 ? Math.round((aprobados / totalNotas) * 100) : 0;
 
   // Group by asignatura
@@ -288,6 +303,24 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
           );
         })
       )}
+
+      {totalCount > 0 ? (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={PAGE_SIZE}
+          buildHref={(page) => {
+            const usp = new URLSearchParams();
+            if (selectedPeriodoId) usp.set("periodoId", selectedPeriodoId);
+            if (asignaturaId) usp.set("asignaturaId", asignaturaId);
+            if (q) usp.set("q", q);
+            if (page > 1) usp.set("page", String(page));
+            const qs = usp.toString();
+            return qs ? `/admin/notas?${qs}` : "/admin/notas";
+          }}
+        />
+      ) : null}
     </section>
   );
 }

@@ -2,9 +2,16 @@ import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
-import { listarAsistenciasAdmin } from "@/actions/admin-asistencias";
+import {
+  countAsistenciasAdmin,
+  listarAsistenciasAdmin,
+  resumenAsistenciasAdmin,
+} from "@/actions/admin-asistencias";
 import { formatearRut } from "@/lib/rut";
+import { Pagination } from "@/components/shared/Pagination";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
+
+const PAGE_SIZE = 50;
 
 const ESTADO_STYLES: Record<string, string> = {
   presente: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200",
@@ -35,11 +42,12 @@ type AdminAsistenciasPageProps = {
     q?: string;
     periodoId?: string;
     asignaturaId?: string;
+    page?: string;
   }>;
 };
 
 export default async function AdminAsistenciasPage({ searchParams }: AdminAsistenciasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string; page?: string }));
   const q = typeof params.q === "string" ? params.q.trim() : undefined;
   const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
 
@@ -61,17 +69,28 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
       ? requestedAsignaturaId
       : undefined;
 
-  const asistencias = await listarAsistenciasAdmin({ q: q || undefined, asignaturaId, periodoId: selectedPeriodoId || undefined });
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const allAsistencias = (!q && !asignaturaId)
-    ? asistencias
-    : await listarAsistenciasAdmin({ periodoId: selectedPeriodoId || undefined });
+  const filterCommon = {
+    q: q || undefined,
+    asignaturaId,
+    periodoId: selectedPeriodoId || undefined,
+  };
 
-  // Métricas globales
-  const total = allAsistencias.length;
-  const presentes = allAsistencias.filter((r) => r.estado === "presente").length;
-  const ausentes = allAsistencias.filter((r) => r.estado === "ausente").length;
-  const tardanzas = allAsistencias.filter((r) => r.estado === "tardanza").length;
+  const [asistencias, totalCount, resumenGlobal] = await Promise.all([
+    listarAsistenciasAdmin({ ...filterCommon, limit: PAGE_SIZE, offset }),
+    countAsistenciasAdmin(filterCommon),
+    // Resumen del periodo entero, sin q ni asignatura, para metricas estables al filtrar.
+    resumenAsistenciasAdmin({ periodoId: selectedPeriodoId || undefined }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const total = resumenGlobal.total;
+  const presentes = resumenGlobal.presentes;
+  const ausentes = resumenGlobal.ausentes;
+  const tardanzas = resumenGlobal.tardanzas;
   const pctPresente = total > 0 ? Math.round((presentes / total) * 100) : 0;
 
   // Group by asignatura
@@ -301,6 +320,24 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
           );
         })
       )}
+
+      {totalCount > 0 ? (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={PAGE_SIZE}
+          buildHref={(page) => {
+            const usp = new URLSearchParams();
+            if (selectedPeriodoId) usp.set("periodoId", selectedPeriodoId);
+            if (asignaturaId) usp.set("asignaturaId", asignaturaId);
+            if (q) usp.set("q", q);
+            if (page > 1) usp.set("page", String(page));
+            const qs = usp.toString();
+            return qs ? `/admin/asistencias?${qs}` : "/admin/asistencias";
+          }}
+        />
+      ) : null}
     </section>
   );
 }

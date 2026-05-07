@@ -17,6 +17,8 @@ import { logEvent } from "@/lib/observability/logger";
 import { recordHttpMetric } from "@/lib/observability/metrics";
 import { getRequestAuthContext } from "@/lib/requestAuth";
 
+export const runtime = "nodejs";
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ codigo: string }> },

@@ -22,6 +22,7 @@ export async function enviarPushADestinatarios(
   usuarioIds: string[],
   titulo: string,
   contenido: string,
+  options?: { url?: string },
 ) {
   const vapidSubject = process.env.VAPID_SUBJECT;
   const vapidPublic = process.env.VAPID_PUBLIC_KEY;
@@ -63,7 +64,7 @@ export async function enviarPushADestinatarios(
   const payload = JSON.stringify({
     title: titulo,
     body: contenido.slice(0, 120),
-    url: "/notificaciones",
+    url: options?.url ?? "/notificaciones",
   });
 
   const results = await Promise.allSettled(

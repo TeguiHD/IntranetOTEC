@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import {
 import { solicitudDocumentoInputSchema } from "@/lib/validations/admin";
 
 import { requireActionActor, type MutationResult } from "./_security";
+import { enviarPushADestinatarios } from "./notificaciones";
 
 const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
@@ -348,6 +349,31 @@ export async function solicitarDocumentoAlumnoAction(input: {
       tipoSolicitud: formatTipoSolicitud(parsed.data.tipo),
     });
     sendEmail(alumno.email, subject, html).catch(() => {});
+  }
+
+  if (estadoInicial === "pendiente") {
+    const admins = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(
+        and(
+          eq(usuarios.rol, "admin"),
+          eq(usuarios.activo, true),
+          isNull(usuarios.eliminadoAt),
+        ),
+      );
+
+    const adminIds = admins.map((admin) => admin.id);
+    const alumnoNombre = alumno
+      ? `${alumno.nombre} ${alumno.apellido}`.trim()
+      : "Un alumno";
+
+    enviarPushADestinatarios(
+      adminIds,
+      "Nueva solicitud pendiente",
+      `${alumnoNombre} solicitó ${formatTipoSolicitud(parsed.data.tipo)}.`,
+      { url: "/admin/solicitudes" },
+    ).catch(() => {});
   }
 
   return {

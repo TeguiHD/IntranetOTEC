@@ -48,7 +48,7 @@ export function EncuestaObligatoriaBlocker({ pendientes }: Props) {
               </div>
               <Link
                 href={`/encuestas/${enc.evaluacionId}`}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-600/20 transition-all hover:bg-amber-700 active:scale-[0.97] dark:bg-amber-700 dark:hover:bg-amber-600"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-600/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:bg-amber-700 active:scale-[0.97] dark:bg-amber-700 dark:hover:bg-amber-600"
               >
                 Responder ahora
               </Link>

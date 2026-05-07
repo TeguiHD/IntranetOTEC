@@ -185,7 +185,7 @@ export default async function DocenteEvaluacionesPage({
               <input
                 name="titulo"
                 required
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
               />
             </div>
             <div>
@@ -213,7 +213,7 @@ export default async function DocenteEvaluacionesPage({
                 min="0"
                 max="100"
                 step="0.01"
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
             </div>
             <div>
@@ -223,7 +223,7 @@ export default async function DocenteEvaluacionesPage({
               <input
                 name="fechaInicio"
                 type="datetime-local"
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
               />
             </div>
             <div>
@@ -233,7 +233,7 @@ export default async function DocenteEvaluacionesPage({
               <input
                 name="fechaLimite"
                 type="datetime-local"
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
               />
             </div>
             <div>
@@ -245,7 +245,7 @@ export default async function DocenteEvaluacionesPage({
                 type="number"
                 min="1"
                 max="600"
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
             </div>
             <div>
@@ -258,7 +258,7 @@ export default async function DocenteEvaluacionesPage({
                 min="1"
                 max="5"
                 defaultValue="1"
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
             </div>
             <div className="sm:col-span-2">
@@ -427,7 +427,7 @@ export default async function DocenteEvaluacionesPage({
                     defaultValue="1"
                     min="0.1"
                     step="0.1"
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
                   />
                 </div>
                 <div>
@@ -439,7 +439,7 @@ export default async function DocenteEvaluacionesPage({
                     type="number"
                     min="1"
                     defaultValue={preguntas.length + 1}
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
                   />
                 </div>
               </div>
@@ -449,7 +449,7 @@ export default async function DocenteEvaluacionesPage({
                     key={idx}
                     name="opcion"
                     placeholder={`Alternativa ${String.fromCharCode(65 + idx)}`}
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
                   />
                 ))}
               </div>
@@ -461,7 +461,7 @@ export default async function DocenteEvaluacionesPage({
                   <input
                     name="correcta"
                     placeholder="0"
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
                   />
                 </div>
                 <div className="flex items-end">
@@ -569,7 +569,7 @@ export default async function DocenteEvaluacionesPage({
                             step="0.1"
                             defaultValue={item.notaActual ?? ""}
                             required
-                            className="mt-1 w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            className="mt-1 w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" inputMode="numeric"
                           />
                         </div>
                         <div className="flex-1">
@@ -581,7 +581,7 @@ export default async function DocenteEvaluacionesPage({
                             name="observacion"
                             maxLength={500}
                             placeholder="Retroalimentación para el alumno..."
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" inputMode="text"
                           />
                         </div>
                         <button

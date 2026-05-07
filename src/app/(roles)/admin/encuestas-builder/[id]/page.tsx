@@ -231,7 +231,7 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
             />
             <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700 ease-out"
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-700 ease-out"
                 style={{ width: `${completionPct}%` }}
               />
             </div>
@@ -290,7 +290,12 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
                       <form action={eliminarPreguntaEncuestaFormAction}>
                         <input type="hidden" name="evaluacionId" value={id} />
                         <input type="hidden" name="preguntaId" value={p.id} />
-                        <button type="submit" title="Eliminar pregunta" className="flex h-7 w-7 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20">
+                        <button
+                          type="submit"
+                          title="Eliminar pregunta"
+                          aria-label="Eliminar pregunta"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
+                        >
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </form>
@@ -324,17 +329,17 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
                       <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">Escala mín</label>
-                      <input name="escalaMin" type="number" defaultValue={1} min={1} max={10} className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+                      <input name="escalaMin" type="number" defaultValue={1} min={1} max={10} className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">Escala máx</label>
-                      <input name="escalaMax" type="number" defaultValue={5} min={2} max={10} className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+                      <input name="escalaMax" type="number" defaultValue={5} min={2} max={10} className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric" />
                     </div>
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input name="etiquetaMin" placeholder="Etiqueta mínimo (ej: Nunca)" className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
-                  <input name="etiquetaMax" placeholder="Etiqueta máximo (ej: Siempre)" className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+                  <input name="etiquetaMin" placeholder="Etiqueta mínimo (ej: Nunca)" className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="search" />
+                  <input name="etiquetaMax" placeholder="Etiqueta máximo (ej: Siempre)" className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric" />
                 </div>
                 <div className="flex justify-end">
                   <button type="submit" className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]">
@@ -457,7 +462,7 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
               </p>
               <form action={lanzarEncuestaFormAction}>
                 <input type="hidden" name="evaluacionId" value={id} />
-                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-all hover:bg-emerald-700 active:scale-[0.97]">
+                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:bg-emerald-700 active:scale-[0.97]">
                   <Rocket className="h-4 w-4" /> Lanzar Encuesta
                 </button>
               </form>
@@ -471,7 +476,7 @@ export default async function AdminEncuestaBuilderDetailPage({ params, searchPar
               <p className="mb-4 text-xs text-red-600 dark:text-red-400">Ya no acepta respuestas.</p>
               <form action={cerrarEncuestaFormAction}>
                 <input type="hidden" name="evaluacionId" value={id} />
-                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-all hover:bg-red-50 active:scale-[0.97] dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
+                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:bg-red-50 active:scale-[0.97] dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
                   <X className="h-4 w-4" /> Cerrar
                 </button>
               </form>

@@ -11,7 +11,7 @@ import { Modal } from "@/components/shared/Modal";
 import { RutInput } from "@/components/shared/RutInput";
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 export function AlumnoCreateModal() {
   const router = useRouter();
@@ -88,7 +88,7 @@ export function AlumnoCreateModal() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
       >
         <Plus className="h-4 w-4" />
         Nuevo Alumno
@@ -117,7 +117,7 @@ export function AlumnoCreateModal() {
                 className={inputClass}
                 autoFocus
                 value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
+                inputMode="text" onChange={(e) => setNombre(e.target.value)}
                 disabled={isPending}
               />
             </div>
@@ -134,7 +134,7 @@ export function AlumnoCreateModal() {
                 placeholder="Ej: Pérez"
                 className={inputClass}
                 value={apellido}
-                onChange={(e) => setApellido(e.target.value)}
+                inputMode="text" onChange={(e) => setApellido(e.target.value)}
                 disabled={isPending}
               />
             </div>
@@ -159,7 +159,7 @@ export function AlumnoCreateModal() {
                     type="radio"
                     value={tipo}
                     checked={credencialTipo === tipo}
-                    onChange={() => {
+                    inputMode="text" onChange={() => {
                       setCredencialTipo(tipo);
                       setRut("");
                       setIsRutValid(false);
@@ -201,8 +201,7 @@ export function AlumnoCreateModal() {
                   placeholder="Ej: A12345678"
                   className={inputClass}
                   value={credencialExtranjera}
-                  onChange={(event) =>
-                    setCredencialExtranjera(
+                  inputMode="text" onChange={(event) => setCredencialExtranjera(
                       event.currentTarget.value
                         .toUpperCase()
                         .replace(/[^A-Z0-9-]/g, "")
@@ -251,7 +250,7 @@ export function AlumnoCreateModal() {
             <button
               type="submit"
               disabled={isSubmitDisabled}
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
+              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
             >
               {isPending ? "Creando..." : "Crear Alumno"}
             </button>

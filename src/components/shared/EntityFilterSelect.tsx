@@ -86,7 +86,7 @@ export function EntityFilterSelect({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex h-11 min-w-0 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left text-sm text-text-primary transition-colors hover:bg-gray-50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+        className="flex h-11 min-w-0 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left text-sm text-text-primary transition-colors hover:bg-gray-50 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -103,9 +103,9 @@ export function EntityFilterSelect({
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                inputMode="text" onChange={(event) => setQuery(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-8 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-8 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-1 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
               {query ? (
                 <button

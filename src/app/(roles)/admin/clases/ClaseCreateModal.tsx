@@ -8,7 +8,7 @@ import { crearClaseFormAction } from "@/actions/clases";
 import { Modal } from "@/components/shared/Modal";
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 type ClaseCreateModalProps = {
   asignaturaId: string | undefined;
@@ -32,7 +32,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
         }}
         disabled={disabled}
         title={disabled ? "Selecciona una seccion para crear clases" : undefined}
-        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
       >
         <Plus className="h-4 w-4" />
         Nueva Clase
@@ -64,7 +64,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
               maxLength={140}
               placeholder="Ej: Introducción al módulo 1"
               className={inputClass}
-              autoFocus
+              autoFocus inputMode="text"
             />
           </div>
 
@@ -77,7 +77,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
               name="descripcion"
               rows={2}
               maxLength={600}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
@@ -91,7 +91,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
                 name="fecha"
                 type="date"
                 required
-                className={inputClass}
+                className={inputClass} inputMode="text"
               />
             </div>
             <div className="space-y-1.5">
@@ -102,7 +102,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
                 id="modal-clase-hora"
                 name="horaInicio"
                 type="time"
-                className={inputClass}
+                className={inputClass} inputMode="text"
               />
             </div>
           </div>
@@ -118,7 +118,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
                 type="number"
                 min={1}
                 max={1000}
-                className={inputClass}
+                className={inputClass} inputMode="numeric"
               />
             </div>
             <div className="space-y-1.5">
@@ -149,7 +149,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
               type="url"
               maxLength={500}
               placeholder="https://www.youtube-nocookie.com/..."
-              className={inputClass}
+              className={inputClass} inputMode="url"
             />
           </div>
 
@@ -157,7 +157,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
             <input
               type="checkbox"
               name="publicada"
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" inputMode="text"
             />
             Publicar inmediatamente
           </label>
@@ -172,7 +172,7 @@ export function ClaseCreateModal({ asignaturaId, currentPage, periodoId, searchQ
             </button>
             <button
               type="submit"
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
             >
               Crear Clase
             </button>

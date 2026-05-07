@@ -232,7 +232,7 @@ export function EvaluacionForm({
               <a
                 key={pregunta.id}
                 href={`#pregunta-${pregunta.id}`}
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition-colors focus-visible:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:ring-primary/40 ${
                   answered[pregunta.id]
                     ? "border-primary bg-primary text-white"
                     : "border-gray-200 bg-white text-text-secondary hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
@@ -295,7 +295,7 @@ export function EvaluacionForm({
                               name={fieldName}
                               value={opcion}
                               className="peer sr-only"
-                              onChange={(event) => markAnswered(pregunta.id, event.currentTarget.value)}
+                              inputMode="text" onChange={(event) => markAnswered(pregunta.id, event.currentTarget.value)}
                               required
                             />
                             <span className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-sm font-semibold text-text-primary transition-colors hover:border-primary hover:bg-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:border-primary-light dark:hover:bg-primary/10 dark:peer-checked:border-primary-light dark:peer-checked:bg-primary-light dark:peer-checked:text-gray-900">
@@ -319,8 +319,8 @@ export function EvaluacionForm({
                           type="radio"
                           name={fieldName}
                           value={String(optIdx)}
-                          className="mt-0.5 h-4 w-4 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                          onChange={(event) => markAnswered(pregunta.id, event.currentTarget.value)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-primary focus-visible:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:ring-primary/40"
+                          inputMode="text" onChange={(event) => markAnswered(pregunta.id, event.currentTarget.value)}
                           required
                         />
                         <span className="min-w-0 text-sm text-text-primary dark:text-gray-200">
@@ -343,8 +343,8 @@ export function EvaluacionForm({
                       type="radio"
                       name={fieldName}
                       value={value}
-                      className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                      onChange={(event) => markAnswered(pregunta.id, event.currentTarget.value)}
+                      className="h-4 w-4 accent-primary focus-visible:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:ring-primary/40"
+                      inputMode="text" onChange={(event) => markAnswered(pregunta.id, event.currentTarget.value)}
                       required
                     />
                     <span className="text-sm font-medium text-text-primary dark:text-gray-200">
@@ -388,7 +388,7 @@ export function EvaluacionForm({
         <button
           type="submit"
           disabled={pending || remainingSeconds === 0}
-          className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-white transition-transform hover:bg-primary-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
+          className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-white transition-transform hover:bg-primary-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
         >
           {pending
             ? "Enviando…"
@@ -414,7 +414,7 @@ export function EvaluacionForm({
           <button
             type="submit"
             disabled={pending || remainingSeconds === 0}
-            className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="shrink-0 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             {pending
               ? "Enviando…"

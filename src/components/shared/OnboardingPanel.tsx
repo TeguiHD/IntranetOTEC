@@ -103,7 +103,7 @@ export function OnboardingPanel() {
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl transition-all hover:shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-2xl dark:border-gray-700 dark:bg-gray-900"
       >
         <Sparkles className="h-4 w-4 text-primary" />
         <span className="text-sm font-semibold text-text-primary dark:text-white">
@@ -142,7 +142,7 @@ export function OnboardingPanel() {
       {/* Progress bar */}
       <div className="mx-4 mb-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
         <div
-          className="h-full rounded-full bg-primary transition-all duration-500"
+          className="h-full rounded-full bg-primary transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-500"
           style={{ width: `${(totalCompleted / STEPS.length) * 100}%` }}
         />
       </div>

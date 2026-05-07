@@ -298,7 +298,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 type="file"
                 required
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.mp4,.webm,.zip"
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
               />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
@@ -366,8 +366,8 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                   name="titulo"
                   required
                   maxLength={200}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  placeholder="Ej: Aviso importante sobre el examen"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  placeholder="Ej: Aviso importante sobre el examen" inputMode="text"
                 />
               </div>
               <div>
@@ -378,12 +378,12 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                   name="contenido"
                   required
                   rows={3}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   placeholder="Escribe el contenido del anuncio..."
                 />
               </div>
               <label className="flex items-center gap-2 text-xs text-text-secondary dark:text-gray-400">
-                <input type="checkbox" name="fijado" />
+                <input type="checkbox" name="fijado" inputMode="text" />
                 Fijar este anuncio al tope
               </label>
               <button
@@ -588,7 +588,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                           ["justificado", "Justificado", "bg-blue-500"],
                         ].map(([value, label, dotClass]) => (
                           <label key={value} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-text-secondary transition-colors has-[:checked]:border-primary has-[:checked]:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
-                            <input type="radio" name={`estado__${m.matriculaId}`} value={value} required className="sr-only" />
+                            <input type="radio" name={`estado__${m.matriculaId}`} value={value} required className="sr-only" inputMode="text" />
                             <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
                             {label}
                           </label>
@@ -641,14 +641,14 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 type="file"
                 required
                 accept=".xlsx,.csv"
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
               />
               <input
                 name="fechaRegistro"
                 type="date"
                 required
                 title="Fecha general de registro"
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
               />
               <div className="md:col-span-2">
                 <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">

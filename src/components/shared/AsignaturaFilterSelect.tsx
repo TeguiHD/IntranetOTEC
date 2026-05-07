@@ -95,25 +95,23 @@ export function AsignaturaFilterSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-11 min-w-0 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left text-sm text-text-primary transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+        className="flex h-11 min-w-0 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 pr-9 text-left text-sm text-text-primary transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
       >
         <span className="min-w-0 flex-1 truncate font-medium">{displayLabel}</span>
         <div className="flex flex-shrink-0 items-center gap-1">
-          {allowEmpty && selectedId !== "" && (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); handleSelect(""); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); handleSelect(""); } }}
-              className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
-              aria-label="Limpiar selección"
-            >
-              <X className="h-3.5 w-3.5" />
-            </span>
-          )}
           <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
         </div>
       </button>
+      {allowEmpty && selectedId !== "" && (
+        <button
+          type="button"
+          onClick={() => handleSelect("")}
+          className="absolute right-8 top-1/2 z-10 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+          aria-label="Limpiar selección"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* Dropdown */}
       {open && (
@@ -126,14 +124,15 @@ export function AsignaturaFilterSelect({
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                inputMode="text" onChange={(e) => setQuery(e.target.value)}
                 placeholder="Filtrar por nombre o código..."
-                className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-8 pr-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-1 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
+                  aria-label="Limpiar búsqueda"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
                 >
                   <X className="h-3.5 w-3.5" />

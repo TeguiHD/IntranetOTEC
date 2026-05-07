@@ -615,7 +615,7 @@ export default async function AdminEvaluacionesPage({
                 name="titulo"
                 placeholder="Título de la evaluación"
                 required
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
               />
               <select
                 name="tipo"
@@ -634,19 +634,19 @@ export default async function AdminEvaluacionesPage({
                 max="100"
                 step="0.01"
                 placeholder="Ponderación %"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
               <input
                 name="fechaInicio"
                 type="datetime-local"
                 aria-label="Fecha de inicio"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
               />
               <input
                 name="fechaLimite"
                 type="datetime-local"
                 aria-label="Fecha límite"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
               />
               <input
                 name="tiempoMinutos"
@@ -654,7 +654,7 @@ export default async function AdminEvaluacionesPage({
                 min="1"
                 max="600"
                 placeholder="Tiempo disponible (min)"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
               <input
                 name="intentosMax"
@@ -663,7 +663,7 @@ export default async function AdminEvaluacionesPage({
                 max="5"
                 defaultValue="1"
                 placeholder="Intentos máximos"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
             </div>
             <textarea
@@ -723,7 +723,7 @@ export default async function AdminEvaluacionesPage({
                       name="bankQ"
                       defaultValue={bankQ}
                       placeholder="Buscar por nombre de prueba o archivo…"
-                      className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="search"
                     />
                   </div>
                   <select
@@ -837,13 +837,13 @@ export default async function AdminEvaluacionesPage({
                     name="fechaInicio"
                     type="datetime-local"
                     aria-label="Fecha de inicio"
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
                   />
                   <input
                     name="fechaLimite"
                     type="datetime-local"
                     aria-label="Fecha límite"
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
                   />
                   <input
                     name="tiempoMinutos"
@@ -851,7 +851,7 @@ export default async function AdminEvaluacionesPage({
                     min="1"
                     max="600"
                     placeholder="Tiempo min."
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="numeric"
                   />
                   <input
                     name="intentosMax"
@@ -860,7 +860,7 @@ export default async function AdminEvaluacionesPage({
                     max="5"
                     defaultValue="1"
                     placeholder="Intentos"
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="numeric"
                   />
                 </div>
                 <input
@@ -870,7 +870,7 @@ export default async function AdminEvaluacionesPage({
                   max="100"
                   step="0.01"
                   placeholder="Ponderación %"
-                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="numeric"
                 />
                 <button
                   type="submit"
@@ -905,7 +905,7 @@ export default async function AdminEvaluacionesPage({
                 name="evalQ"
                 defaultValue={evalQ}
                 placeholder="Buscar evaluación…"
-                className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="search"
               />
             </div>
             <select
@@ -1226,8 +1226,8 @@ export default async function AdminEvaluacionesPage({
                 <option value="desarrollo">Desarrollo</option>
                 <option value="respuesta_corta">Respuesta corta</option>
               </select>
-              <input name="puntaje" type="number" min="0" step="0.01" defaultValue="1" placeholder="Puntaje" aria-label="Puntaje de la pregunta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
-              <input name="orden" type="number" min="1" placeholder="Orden" aria-label="Orden de la pregunta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" />
+              <input name="puntaje" type="number" min="0" step="0.01" defaultValue="1" placeholder="Puntaje" aria-label="Puntaje de la pregunta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" inputMode="numeric" />
+              <input name="orden" type="number" min="1" placeholder="Orden" aria-label="Orden de la pregunta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm dark:border-gray-700 dark:bg-gray-800" inputMode="numeric" />
               <select name="correcta" defaultValue="" aria-label="Respuesta correcta" className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                 <option value="">Sin pauta</option>
                 <option value="0">Correcta A / Verdadero</option>
@@ -1243,7 +1243,7 @@ export default async function AdminEvaluacionesPage({
                   name="opcion"
                   placeholder={`Alternativa ${label}`}
                   aria-label={`Alternativa ${label}`}
-                  className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
                 />
               ))}
             </div>
@@ -1416,7 +1416,7 @@ export default async function AdminEvaluacionesPage({
                           step="0.1"
                           defaultValue={item.notaActual ?? ""}
                           required
-                          className="mt-1 w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                          className="mt-1 w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" inputMode="numeric"
                         />
                       </div>
                       <div className="flex-1">
@@ -1428,7 +1428,7 @@ export default async function AdminEvaluacionesPage({
                           name="observacion"
                           maxLength={500}
                           placeholder="Retroalimentación para el alumno…"
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" inputMode="text"
                         />
                       </div>
                       <button

@@ -49,7 +49,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={isPending}
-          className={`h-10 rounded-xl px-5 text-sm font-semibold shadow-md transition-all focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${confirmClass}`}
+          className={`h-10 rounded-xl px-5 text-sm font-semibold shadow-md transition-[background-color,border-color,color,box-shadow,opacity,transform] focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${confirmClass}`}
         >
           {isPending ? (
             <span className="flex items-center gap-2">

@@ -75,7 +75,7 @@ export function DonutChart({
               strokeDasharray={`${dashLength} ${dashGap}`}
               strokeDashoffset={-offset}
               strokeLinecap="round"
-              className="transition-all duration-500 ease-out"
+              className="transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-500 ease-out"
             />
           );
         })}

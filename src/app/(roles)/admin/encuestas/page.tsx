@@ -157,7 +157,7 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
                 <div className="flex items-end">
                   <button
                     type="submit"
-                    className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] sm:w-auto"
+                    className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] sm:w-auto"
                   >
                     Seleccionar
                   </button>
@@ -188,7 +188,7 @@ export default async function AdminEncuestasPage({ searchParams }: Props) {
                   <input type="hidden" name="asignaturaId" value={selectedId} />
                   <button
                     type="submit"
-                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-[0.97] ${
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-[background-color,border-color,color,box-shadow,opacity,transform] active:scale-[0.97] ${
                       selectedAsig.habilitada
                         ? "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
                         : "border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"

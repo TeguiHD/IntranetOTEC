@@ -140,7 +140,7 @@ export function EntregaSection({ evaluacionId, entregas, intentosMax, fechaLimit
                   name="archivo"
                   type="file"
                   className="sr-only"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  inputMode="text" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar"
                 />
                 {file && (
@@ -162,7 +162,7 @@ export function EntregaSection({ evaluacionId, entregas, intentosMax, fechaLimit
                 rows={3}
                 maxLength={2000}
                 placeholder="Escribe un comentario para el docente…"
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
               />
             </div>
 
@@ -170,7 +170,7 @@ export function EntregaSection({ evaluacionId, entregas, intentosMax, fechaLimit
               <button
                 type="submit"
                 disabled={isPending}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
               >
                 {isPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin" />Enviando…</>

@@ -79,7 +79,7 @@ const ESTADO_BADGE: Record<string, string> = {
 };
 
 const INPUT =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
 
 /* ─── DocenteCombobox ─────────────────────────────────────────────── */
 function DocenteCombobox({
@@ -156,7 +156,7 @@ function DocenteCombobox({
             value={query}
             placeholder="Buscar por nombre o RUT..."
             autoComplete="off"
-            onChange={(e) => {
+            inputMode="search" onChange={(e) => {
               setQuery(e.target.value);
               setSelected(null);
               setOpen(true);
@@ -164,7 +164,7 @@ function DocenteCombobox({
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 200)}
-            className="h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
           {selected && (
             <button
@@ -315,7 +315,7 @@ export function AsignaturaManager({
         <button
           type="button"
           onClick={() => setOpenCreate(true)}
-          className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-4 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:shadow-lg hover:shadow-primary/35 active:scale-[0.98]"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-4 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/35 active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
           <span>Nueva sección</span>
@@ -689,7 +689,7 @@ export function AsignaturaManager({
               minLength={3}
               maxLength={120}
               placeholder="Ej: Primeros Auxilios Básicos"
-              className={INPUT}
+              className={INPUT} inputMode="text"
             />
           </div>
 
@@ -706,7 +706,7 @@ export function AsignaturaManager({
               rows={3}
               maxLength={500}
               placeholder="Descripción del contenido del curso..."
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
 
@@ -724,7 +724,7 @@ export function AsignaturaManager({
                 type="text"
                 maxLength={24}
                 placeholder="ASIG-001"
-                className={`${INPUT} font-mono uppercase tracking-wider`}
+                className={`${INPUT} font-mono uppercase tracking-wider`} inputMode="text"
               />
               <p className="text-[11px] text-text-muted dark:text-gray-500">
                 Identifica la sección de forma única. Útil cuando hay cursos con el mismo nombre en distintos períodos.
@@ -740,7 +740,7 @@ export function AsignaturaManager({
                 name="fechaInicio"
                 type="date"
                 required
-                className={INPUT}
+                className={INPUT} inputMode="text"
               />
             </div>
 
@@ -757,7 +757,7 @@ export function AsignaturaManager({
                 min={1}
                 max={12}
                 defaultValue={4}
-                className={INPUT}
+                className={INPUT} inputMode="numeric"
               />
               <p className="text-xs text-text-muted dark:text-gray-500">Entre 1 y 12 meses.</p>
             </div>
@@ -774,7 +774,7 @@ export function AsignaturaManager({
                 min={1}
                 max={300}
                 defaultValue={30}
-                className={INPUT}
+                className={INPUT} inputMode="numeric"
               />
             </div>
           </div>
@@ -797,7 +797,7 @@ export function AsignaturaManager({
             <button
               type="submit"
               disabled={cursos.length === 0 || periodos.length === 0}
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
             >
               Crear sección
             </button>
@@ -835,7 +835,7 @@ export function AsignaturaManager({
                   type="date"
                   required
                   defaultValue={editingAsig.fechaInicio}
-                  className={INPUT}
+                  className={INPUT} inputMode="text"
                 />
               </div>
 
@@ -848,7 +848,7 @@ export function AsignaturaManager({
                   type="date"
                   required
                   defaultValue={editingAsig.fechaFin ?? editingAsig.fechaInicio}
-                  className={INPUT}
+                  className={INPUT} inputMode="text"
                 />
               </div>
 
@@ -863,7 +863,7 @@ export function AsignaturaManager({
                   max={12}
                   required
                   defaultValue={editingAsig.duracionMeses}
-                  className={INPUT}
+                  className={INPUT} inputMode="numeric"
                 />
               </div>
 
@@ -878,7 +878,7 @@ export function AsignaturaManager({
                   max={300}
                   required
                   defaultValue={editingAsig.maxAlumnos ?? 30}
-                  className={INPUT}
+                  className={INPUT} inputMode="numeric"
                 />
               </div>
             </div>
@@ -904,7 +904,7 @@ export function AsignaturaManager({
               </button>
               <button
                 type="submit"
-                className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+                className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
               >
                 Guardar cambios
               </button>
@@ -962,7 +962,7 @@ export function AsignaturaManager({
                 type="button"
                 disabled={!confirmDocente || docentes.length === 0 || isPending}
                 onClick={() => setShowConfirm(true)}
-                className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+                className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
               >
                 Guardar asignación
               </button>

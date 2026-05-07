@@ -14,7 +14,7 @@ export function CambiarPinForm() {
   const [isPending, startTransition] = useTransition();
 
   const pinInputClass =
-    "h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-center text-lg font-mono tracking-[0.5em] text-text-primary placeholder:text-gray-400 placeholder:tracking-[0.3em] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+    "h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-center text-lg font-mono tracking-[0.5em] text-text-primary placeholder:text-gray-400 placeholder:tracking-[0.3em] focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +107,7 @@ export function CambiarPinForm() {
       <button
         type="submit"
         disabled={isPending || !isValid}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
       >
         <Lock className="h-4 w-4" />
         {isPending ? "Guardando…" : "Cambiar Clave"}

@@ -280,10 +280,11 @@ export function Topbar({
 
           {/* Backdrop — solo mobile */}
           {notifOpen && (
-            <div
+            <button
+              type="button"
               className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] md:hidden"
               onClick={() => setNotifOpen(false)}
-              aria-hidden
+              aria-label="Cerrar notificaciones"
             />
           )}
 

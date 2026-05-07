@@ -41,9 +41,9 @@ export function SearchInput({
       <input
         type="search"
         value={local}
-        onChange={(e) => handleChange(e.currentTarget.value)}
+        inputMode="search" onChange={(e) => handleChange(e.currentTarget.value)}
         placeholder={placeholder}
-        className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+        className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
       />
       {local && (
         <button

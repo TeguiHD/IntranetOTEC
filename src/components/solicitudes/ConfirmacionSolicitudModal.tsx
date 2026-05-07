@@ -54,7 +54,7 @@ export function ConfirmacionSolicitudModal({
         type="button"
         onClick={handleSolicitar}
         disabled={isPending}
-        className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50 sm:w-auto sm:px-8"
+        className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] disabled:opacity-50 sm:w-auto sm:px-8"
       >
         {isPending ? "Enviando…" : "Solicitar Certificado"}
       </button>
@@ -79,7 +79,7 @@ export function ConfirmacionSolicitudModal({
             type="button"
             onClick={cerrar}
             aria-label="Cerrar"
-            className="absolute right-3 top-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="absolute right-3 top-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             <X className="h-7 w-7" strokeWidth={2.5} />
           </button>

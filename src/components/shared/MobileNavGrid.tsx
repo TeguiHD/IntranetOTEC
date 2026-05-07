@@ -85,7 +85,7 @@ export function MobileNavGrid({ role, userName, open, onClose }: MobileNavGridPr
                       key={item.href}
                       href={item.href}
                       onClick={onClose}
-                      className={`group flex flex-col items-center gap-3 rounded-2xl p-5 text-center transition-all duration-200 active:scale-95 ${
+                      className={`group flex flex-col items-center gap-3 rounded-2xl p-5 text-center transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-200 active:scale-95 ${
                         active
                           ? "bg-white shadow-lg ring-2 ring-cta/30 dark:bg-gray-800 dark:ring-cta/50"
                           : "bg-white shadow-sm hover:shadow-md dark:bg-gray-900 dark:hover:bg-gray-800"

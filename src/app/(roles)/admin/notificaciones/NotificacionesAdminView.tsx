@@ -188,7 +188,7 @@ function HistorialItem({ n, onDelete }: { n: Notificacion; onDelete: (id: string
 
   return (
     <article
-      className={`rounded-2xl border ${tipo.border} ${tipo.bg} p-4 transition-all`}
+      className={`rounded-2xl border ${tipo.border} ${tipo.bg} p-4 transition-[background-color,border-color,color,box-shadow,opacity,transform]`}
     >
       {/* Header */}
       <div className="flex items-start gap-3">
@@ -512,7 +512,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                         setSelectedIds([]);
                         setBuscar("");
                       }}
-                      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 text-center text-xs font-semibold transition-all ${
+                      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 text-center text-xs font-semibold transition-[background-color,border-color,color,box-shadow,opacity,transform] ${
                         isActive
                           ? `${cfg.bg} ${cfg.color} border ${cfg.border} shadow-sm`
                           : "text-text-secondary hover:bg-white dark:text-gray-400 dark:hover:bg-gray-700"
@@ -568,7 +568,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                   ) : (
                     /* Campo de búsqueda */
                     <div
-                      className={`flex items-center gap-2 rounded-xl border bg-white px-3 py-2.5 transition-all dark:bg-gray-800 ${
+                      className={`flex items-center gap-2 rounded-xl border bg-white px-3 py-2.5 transition-[background-color,border-color,color,box-shadow,opacity,transform] dark:bg-gray-800 ${
                         cursoOpen
                           ? "border-primary ring-2 ring-primary/20"
                           : "border-gray-200 dark:border-gray-700"
@@ -580,7 +580,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                         id="notif-asignatura"
                         type="text"
                         value={cursoQuery}
-                        onChange={(e) => {
+                        inputMode="text" onChange={(e) => {
                           setCursoQuery(e.target.value);
                           setCursoOpen(true);
                           setCursoHighlight(0);
@@ -590,7 +590,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                         placeholder="Buscar por nombre, codigo, fecha o turno…"
                         autoComplete="off"
                         role="combobox"
-                        className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-gray-400 focus:outline-none dark:text-gray-100"
+                        className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-gray-400 focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 dark:text-gray-100"
                         aria-haspopup="listbox"
                         aria-expanded={cursoOpen}
                         aria-controls={cursoOpen ? "notif-asignatura-listbox" : undefined}
@@ -708,7 +708,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                 <input
                   type="text"
                   value={buscar}
-                  onChange={(e) => setBuscar(e.target.value)}
+                  inputMode="text" onChange={(e) => setBuscar(e.target.value)}
                   placeholder="Buscar por nombre, RUT o rol..."
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 />
@@ -769,7 +769,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
                 id="notif-titulo"
                 type="text"
                 value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
+                inputMode="text" onChange={(e) => setTitulo(e.target.value)}
                 required
                 maxLength={200}
                 placeholder="Ej: Información importante sobre clases"
@@ -800,7 +800,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
             <button
               type="submit"
               disabled={isPending || !titulo.trim() || !contenido.trim()}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
             >
               <Send className="h-4 w-4" />
               {isPending ? "Enviando…" : "Enviar Notificación"}

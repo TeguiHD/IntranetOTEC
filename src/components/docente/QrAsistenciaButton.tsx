@@ -50,17 +50,18 @@ export function QrAsistenciaButton({ claseId, claseNombre }: Props) {
 
       {/* Modal */}
       {open && svgDataUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <button
+            type="button"
+            aria-label="Cerrar QR de asistencia"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900">
             <button
               type="button"
               onClick={() => setOpen(false)}
+              aria-label="Cerrar QR de asistencia"
               className="absolute right-3 top-3 rounded-lg p-1.5 text-text-secondary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               <X className="h-4 w-4" />

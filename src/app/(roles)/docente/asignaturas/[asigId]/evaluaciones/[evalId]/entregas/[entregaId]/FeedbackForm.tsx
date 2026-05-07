@@ -44,7 +44,7 @@ export function FeedbackForm({ entregaId, asigId, evalId }: Props) {
   };
 
   const inputClass =
-    "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
+    "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
 
   return (
     <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
@@ -66,7 +66,7 @@ export function FeedbackForm({ entregaId, asigId, evalId }: Props) {
             maxLength={3000}
             required
             placeholder="Escribe tu retroalimentación para el alumno…"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
         </div>
 
@@ -82,7 +82,7 @@ export function FeedbackForm({ entregaId, asigId, evalId }: Props) {
               max={7}
               step={0.1}
               value={nota}
-              onChange={(e) => setNota(e.target.value)}
+              inputMode="numeric" onChange={(e) => setNota(e.target.value)}
               placeholder="Ej: 5.5"
               className={inputClass}
             />
@@ -93,7 +93,7 @@ export function FeedbackForm({ entregaId, asigId, evalId }: Props) {
               <input
                 type="checkbox"
                 checked={requiereCorreccion}
-                onChange={(e) => setRequiereCorreccion(e.target.checked)}
+                inputMode="text" onChange={(e) => setRequiereCorreccion(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 accent-primary"
               />
               <span className="text-sm text-text-primary dark:text-gray-200">
@@ -120,7 +120,7 @@ export function FeedbackForm({ entregaId, asigId, evalId }: Props) {
           <button
             type="submit"
             disabled={isPending}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
           >
             {isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin" />Enviando…</>

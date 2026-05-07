@@ -71,7 +71,7 @@ export default async function AlumnoSolicitudesPage({ searchParams }: Props) {
         {SOLICITUD_CARDS.map(({ href, accessKey, Icon, title, description, iconBg }) => {
           const enabled = accessKey ? (accesos?.[accessKey] ?? true) : true;
           const className = enabled
-            ? "group flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
+            ? "group flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
             : "flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-gray-50 p-5 opacity-75 shadow-sm dark:border-gray-800 dark:bg-gray-900/60";
           const content = (
             <>

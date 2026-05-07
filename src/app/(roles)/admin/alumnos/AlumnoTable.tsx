@@ -66,7 +66,7 @@ function EstadoBadge({ estado }: { estado: EstadoAlumno | null }) {
 }
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 export function AlumnoTable({
   alumnos,
@@ -247,7 +247,7 @@ export function AlumnoTable({
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(a.id)}
-                      onChange={() => toggleSelected(a.id)}
+                      inputMode="text" onChange={() => toggleSelected(a.id)}
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                       aria-label={`Seleccionar ${a.nombre} ${a.apellido}`}
                     />
@@ -293,7 +293,7 @@ export function AlumnoTable({
                       checked={allVisibleSelected}
                       onChange={toggleAllVisible}
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      aria-label="Seleccionar alumnos visibles"
+                      aria-label="Seleccionar alumnos visibles" inputMode="text"
                     />
                   </th>
                   <th className="px-3 py-2.5">Nombre</th>
@@ -310,7 +310,7 @@ export function AlumnoTable({
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(a.id)}
-                        onChange={() => toggleSelected(a.id)}
+                        inputMode="text" onChange={() => toggleSelected(a.id)}
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                         aria-label={`Seleccionar ${a.nombre} ${a.apellido}`}
                       />
@@ -369,7 +369,7 @@ export function AlumnoTable({
                     type="button"
                     disabled={isEstadoPending || editing.estadoAlumno === estado}
                     onClick={() => handleCambiarEstado(estado)}
-                    className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed ${
+                    className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,opacity,transform] disabled:cursor-not-allowed ${
                       editing.estadoAlumno === estado
                         ? `${cfg.cls} ring-2 ring-offset-1 ring-current`
                         : "border border-gray-200 bg-white text-text-secondary hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -438,7 +438,7 @@ export function AlumnoTable({
                     maxLength={80}
                     defaultValue={editing.nombre}
                     className={inputClass}
-                    autoFocus
+                    autoFocus inputMode="text"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -453,7 +453,7 @@ export function AlumnoTable({
                     minLength={2}
                     maxLength={80}
                     defaultValue={editing.apellido}
-                    className={inputClass}
+                    className={inputClass} inputMode="text"
                   />
                 </div>
               </div>
@@ -469,7 +469,7 @@ export function AlumnoTable({
                   maxLength={180}
                   defaultValue={editing.email ?? ""}
                   placeholder="alumno@ejemplo.cl"
-                  className={inputClass}
+                  className={inputClass} inputMode="email"
                 />
               </div>
 
@@ -489,7 +489,7 @@ export function AlumnoTable({
                 <button
                   type="submit"
                   disabled={isEditPending}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
                 >
                   {isEditPending ? (
                     <>

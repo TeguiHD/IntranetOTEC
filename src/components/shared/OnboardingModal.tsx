@@ -79,7 +79,7 @@ export function OnboardingModal() {
             {PASOS.map((_, i) => (
               <span
                 key={i}
-                className={`h-2 rounded-full transition-all ${
+                className={`h-2 rounded-full transition-[background-color,border-color,color,box-shadow,opacity,transform] ${
                   i === paso ? "w-6 bg-primary" : "w-2 bg-gray-200 dark:bg-gray-700"
                 }`}
               />
@@ -107,7 +107,7 @@ export function OnboardingModal() {
             <Link
               href={PasoActual.href}
               onClick={cerrar}
-              className="flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg"
+              className="flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg"
             >
               {PasoActual.ctaLabel}
             </Link>

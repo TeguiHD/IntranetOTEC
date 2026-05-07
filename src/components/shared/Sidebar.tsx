@@ -75,7 +75,7 @@ function SidebarNav({
                   href={item.href}
                   title={collapsed ? item.label : undefined}
                   onClick={onNavigate}
-                  className={`group flex items-center rounded-xl text-sm font-medium transition-all duration-200 ${
+                  className={`group flex items-center rounded-xl text-sm font-medium transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-200 ${
                     collapsed ? "h-11 w-11 justify-center mx-auto" : "h-11 gap-3 px-3"
                   } ${
                     active

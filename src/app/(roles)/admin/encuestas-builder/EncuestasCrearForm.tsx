@@ -26,7 +26,7 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
 
 export function EncuestasCrearForm() {
   const router = useRouter();
@@ -121,7 +121,7 @@ export function EncuestasCrearForm() {
                 key={p.id}
                 type="button"
                 onClick={() => selectPlantilla(p)}
-                className={`flex w-[152px] flex-none flex-col rounded-xl border p-3.5 text-left transition-all ${
+                className={`flex w-[152px] flex-none flex-col rounded-xl border p-3.5 text-left transition-[background-color,border-color,color,box-shadow,opacity,transform] ${
                   isSelected
                     ? "border-primary bg-primary/5 ring-2 ring-primary/20 dark:border-primary dark:bg-primary/10 dark:ring-primary/30"
                     : "border-gray-200 hover:border-primary/40 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/30 dark:hover:bg-gray-800/60"
@@ -200,7 +200,7 @@ export function EncuestasCrearForm() {
             <input
               type="text"
               value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
+              inputMode="text" onChange={(e) => setTitulo(e.target.value)}
               placeholder="Ej: Evaluación Docente — Semestre 1"
               maxLength={120}
               required
@@ -232,7 +232,7 @@ export function EncuestasCrearForm() {
             onChange={(e) => setInstrucciones(e.target.value)}
             rows={2}
             placeholder="Instrucciones para los encuestados..."
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
         </div>
 
@@ -251,7 +251,7 @@ export function EncuestasCrearForm() {
             <input
               type="checkbox"
               checked={obligatoria}
-              onChange={(e) => setObligatoria(e.target.checked)}
+              inputMode="text" onChange={(e) => setObligatoria(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 accent-primary"
             />
             <span>Obligatoria — bloquea el portal hasta que sea respondida</span>
@@ -260,7 +260,7 @@ export function EncuestasCrearForm() {
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit || isPending}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Creando...</>

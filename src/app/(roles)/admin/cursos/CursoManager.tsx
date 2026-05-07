@@ -36,10 +36,10 @@ type Props = {
 };
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 const numberInputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
 
 type FormState = {
   nombre: string;
@@ -132,7 +132,7 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+          className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
           Nuevo Curso
@@ -164,12 +164,12 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
             defaultValue={searchQuery}
             maxLength={80}
             placeholder="Buscar por nombre o código"
-            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" inputMode="search"
           />
           <div className="flex gap-2">
             <button
               type="submit"
-              className="h-11 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg"
+              className="h-11 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg"
             >
               Buscar
             </button>
@@ -348,7 +348,7 @@ function CursoFormModal({
             minLength={2}
             maxLength={120}
             value={form.nombre}
-            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+            inputMode="text" onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             placeholder="Ej: Operación de Grúa Horquilla"
             className={inputClass}
             autoFocus
@@ -366,7 +366,7 @@ function CursoFormModal({
             minLength={2}
             maxLength={20}
             value={form.codigo}
-            onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
+            inputMode="text" onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
             placeholder="Ej: GRUA-HORK"
             className={inputClass}
           />
@@ -384,7 +384,7 @@ function CursoFormModal({
             value={form.descripcion}
             onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
             placeholder="Breve descripción del curso…"
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
         </div>
 
@@ -399,7 +399,7 @@ function CursoFormModal({
               min={0}
               max={9999}
               value={form.horasTeoricas}
-              onChange={(e) => setForm({ ...form, horasTeoricas: Number(e.target.value) })}
+              inputMode="numeric" onChange={(e) => setForm({ ...form, horasTeoricas: Number(e.target.value) })}
               className={numberInputClass}
             />
           </div>
@@ -413,7 +413,7 @@ function CursoFormModal({
               min={0}
               max={9999}
               value={form.horasPracticas}
-              onChange={(e) => setForm({ ...form, horasPracticas: Number(e.target.value) })}
+              inputMode="numeric" onChange={(e) => setForm({ ...form, horasPracticas: Number(e.target.value) })}
               className={numberInputClass}
             />
           </div>
@@ -431,7 +431,7 @@ function CursoFormModal({
           <button
             type="submit"
             disabled={isPending}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
           >
             {isPending ? <><Loader2 className="h-4 w-4 animate-spin" />Guardando…</> : "Guardar"}
           </button>

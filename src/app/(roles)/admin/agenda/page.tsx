@@ -443,7 +443,7 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
                 min={1}
                 max={12}
                 defaultValue={mes}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
             </div>
             <div className="space-y-1.5">
@@ -457,7 +457,7 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
                 min={2000}
                 max={2100}
                 defaultValue={anio}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
               />
             </div>
           </div>

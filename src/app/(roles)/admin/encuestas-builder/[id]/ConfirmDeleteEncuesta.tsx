@@ -24,7 +24,7 @@ export function ConfirmDeleteEncuesta({ evaluacionId, action }: Props) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition-all hover:bg-red-50 active:scale-[0.97] dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:bg-red-50 active:scale-[0.97] dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20"
       >
         <Trash2 className="h-4 w-4" /> Eliminar encuesta
       </button>

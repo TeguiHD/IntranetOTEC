@@ -58,11 +58,14 @@ export function Modal({
     <div
       ref={overlayRef}
       role="presentation"
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
-      }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
     >
+      <button
+        type="button"
+        aria-label="Cerrar modal"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
       <div
         ref={panelRef}
         role="dialog"

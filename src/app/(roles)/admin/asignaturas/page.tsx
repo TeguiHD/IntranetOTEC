@@ -228,7 +228,7 @@ export default async function AdminAsignaturasPage({
               type="text"
               defaultValue={q}
               placeholder="Buscar por nombre, código o docente..."
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500" inputMode="search"
             />
           </div>
           <div className="relative">
@@ -252,14 +252,14 @@ export default async function AdminAsignaturasPage({
             type="date"
             defaultValue={fechaDesde}
             className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            aria-label="Fecha desde"
+            aria-label="Fecha desde" inputMode="text"
           />
           <input
             name="fechaHasta"
             type="date"
             defaultValue={fechaHasta}
             className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            aria-label="Fecha hasta"
+            aria-label="Fecha hasta" inputMode="text"
           />
           <div className="relative">
             <select

@@ -37,7 +37,7 @@ type PendingAction = {
 } | null;
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 export function AdminTable({
   administradores,
@@ -218,7 +218,7 @@ export function AdminTable({
                   maxLength={80}
                   defaultValue={editing.nombre}
                   className={inputClass}
-                  autoFocus
+                  autoFocus inputMode="text"
                 />
               </div>
               <div className="space-y-1.5">
@@ -233,7 +233,7 @@ export function AdminTable({
                   minLength={2}
                   maxLength={80}
                   defaultValue={editing.apellido}
-                  className={inputClass}
+                  className={inputClass} inputMode="text"
                 />
               </div>
             </div>
@@ -249,7 +249,7 @@ export function AdminTable({
                 required
                 maxLength={180}
                 defaultValue={editing.email ?? ""}
-                className={inputClass}
+                className={inputClass} inputMode="email"
               />
             </div>
 
@@ -269,7 +269,7 @@ export function AdminTable({
               <button
                 type="submit"
                 disabled={isEditPending}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-60"
               >
                 {isEditPending ? (
                   <>

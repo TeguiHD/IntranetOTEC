@@ -104,7 +104,7 @@ export default async function ReporteNotasPage({ searchParams }: PageProps) {
                   </span>
                   <div className="flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800" style={{ height: 20 }}>
                     <div
-                      className={`h-full rounded-full ${barColor} transition-all`}
+                      className={`h-full rounded-full ${barColor} transition-[background-color,border-color,color,box-shadow,opacity,transform]`}
                       style={{ width: `${pct}%` }}
                       role="progressbar"
                       aria-valuenow={Math.round(pct)}

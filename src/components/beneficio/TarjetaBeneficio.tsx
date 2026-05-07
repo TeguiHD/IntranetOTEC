@@ -101,9 +101,9 @@ export function TarjetaBeneficio({
             <input
               name="rut_beneficio"
               value={rutInput}
-              onChange={(e) => handleRutChange(e.target.value)}
+              inputMode="text" onChange={(e) => handleRutChange(e.target.value)}
               placeholder="12.345.678-5"
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
           <div className="flex items-center gap-2 text-sm text-text-secondary dark:text-gray-400">

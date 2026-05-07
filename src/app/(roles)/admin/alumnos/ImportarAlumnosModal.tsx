@@ -241,7 +241,7 @@ export function ImportarAlumnosModal() {
                   type="file"
                   accept=".csv,.txt,.tsv"
                   className="sr-only"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                  inputMode="text" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
                 />
               </label>
             </div>
@@ -350,7 +350,7 @@ export function ImportarAlumnosModal() {
                 type="button"
                 onClick={handleImport}
                 disabled={isPending}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
               >
                 {isPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Importando...</>

@@ -141,15 +141,17 @@ export function ChatAsignatura({ asignaturaId, asignaturaNombre }: Props) {
           <input
             type="text"
             value={texto}
+            inputMode="text"
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
             placeholder="Escribe un mensaje…"
             maxLength={1000}
-            className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+            className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:bg-white focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
           />
           <button
             type="button"
             onClick={enviar}
+            aria-label="Enviar mensaje"
             disabled={sending || !texto.trim()}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white transition-colors hover:bg-primary-dark disabled:opacity-40"
           >

@@ -250,13 +250,13 @@ export function LoginView({ authError }: LoginViewProps) {
                     disabled={isPending}
                     onChange={(e) => setPin(e.currentTarget.value.replace(/\D/g, "").slice(0, 4))}
                     placeholder="••••"
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-center text-lg font-mono tracking-[0.5em] text-text-primary placeholder:text-gray-400 placeholder:tracking-[0.3em] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-center text-lg font-mono tracking-[0.5em] text-text-primary placeholder:text-gray-400 placeholder:tracking-[0.3em] focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isPending || (!isRutValid && !esRutExtranjero(rut)) || pin.length !== 4}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-all duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
                 >
                   {isPending ? (
                     <>
@@ -287,7 +287,7 @@ export function LoginView({ authError }: LoginViewProps) {
                     disabled={isPending}
                     onChange={(event) => setEmail(event.currentTarget.value)}
                     placeholder="docente@miotec.cl"
-                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
                   />
                 </div>
 
@@ -303,9 +303,9 @@ export function LoginView({ authError }: LoginViewProps) {
                       autoComplete="current-password"
                       value={password}
                       disabled={isPending}
-                      onChange={(event) => setPassword(event.currentTarget.value)}
+                      inputMode="text" onChange={(event) => setPassword(event.currentTarget.value)}
                       placeholder="••••••••"
-                      className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 pr-11 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
+                      className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 pr-11 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20"
                     />
                     <button
                       type="button"
@@ -322,7 +322,7 @@ export function LoginView({ authError }: LoginViewProps) {
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-all duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cta text-sm font-semibold text-white shadow-md shadow-cta/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-200 hover:bg-cta-dark hover:shadow-lg hover:shadow-cta/30 focus:ring-2 focus:ring-cta focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-cta/10"
                 >
                   {isPending ? (
                     <>

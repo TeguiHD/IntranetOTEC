@@ -75,7 +75,7 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
                   </div>
                   <button
                     type="submit"
-                    className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98]"
+                    className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98]"
                   >
                     Solicitar Credencial
                   </button>

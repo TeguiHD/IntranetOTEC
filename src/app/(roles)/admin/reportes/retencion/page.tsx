@@ -45,7 +45,7 @@ export default async function ReporteRetencionPage({ searchParams }: PageProps) 
             <select
               name="periodoId"
               defaultValue={periodoId ?? ""}
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Todos los periodos</option>
               {periodos.map((p) => (

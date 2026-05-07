@@ -28,7 +28,7 @@ type ClasesTableProps = {
 };
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
 
 export function ClasesTable({
   clases,
@@ -239,24 +239,24 @@ export function ClasesTable({
               <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
                 Título <span className="text-danger">*</span>
               </label>
-              <input name="titulo" type="text" required minLength={3} maxLength={140} defaultValue={editingClase.titulo} className={inputClass} />
+              <input name="titulo" type="text" required minLength={3} maxLength={140} defaultValue={editingClase.titulo} className={inputClass} inputMode="text" />
             </div>
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
                 Descripción (opcional)
               </label>
-              <textarea name="descripcion" rows={2} maxLength={600} defaultValue={editingClase.descripcion ?? ""} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+              <textarea name="descripcion" rows={2} maxLength={600} defaultValue={editingClase.descripcion ?? ""} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-text-primary dark:text-gray-200">Fecha <span className="text-danger">*</span></label>
-                <input name="fecha" type="date" required defaultValue={editingClase.fecha ?? ""} className={inputClass} />
+                <input name="fecha" type="date" required defaultValue={editingClase.fecha ?? ""} className={inputClass} inputMode="text" />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-text-primary dark:text-gray-200">Hora inicio</label>
-                <input name="horaInicio" type="time" defaultValue={editingClase.horaInicio ?? ""} className={inputClass} />
+                <input name="horaInicio" type="time" defaultValue={editingClase.horaInicio ?? ""} className={inputClass} inputMode="text" />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-text-primary dark:text-gray-200">Tipo URL</label>
@@ -270,12 +270,12 @@ export function ClasesTable({
               </div>
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-text-primary dark:text-gray-200">URL grabación</label>
-                <input name="urlGrabacion" type="url" maxLength={500} defaultValue={editingClase.urlGrabacion ?? ""} placeholder="https://..." className={inputClass} />
+                <input name="urlGrabacion" type="url" maxLength={500} defaultValue={editingClase.urlGrabacion ?? ""} placeholder="https://..." className={inputClass} inputMode="url" />
               </div>
             </div>
 
             <label className="inline-flex items-center gap-2.5 text-sm text-text-primary dark:text-gray-200">
-              <input type="checkbox" name="publicada" defaultChecked={editingClase.publicada ?? false} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+              <input type="checkbox" name="publicada" defaultChecked={editingClase.publicada ?? false} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" inputMode="text" />
               Publicar clase
             </label>
 
@@ -283,7 +283,7 @@ export function ClasesTable({
               <button type="button" onClick={() => setEditingClase(null)} className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
                 Cancelar
               </button>
-              <button type="submit" className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]">
+              <button type="submit" className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]">
                 Guardar cambios
               </button>
             </div>

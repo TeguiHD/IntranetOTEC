@@ -12,7 +12,7 @@ type Props = {
 };
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500";
 
 const TURNO_LABELS: Record<string, string> = {
   manana: "Mañana",
@@ -109,7 +109,7 @@ export function AsignaturasMultiCombobox({ selected, onChange }: Props) {
           <input
             type="text"
             value={query}
-            onChange={(e) => {
+            inputMode="text" onChange={(e) => {
               setQuery(e.target.value);
               search(e.target.value);
             }}
@@ -151,7 +151,7 @@ export function AsignaturasMultiCombobox({ selected, onChange }: Props) {
             <ul role="listbox" className="max-h-72 space-y-1 overflow-y-auto">
               {results.map((a) => (
                 <li key={a.id} role="option" aria-selected={false}>
-                  <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/5 dark:border-gray-700/70 dark:hover:border-primary/30 dark:hover:bg-primary/10">
+                  <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/5 dark:border-gray-700/70 dark:hover:border-primary/30 dark:hover:bg-primary/10">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-text-primary dark:text-gray-100">
                         {a.nombre}

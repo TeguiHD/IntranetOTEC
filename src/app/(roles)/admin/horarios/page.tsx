@@ -108,7 +108,7 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
               id="admin-horario-periodo"
               name="periodoId"
               defaultValue={selectedPeriodoId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             >
               {periodos.length === 0 ? (
                 <option value="">Sin periodos</option>
@@ -135,7 +135,7 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
 
           <button
             type="submit"
-            className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg sm:w-auto"
+            className="h-11 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg sm:w-auto"
           >
             Ver
           </button>

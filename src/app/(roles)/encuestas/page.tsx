@@ -61,7 +61,7 @@ export default async function MisEncuestasPage() {
                 </div>
                 <Link
                   href={`/encuestas/${enc.evaluacionId}`}
-                  className="shrink-0 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-center text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:shadow-md active:scale-[0.97]"
+                  className="shrink-0 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 py-2.5 text-center text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-md active:scale-[0.97]"
                 >
                   Responder
                 </Link>

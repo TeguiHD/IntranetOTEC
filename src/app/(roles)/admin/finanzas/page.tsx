@@ -151,7 +151,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
               step="1"
               required
               placeholder="50000"
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
             />
           </div>
           <div>
@@ -163,7 +163,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
               name="fecha"
               type="date"
               required
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
             />
           </div>
           <div className="sm:col-span-2">
@@ -178,7 +178,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
               minLength={3}
               maxLength={300}
               placeholder="Ej: Matrícula alumno / Arriendo sala..."
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
             />
           </div>
           <div>
@@ -191,7 +191,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
               type="text"
               maxLength={80}
               placeholder="Ej: Matrícula, Infraestructura..."
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="text"
             />
           </div>
         </div>
@@ -221,7 +221,7 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
           type="text"
           defaultValue={q}
           placeholder="Buscar descripción o categoría..."
-          className="h-10 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+          className="h-10 flex-1 rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="search"
         />
         <button
           type="submit"

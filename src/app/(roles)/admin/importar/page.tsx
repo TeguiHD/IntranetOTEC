@@ -684,7 +684,7 @@ export default function AdminImportarPage() {
             type="file"
             accept=".xlsx"
             onChange={handleFileChange}
-            className="hidden"
+            className="hidden" inputMode="text"
           />
         </div>
 
@@ -713,7 +713,7 @@ export default function AdminImportarPage() {
               type="button"
               onClick={handleSubmit}
               disabled={isPending || !preview?.canImport || !periodId}
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
             >
               {isPending ? (
                 <>
@@ -920,14 +920,14 @@ export default function AdminImportarPage() {
       )}
 
       {isPeriodPickerOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setIsPeriodPickerOpen(false)}
-        >
-          <div
-            className="w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <button
+            type="button"
+            aria-label="Cerrar selector de periodo"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setIsPeriodPickerOpen(false)}
+          />
+          <div className="relative w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
               <div>
                 <h3 className="text-base font-semibold text-text-primary dark:text-white">Seleccionar periodo academico</h3>
@@ -950,16 +950,16 @@ export default function AdminImportarPage() {
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary dark:text-gray-400" />
                   <input
                     value={periodSearch}
-                    onChange={(event) => setPeriodSearch(event.target.value)}
+                    inputMode="text" onChange={(event) => setPeriodSearch(event.target.value)}
                     placeholder="Buscar por codigo o nombre"
-                    className="h-10 w-full rounded-xl border border-gray-300 bg-white pl-9 pr-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-10 w-full rounded-xl border border-gray-300 bg-white pl-9 pr-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                   />
                 </label>
 
                 <select
                   value={periodFilter}
                   onChange={(event) => setPeriodFilter(event.target.value as PeriodFilter)}
-                  className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                 >
                   <option value="todos">Todos los estados</option>
                   <option value="activo">Activos</option>
@@ -1041,18 +1041,18 @@ export default function AdminImportarPage() {
       )}
 
       {isCreatePeriodOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => {
-            if (!isCreatingPeriod) {
-              setIsCreatePeriodOpen(false);
-            }
-          }}
-        >
-          <div
-            className="w-full max-w-xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <button
+            type="button"
+            aria-label="Cerrar creación de periodo"
+            className="absolute inset-0 cursor-default"
+            onClick={() => {
+              if (!isCreatingPeriod) {
+                setIsCreatePeriodOpen(false);
+              }
+            }}
+          />
+          <div className="relative w-full max-w-xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
               <div>
                 <h3 className="text-base font-semibold text-text-primary dark:text-white">Nuevo periodo academico</h3>
@@ -1095,7 +1095,7 @@ export default function AdminImportarPage() {
                         fechaFin: `${anio}-${mm}-${dd}`,
                       }));
                     }}
-                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                   >
                     {MESES_ES.map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
@@ -1110,7 +1110,7 @@ export default function AdminImportarPage() {
                     min={2020}
                     max={2035}
                     value={Number(newPeriod.codigo.split("-")[0] || new Date().getFullYear())}
-                    onChange={(e) => {
+                    inputMode="numeric" onChange={(e) => {
                       const anio = Number(e.target.value);
                       const mes = Number(newPeriod.codigo.split("-")[1] || new Date().getMonth() + 1);
                       const last = lastDayOfMonth(anio, mes);
@@ -1124,7 +1124,7 @@ export default function AdminImportarPage() {
                         fechaFin: `${anio}-${mm}-${dd}`,
                       }));
                     }}
-                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                   />
                 </label>
 
@@ -1138,7 +1138,7 @@ export default function AdminImportarPage() {
                         estado: event.target.value as PeriodStatus,
                       }));
                     }}
-                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                   >
                     <option value="activo">Activo</option>
                     <option value="planificado">Planificado</option>
@@ -1163,10 +1163,10 @@ export default function AdminImportarPage() {
                   <input
                     type="date"
                     value={newPeriod.fechaInicio}
-                    onChange={(event) => {
+                    inputMode="text" onChange={(event) => {
                       setNewPeriod((current) => ({ ...current, fechaInicio: event.target.value }));
                     }}
-                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                     required
                   />
                 </label>
@@ -1176,10 +1176,10 @@ export default function AdminImportarPage() {
                   <input
                     type="date"
                     value={newPeriod.fechaFin}
-                    onChange={(event) => {
+                    inputMode="text" onChange={(event) => {
                       setNewPeriod((current) => ({ ...current, fechaFin: event.target.value }));
                     }}
-                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary shadow-sm focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                     required
                   />
                 </label>
@@ -1197,7 +1197,7 @@ export default function AdminImportarPage() {
                 <button
                   type="submit"
                   disabled={isCreatingPeriod}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isCreatingPeriod ? (
                     <>

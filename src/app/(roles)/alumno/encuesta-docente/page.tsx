@@ -36,9 +36,9 @@ function LikertRow({ name, label, scale }: { name: string; label: string; scale:
               name={name}
               value={String(val)}
               required
-              className="peer sr-only"
+              className="peer sr-only" inputMode="text"
             />
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-gray-200 bg-white text-sm font-bold text-text-secondary transition-all peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white hover:border-primary/50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400 dark:peer-checked:border-primary dark:peer-checked:bg-primary dark:peer-checked:text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-gray-200 bg-white text-sm font-bold text-text-secondary transition-[background-color,border-color,color,box-shadow,opacity,transform] peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white hover:border-primary/50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400 dark:peer-checked:border-primary dark:peer-checked:bg-primary dark:peer-checked:text-white">
               {val}
             </span>
           </label>
@@ -95,7 +95,7 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
               <a
                 key={e.asignaturaId}
                 href={`/alumno/encuesta-docente?asignaturaId=${encodeURIComponent(e.asignaturaId)}`}
-                className={`group rounded-xl border px-4 py-3 text-sm transition-all ${
+                className={`group rounded-xl border px-4 py-3 text-sm transition-[background-color,border-color,color,box-shadow,opacity,transform] ${
                   e.asignaturaId === selectedId
                     ? "border-primary bg-primary/10 text-primary shadow-sm shadow-primary/10 dark:bg-primary/20"
                     : "border-gray-200 bg-white text-text-secondary hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.04] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-primary/10"
@@ -174,7 +174,7 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-8 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98] sm:w-auto"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-8 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98] sm:w-auto"
                 >
                   <Star className="h-4 w-4" />
                   Enviar Evaluación

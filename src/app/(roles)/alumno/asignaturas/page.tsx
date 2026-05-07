@@ -227,7 +227,7 @@ export default async function AlumnoAsignaturasPage() {
                     {pct !== null && (
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                         <div
-                          className={`h-full rounded-full transition-all ${asistenciaBg(pct)}`}
+                          className={`h-full rounded-full transition-[background-color,border-color,color,box-shadow,opacity,transform] ${asistenciaBg(pct)}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>

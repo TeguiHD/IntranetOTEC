@@ -74,7 +74,7 @@ export function LikertDistribution({
               </span>
               <div className="flex w-full items-end justify-center" style={{ height: 56 }}>
                 <div
-                  className={`w-full max-w-[2rem] rounded-t-md transition-all duration-500 ease-out ${BAR_COLORS[colorIdx]}`}
+                  className={`w-full max-w-[2rem] rounded-t-md transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-500 ease-out ${BAR_COLORS[colorIdx]}`}
                   style={{ height: `${Math.max(heightPct, bar.count > 0 ? 8 : 2)}%`, minHeight: bar.count > 0 ? 4 : 1 }}
                 />
               </div>

@@ -9,7 +9,7 @@ import { Modal } from "@/components/shared/Modal";
 import { RutInput } from "@/components/shared/RutInput";
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary placeholder:text-gray-400 transition-shadow focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-light dark:focus:ring-primary-light/20";
 
 export function AdminCreateModal() {
   const [open, setOpen] = useState(false);
@@ -29,7 +29,7 @@ export function AdminCreateModal() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+        className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
       >
         <Plus className="h-4 w-4" />
         Nuevo Administrador
@@ -57,7 +57,7 @@ export function AdminCreateModal() {
                 maxLength={80}
                 placeholder="Ej: María"
                 className={inputClass}
-                autoFocus
+                autoFocus inputMode="text"
               />
             </div>
             <div className="space-y-1.5">
@@ -72,7 +72,7 @@ export function AdminCreateModal() {
                 minLength={2}
                 maxLength={80}
                 placeholder="Ej: González"
-                className={inputClass}
+                className={inputClass} inputMode="text"
               />
             </div>
           </div>
@@ -121,7 +121,7 @@ export function AdminCreateModal() {
                 minLength={12}
                 maxLength={128}
                 placeholder="Mínimo 12 caracteres"
-                className={`${inputClass} pr-11`}
+                className={`${inputClass} pr-11`} inputMode="text"
               />
               <button
                 type="button"
@@ -149,7 +149,7 @@ export function AdminCreateModal() {
             <button
               type="submit"
               disabled={!isRutValid}
-              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
+              className="h-10 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-md"
             >
               Crear Administrador
             </button>

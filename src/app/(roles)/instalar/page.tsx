@@ -105,7 +105,7 @@ export default function InstalarPage() {
         <button
           onClick={handleInstall}
           disabled={installing}
-          className="inline-flex items-center gap-2 rounded-xl bg-cta px-8 py-3 text-base font-semibold text-white shadow-md shadow-cta/20 transition-all hover:bg-cta-dark hover:shadow-lg disabled:opacity-70"
+          className="inline-flex items-center gap-2 rounded-xl bg-cta px-8 py-3 text-base font-semibold text-white shadow-md shadow-cta/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:bg-cta-dark hover:shadow-lg disabled:opacity-70"
         >
           {installing ? (
             "Abriendo instalador..."

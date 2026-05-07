@@ -77,7 +77,7 @@ export default async function AlumnoNotificacionesPage() {
           {notificaciones.map((n) => (
             <article
               key={n.id}
-              className={`rounded-2xl border bg-white p-5 shadow-sm transition-all dark:bg-gray-900 ${
+              className={`rounded-2xl border bg-white p-5 shadow-sm transition-[background-color,border-color,color,box-shadow,opacity,transform] dark:bg-gray-900 ${
                 n.leidoAt
                   ? "border-gray-200/80 dark:border-gray-800"
                   : "border-primary/30 bg-primary/[0.02] dark:border-primary/20 dark:bg-primary/5"

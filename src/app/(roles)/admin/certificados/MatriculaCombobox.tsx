@@ -65,17 +65,15 @@ export function MatriculaCombobox({ matriculas, name = "matriculaId", required }
       <input type="hidden" name={name} value={selected?.id ?? ""} required={required} />
 
       {/* Trigger input */}
-      <div
-        className="relative flex h-11 cursor-pointer items-center rounded-xl border border-gray-200 bg-white px-3 shadow-sm transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 dark:border-gray-700 dark:bg-gray-800"
-        onClick={() => { setOpen(true); inputRef.current?.focus(); }}
-      >
+      <div className="relative flex h-11 items-center rounded-xl border border-gray-200 bg-white px-3 shadow-sm transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 dark:border-gray-700 dark:bg-gray-800">
         <Search className="mr-2 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
         <input
           ref={inputRef}
           type="text"
           value={query}
           placeholder="Buscar alumno o asignatura…"
-          className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+          className="flex-1 bg-transparent text-sm text-text-primary outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+          inputMode="search"
           onChange={(e) => {
             setQuery(e.target.value);
             setSelected(null);

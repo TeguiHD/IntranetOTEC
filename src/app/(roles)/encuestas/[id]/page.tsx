@@ -162,9 +162,9 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
                             name={`resp_${pregunta.id}`}
                             value={String(val)}
                             required
-                            className="peer sr-only"
+                            className="peer sr-only" inputMode="text"
                           />
-                          <span className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-gray-200 bg-white text-sm font-semibold text-text-secondary transition-all peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                          <span className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-gray-200 bg-white text-sm font-semibold text-text-secondary transition-[background-color,border-color,color,box-shadow,opacity,transform] peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                             {String(val)}
                           </span>
                         </label>
@@ -182,9 +182,9 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
                           name={`resp_${pregunta.id}`}
                           value={v}
                           required
-                          className="peer sr-only"
+                          className="peer sr-only" inputMode="text"
                         />
-                        <span className="flex h-12 items-center justify-center rounded-xl border-2 border-gray-200 bg-white px-8 text-sm font-semibold text-text-secondary transition-all peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        <span className="flex h-12 items-center justify-center rounded-xl border-2 border-gray-200 bg-white px-8 text-sm font-semibold text-text-secondary transition-[background-color,border-color,color,box-shadow,opacity,transform] peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                           {v}
                         </span>
                       </label>
@@ -195,13 +195,13 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
                 {tipo === "opcion_multiple" && opts && Array.isArray(opts.opciones) && (
                   <div className="space-y-2">
                     {(opts.opciones as string[]).map((v) => (
-                      <label key={v} className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-4 py-3 transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5 hover:border-primary/30 dark:border-gray-700 dark:bg-gray-800">
+                      <label key={v} className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-gray-200 bg-white px-4 py-3 transition-[background-color,border-color,color,box-shadow,opacity,transform] has-[:checked]:border-primary has-[:checked]:bg-primary/5 hover:border-primary/30 dark:border-gray-700 dark:bg-gray-800">
                         <input
                           type="radio"
                           name={`resp_${pregunta.id}`}
                           value={v}
                           required
-                          className="h-4 w-4 accent-primary"
+                          className="h-4 w-4 accent-primary" inputMode="text"
                         />
                         <span className="text-sm text-text-primary dark:text-gray-100">{v}</span>
                       </label>
@@ -240,7 +240,7 @@ export default async function EncuestaResponderPage({ params, searchParams }: Pr
               )}
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:shadow-lg active:scale-[0.98]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg active:scale-[0.98]"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Enviar respuestas

@@ -38,9 +38,9 @@ function LikertRow5({ name, label }: { name: string; label: string }) {
               name={name}
               value={String(val)}
               required
-              className="peer sr-only"
+              className="peer sr-only" inputMode="text"
             />
-            <span className="flex h-10 w-10 flex-col items-center justify-center rounded-lg border-2 border-gray-200 bg-white text-center transition-all peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white hover:border-primary/50 dark:border-gray-600 dark:bg-gray-900 dark:peer-checked:border-primary dark:peer-checked:bg-primary dark:peer-checked:text-white">
+            <span className="flex h-10 w-10 flex-col items-center justify-center rounded-lg border-2 border-gray-200 bg-white text-center transition-[background-color,border-color,color,box-shadow,opacity,transform] peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white hover:border-primary/50 dark:border-gray-600 dark:bg-gray-900 dark:peer-checked:border-primary dark:peer-checked:bg-primary dark:peer-checked:text-white">
               <span className="text-sm font-bold leading-none">{val}</span>
               <span className="mt-0.5 text-[9px] leading-none opacity-70">{ESCALA_LABELS[val]?.split(" ")[0]}</span>
             </span>
@@ -152,7 +152,7 @@ export default async function AlumnoTestEstilosPage({ searchParams }: Props) {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="flex h-12 items-center gap-2 rounded-xl bg-primary px-8 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark hover:shadow-lg active:scale-[0.98]"
+              className="flex h-12 items-center gap-2 rounded-xl bg-primary px-8 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:bg-primary-dark hover:shadow-lg active:scale-[0.98]"
             >
               <Brain className="h-4 w-4" />
               Enviar Test

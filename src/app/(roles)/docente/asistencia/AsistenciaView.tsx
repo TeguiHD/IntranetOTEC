@@ -195,7 +195,7 @@ function CalendarTab({
                 key={dia}
                 onClick={() => setSelectedDate(isSelected ? null : fechaStr)}
                 className={[
-                  "relative flex flex-col items-center rounded-xl py-2 text-sm font-medium transition-all",
+                  "relative flex flex-col items-center rounded-xl py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow,opacity,transform]",
                   isHoy(dia)
                     ? "ring-2 ring-primary ring-offset-1"
                     : "",
@@ -351,7 +351,7 @@ function ClasePanel({
       {/* Progress bar */}
       <div className="h-1 w-full bg-gray-100 dark:bg-gray-800">
         <div
-          className={`h-1 transition-all duration-500 ${completo ? "bg-emerald-500" : "bg-primary"}`}
+          className={`h-1 transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-500 ${completo ? "bg-emerald-500" : "bg-primary"}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -387,7 +387,7 @@ function ClasePanel({
                         key={est}
                         onClick={() => onMarcar(clase.id, alumno.matriculaId, est, clase.fecha)}
                         className={[
-                          "rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all active:scale-95",
+                          "rounded-lg border px-2.5 py-1 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,opacity,transform] active:scale-95",
                           active ? cfg.activBtn : cfg.btn,
                         ].join(" ")}
                       >
@@ -444,7 +444,7 @@ function FidelidadTab({ asignaturas }: { asignaturas: Asignatura[] }) {
               key={a.id}
               onClick={() => cargar(a.id)}
               className={[
-                "rounded-xl border px-3 py-1.5 text-sm font-medium transition-all",
+                "rounded-xl border px-3 py-1.5 text-sm font-medium transition-[background-color,border-color,color,box-shadow,opacity,transform]",
                 selectedAsig === a.id
                   ? "border-primary bg-primary text-white shadow-sm shadow-primary/30"
                   : "border-gray-200 bg-white text-text-secondary hover:border-primary/40 hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-primary/40",
@@ -494,7 +494,7 @@ function TarjetaFidelizacion({ alumno }: { alumno: AlumnoFidelidad }) {
   return (
     <div
       className={[
-        "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition-all dark:bg-gray-900",
+        "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition-[background-color,border-color,color,box-shadow,opacity,transform] dark:bg-gray-900",
         completo
           ? "border-amber-300 shadow-amber-100 dark:border-amber-700 dark:shadow-amber-900/20"
           : bueno
@@ -547,7 +547,7 @@ function TarjetaFidelizacion({ alumno }: { alumno: AlumnoFidelidad }) {
       <div className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
         <div
           className={[
-            "h-2 rounded-full transition-all duration-700",
+            "h-2 rounded-full transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-700",
             completo
               ? "bg-gradient-to-r from-amber-400 to-amber-500"
               : bueno
@@ -636,7 +636,7 @@ export function AsistenciaView({ clasesMesInicial, asignaturas, mesInicial, anio
             key={t}
             onClick={() => setTab(t)}
             className={[
-              "flex-1 rounded-lg py-2 text-sm font-semibold transition-all",
+              "flex-1 rounded-lg py-2 text-sm font-semibold transition-[background-color,border-color,color,box-shadow,opacity,transform]",
               tab === t
                 ? "bg-white text-primary shadow-sm dark:bg-gray-800 dark:text-primary-light"
                 : "text-text-secondary hover:text-text-primary dark:text-gray-500 dark:hover:text-gray-300",

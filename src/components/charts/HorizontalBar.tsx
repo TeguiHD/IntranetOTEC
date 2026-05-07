@@ -52,7 +52,7 @@ export function HorizontalBar({ items, mode = "count", max }: Props) {
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
               <div
-                className={`h-full rounded-full transition-all duration-500 ease-out ${item.color ?? DEFAULT_COLORS[idx % DEFAULT_COLORS.length]}`}
+                className={`h-full rounded-full transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-500 ease-out ${item.color ?? DEFAULT_COLORS[idx % DEFAULT_COLORS.length]}`}
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>

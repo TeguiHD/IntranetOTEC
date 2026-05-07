@@ -73,7 +73,7 @@ export function SearchSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-10 min-w-[180px] max-w-[280px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary transition-colors hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+        className="flex h-10 min-w-[180px] max-w-[280px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 pr-9 text-sm text-text-primary transition-colors hover:border-primary/40 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
       >
         <span className="flex-1 truncate text-left">
           {selected.id === "" ? (
@@ -82,20 +82,18 @@ export function SearchSelect({
             selected.label
           )}
         </span>
-        {selected.id !== "" && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label="Limpiar selección"
-            onClick={(e) => { e.stopPropagation(); pick(allOption); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); pick(allOption); } }}
-            className="shrink-0 rounded-full p-0.5 text-text-secondary hover:bg-gray-100 hover:text-text-primary dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-          >
-            <X className="h-3.5 w-3.5" />
-          </span>
-        )}
         <ChevronDown className={`h-4 w-4 shrink-0 text-text-secondary transition-transform dark:text-gray-400 ${open ? "rotate-180" : ""}`} />
       </button>
+      {selected.id !== "" && (
+        <button
+          type="button"
+          aria-label="Limpiar selección"
+          onClick={() => pick(allOption)}
+          className="absolute right-8 top-1/2 z-10 -translate-y-1/2 rounded-full p-0.5 text-text-secondary hover:bg-gray-100 hover:text-text-primary dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* dropdown */}
       {open && (
@@ -107,12 +105,17 @@ export function SearchSelect({
               ref={searchRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              inputMode="text" onChange={(e) => setQuery(e.target.value)}
               placeholder={placeholder}
-              className="w-full bg-transparent text-sm text-text-primary placeholder:text-gray-400 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-500"
+              className="w-full bg-transparent text-sm text-text-primary placeholder:text-gray-400 focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} className="shrink-0 text-text-secondary hover:text-text-primary dark:text-gray-400">
+              <button
+                type="button"
+                aria-label="Limpiar búsqueda"
+                onClick={() => setQuery("")}
+                className="shrink-0 text-text-secondary hover:text-text-primary dark:text-gray-400"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}

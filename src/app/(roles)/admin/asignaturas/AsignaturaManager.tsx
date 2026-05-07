@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState, useTransition } from "react";
 
-import { Archive, BookOpen, Pencil, Plus, RotateCcw, Search, Trash2, UserCog, Users, X } from "lucide-react";
+import { Archive, BookOpen, ExternalLink, Pencil, Plus, RotateCcw, Search, Trash2, UserCog, Users, X } from "lucide-react";
 
 import {
   archivarAsignaturaFormAction,
@@ -401,6 +401,13 @@ export function AsignaturaManager({
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <a
+                      href={`/admin/secciones/${a.id}`}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Ver ficha
+                    </a>
+                    <a
                       href={`/admin/matriculas?asignaturaId=${a.id}`}
                       className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                     >
@@ -541,6 +548,13 @@ export function AsignaturaManager({
                     {/* Acción */}
                     <td className="px-3 py-3 text-right">
                       <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                        <a
+                          href={`/admin/secciones/${a.id}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Ver ficha
+                        </a>
                         <a
                           href={`/admin/matriculas?asignaturaId=${a.id}`}
                           className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"

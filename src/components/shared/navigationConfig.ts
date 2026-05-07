@@ -77,6 +77,7 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "Oferta academica",
     items: [
+      { href: "/admin/academico", label: "Vista academica", Icon: BookOpen, gradient: "grad-purple", capability: "cursos.admin" },
       { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.admin" },
       { href: "/admin/cursos", label: "Cursos", Icon: BookOpen, gradient: "grad-indigo", capability: "cursos.admin" },
       { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange, gradient: "grad-teal", capability: "horarios.admin" },

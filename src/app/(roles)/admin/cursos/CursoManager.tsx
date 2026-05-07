@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { BookOpen, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -209,6 +209,12 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
                   </span>
                 </div>
                 <div className="mt-3 flex gap-2">
+                  <a
+                    href={`/admin/academico?cursoId=${c.id}`}
+                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Ver secciones
+                  </a>
                   <button type="button" onClick={() => openEdit(c)} className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 text-sm font-medium text-text-primary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200">
                     <Pencil className="h-3.5 w-3.5" /> Editar
                   </button>
@@ -249,6 +255,14 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
                     </td>
                     <td className="px-3 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
+                        <a
+                          href={`/admin/academico?cursoId=${c.id}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:text-primary-light"
+                          aria-label={`Ver secciones de ${c.nombre}`}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Secciones
+                        </a>
                         <button
                           type="button"
                           onClick={() => openEdit(c)}

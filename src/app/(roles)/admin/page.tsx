@@ -1,24 +1,18 @@
 import Link from "next/link";
 
 import {
-  Award,
   Bell,
   BookOpen,
-  Brain,
   CalendarDays,
+  CheckCircle2,
   ClipboardCheck,
-  ClipboardList,
   FileText,
   IdCard,
   type LucideIcon,
-  MessageSquare,
-  Shield,
-  TrendingUp,
-  Upload,
-  UserCog,
-  Users,
+  Send,
   Wallet,
 } from "lucide-react";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 
 import {
   listarPeriodosDashboard,
@@ -31,49 +25,106 @@ import { buscarPersonaPorRutAdmin } from "@/actions/usuarios";
 import { AccordionItem } from "@/components/shared/Accordion";
 import { MessageToast } from "@/components/shared/MessageToast";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
+import { getDb } from "@/db";
+import {
+  asignaturas,
+  certificados,
+  clases,
+  matriculas,
+  notificaciones,
+} from "@/db/schema";
 import { formatearRut } from "@/lib/rut";
 import { RutBuscador } from "./RutBuscador";
 
-const GRADIENT_COLORS: Record<string, string> = {
-  "grad-purple": "#8B3A9E",
-  "grad-blue": "#3B82F6",
-  "grad-cyan": "#06B6D4",
-  "grad-teal": "#14B8A6",
-  "grad-amber": "#F5A623",
-  "grad-emerald": "#10B981",
-  "grad-pink": "#EC4899",
-  "grad-violet": "#8B5CF6",
-  "grad-gold": "#F5A623",
-  "grad-slate": "#64748B",
-  "grad-indigo": "#6366F1",
+type KpiTile = {
+  label: string;
+  value: number;
+  href: string;
+  hint?: string;
+  Icon: LucideIcon;
+  tone: "neutral" | "amber" | "emerald" | "primary" | "danger";
 };
 
-const MODULE_CARDS: { href: string; title: string; description: string; gradient: string; Icon: LucideIcon }[] = [
-  { href: "/admin/agenda",            title: "Agenda",                description: "Calendario operativo por dia con foco academico.",    gradient: "grad-teal",    Icon: CalendarDays },
-  { href: "/admin/asignaturas",       title: "Secciones",             description: "Gestion de secciones, fechas y responsables.",        gradient: "grad-blue",    Icon: BookOpen },
-  { href: "/admin/clases",            title: "Clases",                description: "Programacion diaria de sesiones y material.",         gradient: "grad-cyan",    Icon: CalendarDays },
-  { href: "/admin/evaluaciones",      title: "Evaluaciones",          description: "Control de instrumentos y entregas.",                 gradient: "grad-violet",  Icon: ClipboardList },
-  { href: "/admin/notas",             title: "Notas",                 description: "Revision y ajuste de calificaciones.",                gradient: "grad-gold",    Icon: ClipboardList },
-  { href: "/admin/asistencias",       title: "Asistencias",           description: "Seguimiento de presencia por clase.",                gradient: "grad-emerald", Icon: ClipboardCheck },
-  { href: "/admin/docentes",          title: "Docentes",              description: "Administracion de docentes y activacion.",            gradient: "grad-amber",   Icon: UserCog },
-  { href: "/admin/alumnos",           title: "Alumnos",               description: "Control de alumnos activos y estado.",               gradient: "grad-emerald", Icon: Users },
-  { href: "/admin/matriculas",        title: "Matriculas",            description: "Relacion alumno-seccion y vigencia.",               gradient: "grad-pink",    Icon: Wallet },
-  { href: "/admin/importar",          title: "Importar Alumnos",      description: "Carga Excel con consolidacion inteligente.",          gradient: "grad-emerald", Icon: Upload },
-  { href: "/admin/notificaciones",    title: "Notificaciones",        description: "Comunicacion masiva y por curso.",                   gradient: "grad-amber",   Icon: Bell },
-  { href: "/admin/solicitudes",       title: "Solicitudes",           description: "Bandeja de solicitudes administrativas.",             gradient: "grad-violet",  Icon: FileText },
-  { href: "/admin/beneficios-credenciales", title: "Beneficios y Credenciales", description: "Habilita accesos por alumno o curso.",       gradient: "grad-pink",    Icon: IdCard },
-  { href: "/admin/certificados",      title: "Certificados",          description: "Emision, descarga e invalidacion.",                  gradient: "grad-blue",    Icon: Award },
-  { href: "/admin/reportes",          title: "Reportes",              description: "Analitica de rendimiento, notas y asistencia.",       gradient: "grad-purple",  Icon: TrendingUp },
-  { href: "/admin/encuestas-builder", title: "Encuestas",             description: "Constructor y gestion de encuestas.",                 gradient: "grad-indigo",  Icon: MessageSquare },
-  { href: "/admin/test-estilos",      title: "Test Estilos",          description: "Resultados de estilos de aprendizaje.",              gradient: "grad-violet",  Icon: Brain },
-  { href: "/admin/administradores",   title: "Administradores",       description: "Cuentas con acceso total al panel.",                 gradient: "grad-purple",  Icon: Shield },
-  { href: "/admin/finanzas",          title: "Finanzas",              description: "Registro de ingresos y gastos.",                     gradient: "grad-emerald", Icon: TrendingUp },
-  { href: "/admin/auditoria",         title: "Auditoria",             description: "Trazabilidad de acciones del sistema.",              gradient: "grad-slate",   Icon: ClipboardList },
-];
+const TILE_TONE: Record<KpiTile["tone"], string> = {
+  neutral: "border-gray-200/80 bg-white text-text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-white",
+  amber: "border-amber-200/80 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100",
+  emerald: "border-emerald-200/80 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100",
+  primary: "border-primary/30 bg-primary/5 text-primary dark:border-primary/40 dark:bg-primary/10",
+  danger: "border-red-200/80 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100",
+};
 
 type AdminDashboardPageProps = {
   searchParams?: Promise<{ rut?: string; periodoId?: string }>;
 };
+
+type KpisOperativos = {
+  clasesHoy: number;
+  matriculasMora: number;
+  matriculasPendientes: number;
+  certificadosUltimaSemana: number;
+  notificacionesUltimaSemana: number;
+};
+
+const toIso = (d: Date) => d.toISOString().slice(0, 10);
+
+async function obtenerKpisOperativosAdmin(periodoId: string | null): Promise<KpisOperativos> {
+  const db = getDb();
+  const today = new Date();
+  const todayIso = toIso(today);
+  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const periodoFilter = periodoId
+    ? eq(asignaturas.periodoId, periodoId)
+    : undefined;
+
+  const matriculasBaseFilters = and(
+    eq(matriculas.activa, true),
+    isNull(matriculas.eliminadoAt),
+    isNull(asignaturas.eliminadoAt),
+    periodoFilter,
+  );
+
+  const [clasesHoyRow, matMoraRow, matPendRow, certRow, notifRow] = await Promise.all([
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(clases)
+      .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+      .where(
+        and(
+          eq(clases.fecha, todayIso),
+          isNull(clases.eliminadoAt),
+          isNull(asignaturas.eliminadoAt),
+          periodoFilter,
+        ),
+      ),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(matriculas)
+      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+      .where(and(matriculasBaseFilters, eq(matriculas.estadoPago, "mora"))),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(matriculas)
+      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+      .where(and(matriculasBaseFilters, eq(matriculas.estadoPago, "pendiente"))),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(certificados)
+      .where(gte(certificados.fechaEmision, sevenDaysAgo)),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(notificaciones)
+      .where(gte(notificaciones.createdAt, sevenDaysAgo)),
+  ]);
+
+  return {
+    clasesHoy: Number(clasesHoyRow[0]?.total ?? 0),
+    matriculasMora: Number(matMoraRow[0]?.total ?? 0),
+    matriculasPendientes: Number(matPendRow[0]?.total ?? 0),
+    certificadosUltimaSemana: Number(certRow[0]?.total ?? 0),
+    notificacionesUltimaSemana: Number(notifRow[0]?.total ?? 0),
+  };
+}
 
 const formatDate = (value: Date | null): string => {
   if (!value) return "-";
@@ -122,19 +173,81 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   const periodoSeleccionadoId =
     periodoIdRaw && periodoIdRaw.toLowerCase() !== "all" ? periodoIdRaw : null;
 
-  const [periodos, resultadoBusqueda, resumenDocentes, metricas, asigMetricas, notificacionesRecientes] = await Promise.all([
+  const [periodos, resultadoBusqueda, resumenDocentes, metricas, asigMetricas, notificacionesRecientes, kpisOperativos] = await Promise.all([
     listarPeriodosDashboard(),
     rutConsulta ? buscarPersonaPorRutAdmin({ rut: rutConsulta }) : null,
     obtenerResumenDatosDocentes({ periodoId: periodoSeleccionadoId }),
     obtenerMetricasGlobales({ periodoId: periodoSeleccionadoId }),
     obtenerMetricasPorAsignatura({ periodoId: periodoSeleccionadoId }),
     listarNotificacionesAdmin(),
+    obtenerKpisOperativosAdmin(periodoSeleccionadoId),
   ]);
 
   const periodoSeleccionado =
     periodoSeleccionadoId !== null
       ? periodos.find((periodo) => periodo.id === periodoSeleccionadoId) ?? null
       : null;
+  const periodoQuery = periodoSeleccionadoId
+    ? `?periodoId=${encodeURIComponent(periodoSeleccionadoId)}`
+    : "";
+  const kpiTiles: KpiTile[] = [
+    {
+      label: "Solicitudes pendientes",
+      value: metricas?.solicitudesPendientes ?? 0,
+      href: "/admin/solicitudes",
+      hint: "Bandeja administrativa por resolver",
+      Icon: FileText,
+      tone: (metricas?.solicitudesPendientes ?? 0) > 0 ? "danger" : "emerald",
+    },
+    {
+      label: "Clases hoy",
+      value: kpisOperativos.clasesHoy,
+      href: `/admin/agenda${periodoQuery}`,
+      hint: "Sesiones programadas para la fecha actual",
+      Icon: CalendarDays,
+      tone: "primary",
+    },
+    {
+      label: "Matrículas en mora",
+      value: kpisOperativos.matriculasMora,
+      href: "/admin/matriculas",
+      hint: "Requieren revisión financiera antes de operar",
+      Icon: Wallet,
+      tone: kpisOperativos.matriculasMora > 0 ? "danger" : "emerald",
+    },
+    {
+      label: "Pagos pendientes",
+      value: kpisOperativos.matriculasPendientes,
+      href: "/admin/matriculas",
+      hint: "Matrículas activas sin pago confirmado",
+      Icon: IdCard,
+      tone: kpisOperativos.matriculasPendientes > 0 ? "amber" : "emerald",
+    },
+    {
+      label: "Secciones activas",
+      value: metricas?.asignaturasActivas ?? 0,
+      href: `/admin/academico${periodoQuery}`,
+      hint: "Oferta vigente del periodo seleccionado",
+      Icon: BookOpen,
+      tone: "neutral",
+    },
+    {
+      label: "Certificados 7 días",
+      value: kpisOperativos.certificadosUltimaSemana,
+      href: "/admin/certificados",
+      hint: "Documentos emitidos recientemente",
+      Icon: CheckCircle2,
+      tone: "emerald",
+    },
+    {
+      label: "Envíos 7 días",
+      value: kpisOperativos.notificacionesUltimaSemana,
+      href: "/admin/notificaciones",
+      hint: "Comunicaciones creadas esta semana",
+      Icon: Send,
+      tone: "amber",
+    },
+  ];
 
   return (
     <section className="space-y-5">
@@ -206,23 +319,49 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </div>
       )}
 
-      {/* Module cards - vivoDuoc style grid */}
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-        {MODULE_CARDS.map((card) => (
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              Operación del periodo
+            </h2>
+            <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+              Prioridades accionables para administración académica, pagos y documentos.
+            </p>
+          </div>
           <Link
-            key={card.href}
-            href={card.href}
-            className="group flex flex-col items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-4 text-center shadow-sm transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/10 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40"
+            href={`/admin/reportes${periodoQuery}`}
+            className="mt-2 inline-flex h-10 items-center justify-center rounded-xl border border-primary/25 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 dark:border-primary/40 dark:text-primary-light sm:mt-0"
           >
-            <card.Icon
-              className="h-10 w-10 transition-transform duration-200 group-hover:scale-110"
-              style={{ color: GRADIENT_COLORS[card.gradient] ?? "#8B3A9E" }}
-              strokeWidth={1.5}
-            />
-            <p className="text-xs font-semibold leading-tight text-text-primary dark:text-white">{card.title}</p>
+            Ver analítica
           </Link>
-        ))}
-      </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {kpiTiles.map((tile) => (
+            <Link
+              key={tile.label}
+              href={tile.href}
+              className={`group rounded-xl border p-4 shadow-sm transition-[background-color,border-color,color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-md ${TILE_TONE[tile.tone]}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide opacity-75">{tile.label}</p>
+                  <p className="mt-2 text-3xl font-bold leading-none">{tile.value}</p>
+                </div>
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 shadow-sm transition-transform group-hover:scale-105 dark:bg-gray-950/40">
+                  <tile.Icon className="h-5 w-5" />
+                </span>
+              </div>
+              {tile.hint ? (
+                <p className="mt-3 line-clamp-2 text-xs leading-relaxed opacity-75">
+                  {tile.hint}
+                </p>
+              ) : null}
+            </Link>
+          ))}
+        </div>
+      </article>
 
       {/* Notificaciones recientes */}
       {notificacionesRecientes.length > 0 && (

@@ -9,7 +9,7 @@ import {
 } from "@/actions/clases";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
-import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 
 import { ClaseCreateModal } from "./ClaseCreateModal";
 import { ClasesTable } from "./ClasesTable";
@@ -174,40 +174,26 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
 
       {/* Filters */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_1fr_auto]">
-          <div className="space-y-1.5">
-            <label htmlFor="clases-periodo" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Periodo
-            </label>
-            <select
-              id="clases-periodo"
-              name="periodoId"
-              defaultValue={selectedPeriodoId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              {periodos.length === 0 ? (
-                <option value="">Sin periodos</option>
-              ) : (
-                periodos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          {/* Asignatura selector */}
-          <div className="space-y-1.5">
-            <label htmlFor="clases-asig" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Seccion
-            </label>
-            <AsignaturaFilterSelect
-              options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
-              defaultValue={selectedAsignaturaId}
-              name="asignaturaId"
-            />
-          </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[260px_1fr_auto]">
+          <PeriodoCursoSeccionPicker
+            asForm={false}
+            autoSubmit={false}
+            layout="stack"
+            periodos={periodos.map((p) => ({
+              id: p.id,
+              label: p.nombre,
+              badge: p.estado,
+            }))}
+            asignaturas={asignaturas.map((a) => ({
+              id: a.id,
+              label: a.nombre,
+              badge: a.codigo,
+            }))}
+            selected={{
+              periodoId: selectedPeriodoId,
+              asignaturaId: selectedAsignaturaId,
+            }}
+          />
 
           {/* Text search */}
           <div className="space-y-1.5">

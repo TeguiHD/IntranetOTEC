@@ -86,6 +86,7 @@ export function RoleShell({ role, userName, children, pendingSolicitudes, unread
         isSidebarCollapsed={isSidebarCollapsed}
         navMode={navMode}
         unreadNotifs={unreadNotifs ?? 0}
+        pendingSolicitudes={pendingSolicitudes ?? 0}
         onToggleDesktopSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
         onToggleMobileSidebar={handleToggleMobile}
         onToggleNavMode={() => setNavMode((m) => (m === "grid" ? "sidebar" : "grid"))}

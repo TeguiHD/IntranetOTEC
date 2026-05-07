@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText,
   LayoutGrid,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ import {
 import type { AppRole } from "@/lib/authz";
 import { listarMisNotificacionesRecientes } from "@/actions/notificaciones";
 
+import { AdminRutLookup } from "./AdminRutLookup";
 import { usePwaInstall } from "./PwaInstallProvider";
 
 type NotifReciente = {
@@ -45,6 +47,7 @@ type TopbarProps = {
   isSidebarCollapsed: boolean;
   navMode: "grid" | "sidebar";
   unreadNotifs?: number;
+  pendingSolicitudes?: number;
   onToggleDesktopSidebar: () => void;
   onToggleMobileSidebar: () => void;
   onToggleNavMode: () => void;
@@ -74,6 +77,7 @@ export function Topbar({
   isSidebarCollapsed,
   navMode,
   unreadNotifs = 0,
+  pendingSolicitudes = 0,
   onToggleDesktopSidebar,
   onToggleMobileSidebar,
   onToggleNavMode,
@@ -244,6 +248,28 @@ export function Topbar({
               {platform === "ios" ? "Instalar app" : "Instalar"}
             </span>
           </button>
+        ) : null}
+
+        {role === "admin" ? <AdminRutLookup /> : null}
+
+        {role === "admin" ? (
+          <Link
+            href="/admin/solicitudes"
+            aria-label={
+              pendingSolicitudes > 0
+                ? `${pendingSolicitudes} solicitudes pendientes`
+                : "Solicitudes"
+            }
+            title="Solicitudes"
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
+          >
+            <FileText className="h-5 w-5" />
+            {pendingSolicitudes > 0 ? (
+              <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white shadow ring-2 ring-white dark:ring-gray-950">
+                {pendingSolicitudes > 99 ? "99+" : pendingSolicitudes}
+              </span>
+            ) : null}
+          </Link>
         ) : null}
 
         {/* Mobile nav mode toggle */}

@@ -3,6 +3,7 @@ import {
   eliminarFinanzaAction,
   listarFinanzasAction,
   resumenFinanzasAction,
+  resumenIngresosMatriculasAction,
 } from "@/actions/finanzas";
 import { DollarSign } from "lucide-react";
 import { revalidatePath } from "next/cache";
@@ -53,12 +54,13 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
       : undefined;
   const q = typeof params.q === "string" ? params.q.trim() : undefined;
 
-  const [transacciones, resumen] = await Promise.all([
+  const [transacciones, resumen, resumenMatriculas] = await Promise.all([
     listarFinanzasAction(
       { limit: PAGE_SIZE, offset },
       { tipo: tipoFilter, search: q || undefined },
     ),
     resumenFinanzasAction(),
+    resumenIngresosMatriculasAction(),
   ]);
 
   const formatResumen = (value: number) =>
@@ -104,6 +106,37 @@ export default async function AdminFinanzasPage({ searchParams }: AdminFinanzasP
           </p>
         </div>
       </div>
+
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              Ingresos por inscripción
+            </h2>
+            <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+              Resumen calculado desde matrículas activas con arancel registrado.
+            </p>
+          </div>
+          <span className="mt-2 inline-flex w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light sm:mt-0">
+            {resumenMatriculas.matriculasConMonto} matrícula(s) valorizadas
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            { label: "Arancel total", value: resumenMatriculas.totalAranceles, tone: "text-primary" },
+            { label: "Pagado", value: resumenMatriculas.totalPagado, tone: "text-green-600 dark:text-green-400" },
+            { label: "Pendiente", value: resumenMatriculas.totalPendiente, tone: "text-amber-600 dark:text-amber-400" },
+            { label: "Mora", value: resumenMatriculas.totalMora, tone: "text-red-600 dark:text-red-400" },
+            { label: "Becado", value: resumenMatriculas.totalBecado, tone: "text-sky-600 dark:text-sky-400" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/60">
+              <p className="text-xs font-medium uppercase tracking-wide text-text-muted dark:text-gray-500">{item.label}</p>
+              <p className={`mt-1 text-xl font-bold ${item.tone}`}>{formatResumen(item.value)}</p>
+            </div>
+          ))}
+        </div>
+      </article>
 
       {/* Inline create form */}
       <form

@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { getDb } from "@/db";
 import { activo } from "@/db/filters";
-import { finanzas } from "@/db/schema";
+import { finanzas, matriculas } from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import { logEvent } from "@/lib/observability/logger";
 import { sanitizeText } from "@/lib/sanitize";
@@ -129,6 +129,51 @@ export async function resumenFinanzasAction(): Promise<{
     totalIngresos,
     totalGastos,
     balance: totalIngresos - totalGastos,
+  };
+}
+
+export async function resumenIngresosMatriculasAction(): Promise<{
+  totalAranceles: number;
+  totalPagado: number;
+  totalPendiente: number;
+  totalMora: number;
+  totalBecado: number;
+  matriculasConMonto: number;
+}> {
+  const actorResult = await requireActionActor("admin_finanzas_matriculas_resumen", ["admin"]);
+
+  if (!actorResult.ok) {
+    return {
+      totalAranceles: 0,
+      totalPagado: 0,
+      totalPendiente: 0,
+      totalMora: 0,
+      totalBecado: 0,
+      matriculasConMonto: 0,
+    };
+  }
+
+  const db = getDb();
+
+  const [result] = await db
+    .select({
+      totalAranceles: sql<string>`coalesce(sum(${matriculas.montoArancel}::numeric), 0)`,
+      totalPagado: sql<string>`coalesce(sum(case when ${matriculas.estadoPago} = 'pagado' then ${matriculas.montoArancel}::numeric else 0 end), 0)`,
+      totalPendiente: sql<string>`coalesce(sum(case when ${matriculas.estadoPago} = 'pendiente' then ${matriculas.montoArancel}::numeric else 0 end), 0)`,
+      totalMora: sql<string>`coalesce(sum(case when ${matriculas.estadoPago} = 'mora' then ${matriculas.montoArancel}::numeric else 0 end), 0)`,
+      totalBecado: sql<string>`coalesce(sum(case when ${matriculas.estadoPago} = 'becado' then ${matriculas.montoArancel}::numeric else 0 end), 0)`,
+      matriculasConMonto: sql<number>`count(*) filter (where ${matriculas.montoArancel} is not null)::int`,
+    })
+    .from(matriculas)
+    .where(and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)));
+
+  return {
+    totalAranceles: Number(result?.totalAranceles ?? 0),
+    totalPagado: Number(result?.totalPagado ?? 0),
+    totalPendiente: Number(result?.totalPendiente ?? 0),
+    totalMora: Number(result?.totalMora ?? 0),
+    totalBecado: Number(result?.totalBecado ?? 0),
+    matriculasConMonto: Number(result?.matriculasConMonto ?? 0),
   };
 }
 

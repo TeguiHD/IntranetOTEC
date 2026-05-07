@@ -63,6 +63,21 @@ const COLOR_PALETTE = [
   "#0EA5E9",
 ];
 
+const MONTH_OPTIONS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
 const parseNumberInRange = (
   value: string | undefined,
   min: number,
@@ -109,6 +124,13 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
 
   const mes = parseNumberInRange(params.mes, 1, 12, today.getMonth() + 1);
   const anio = parseNumberInRange(params.anio, 2000, 2100, today.getFullYear());
+  const yearOptions = Array.from(
+    new Set(
+      Array.from({ length: 11 }, (_, index) => today.getFullYear() - 5 + index)
+        .concat(anio)
+        .filter((year) => year >= 2000 && year <= 2100),
+    ),
+  ).sort((a, b) => a - b);
 
   const monthStart = `${anio}-${String(mes).padStart(2, "0")}-01`;
   const monthEnd = `${anio}-${String(mes).padStart(2, "0")}-${String(new Date(anio, mes, 0).getDate()).padStart(2, "0")}`;
@@ -422,29 +444,35 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
               <label htmlFor="agenda-mes" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
                 Mes
               </label>
-              <input
+              <select
                 id="agenda-mes"
                 name="mes"
-                type="number"
-                min={1}
-                max={12}
                 defaultValue={mes}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
-              />
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                {MONTH_OPTIONS.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-1.5">
               <label htmlFor="agenda-anio" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-                Anio
+                Año
               </label>
-              <input
+              <select
                 id="agenda-anio"
                 name="anio"
-                type="number"
-                min={2000}
-                max={2100}
                 defaultValue={anio}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="numeric"
-              />
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { listarNotasAdmin } from "@/actions/admin-notas";
 import { formatearRut } from "@/lib/rut";
-import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 
 const NOTA_COLOR = (nota: string) =>
   Number(nota) >= 4.0 ? "text-success" : "text-danger";
@@ -127,20 +127,28 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
 
       {/* Search & Filter */}
       <form method="GET" className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_1fr_auto]">
-          <select
-            name="periodoId"
-            defaultValue={selectedPeriodoId}
-            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          >
-            {periodos.length === 0 ? (
-              <option value="">Sin periodos</option>
-            ) : (
-              periodos.map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))
-            )}
-          </select>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[260px_1fr_auto]">
+          <PeriodoCursoSeccionPicker
+            asForm={false}
+            autoSubmit={false}
+            layout="stack"
+            periodos={periodos.map((p) => ({
+              id: p.id,
+              label: p.nombre,
+              badge: p.estado,
+            }))}
+            asignaturas={asignaturas.map((a) => ({
+              id: a.id,
+              label: a.nombre,
+              badge: a.codigo,
+            }))}
+            selected={{
+              periodoId: selectedPeriodoId,
+              asignaturaId: asignaturaId ?? undefined,
+            }}
+            labels={{ asignatura: "Sección" }}
+            emptyLabels={{ asignatura: "Todas las secciones" }}
+          />
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
@@ -149,16 +157,6 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
               defaultValue={q}
               placeholder="Buscar por nombre o RUT del alumno..."
               className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500" inputMode="search"
-            />
-          </div>
-          <div className="sm:w-64">
-            <AsignaturaFilterSelect
-              options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
-              defaultValue={asignaturaId ?? ""}
-              name="asignaturaId"
-              allowEmpty
-              emptyLabel="Todas las secciones"
-              autoSubmit={false}
             />
           </div>
           <button

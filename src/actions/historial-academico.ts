@@ -16,6 +16,7 @@ import {
   usuarios,
 } from "@/db/schema";
 import { getEvaluationWindowStatus, type EvaluationWindowStatus } from "@/lib/evaluation-status";
+import { logEvent } from "@/lib/observability/logger";
 
 import { requireActionCapability } from "./_security";
 import { listarNotasAlumno } from "./alumno-notas";
@@ -84,6 +85,23 @@ type BaseHistoryRow = Omit<
 };
 
 const toNumber = (value: unknown): number => Number(value ?? 0);
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const EMPTY_ADMIN_HISTORY: HistorialAdminData = {
+  resumen: {
+    totalEvaluaciones: 0,
+    publicadas: 0,
+    pendientes: 0,
+    vencidas: 0,
+    respondidas: 0,
+    promedioNotas: null,
+    supervisionActiva: 0,
+    secciones: 0,
+    docentes: 0,
+  },
+  evaluaciones: [],
+};
 
 const toDateOrNull = (value: Date | string | null): Date | null => {
   if (!value) return null;
@@ -338,26 +356,47 @@ export async function obtenerHistorialAcademicoAdmin(
   );
   if (!actorResult.ok) return null;
 
+  const safePeriodoId =
+    typeof periodoId === "string" && UUID_REGEX.test(periodoId)
+      ? periodoId
+      : undefined;
+
   const whereConditions = [isNull(asignaturas.eliminadoAt), isNull(evaluaciones.eliminadoAt)];
-  if (periodoId) {
-    whereConditions.push(eq(asignaturas.periodoId, periodoId));
+  if (safePeriodoId) {
+    whereConditions.push(eq(asignaturas.periodoId, safePeriodoId));
   }
 
-  const rows = (await buildHistoryRows(and(...whereConditions))).map((row) =>
-    buildStatusRow(row, {
-      respondidaPorActor: row.totalRespondidas > 0,
-    }),
-  );
+  try {
+    const rows = (await buildHistoryRows(and(...whereConditions))).map((row) =>
+      buildStatusRow(row, {
+        respondidaPorActor: row.totalRespondidas > 0,
+      }),
+    );
 
-  const uniqueAsignaturas = new Set(rows.map((row) => row.asignaturaId)).size;
-  const uniqueDocentes = new Set(rows.map((row) => row.docenteNombre).filter(Boolean)).size;
+    const uniqueAsignaturas = new Set(rows.map((row) => row.asignaturaId)).size;
+    const uniqueDocentes = new Set(rows.map((row) => row.docenteNombre).filter(Boolean)).size;
 
-  return {
-    resumen: {
-      ...buildResumen(rows),
-      secciones: uniqueAsignaturas,
-      docentes: uniqueDocentes,
-    },
-    evaluaciones: rows,
-  };
+    return {
+      resumen: {
+        ...buildResumen(rows),
+        secciones: uniqueAsignaturas,
+        docentes: uniqueDocentes,
+      },
+      evaluaciones: rows,
+    };
+  } catch (error) {
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "historial_admin_read_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: {
+        reason: error instanceof Error ? error.message : "unknown_error",
+        hasPeriodoId: Boolean(periodoId),
+      },
+    });
+
+    return EMPTY_ADMIN_HISTORY;
+  }
 }

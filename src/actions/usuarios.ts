@@ -12,7 +12,7 @@ import { asignaturas, historialEstadoAlumno, material, matriculas, usuarios } fr
 import { registrarAudit } from "@/lib/audit";
 import { sendEmail, templateBienvenida } from "@/lib/email";
 import { logEvent } from "@/lib/observability/logger";
-import { derivarPinPredeterminado, formatearRut } from "@/lib/rut";
+import { derivarPinPredeterminado, formatearRut, normalizarRut } from "@/lib/rut";
 import { sanitizeText } from "@/lib/sanitize";
 import {
   alumnoInputSchema,
@@ -33,6 +33,26 @@ const sanitizeName = (value: string): string =>
     .trim();
 
 const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+const buildIdentifierSearchTerms = (query: string): string[] => {
+  const terms = new Set<string>();
+  const trimmed = query.trim();
+
+  if (trimmed.length >= 2) {
+    terms.add(trimmed);
+  }
+
+  const normalized = normalizarRut(trimmed);
+  if (normalized.length >= 2) {
+    terms.add(normalized);
+
+    if (!normalized.startsWith("EXT-") && normalized.length > 2) {
+      terms.add(formatearRut(normalized));
+    }
+  }
+
+  return Array.from(terms);
+};
 
 const normalizeDirectorySearchQuery = (query?: string): string | undefined => {
   if (typeof query !== "string") {
@@ -210,9 +230,20 @@ export async function buscarAlumnosAction(query: string): Promise<AlumnoBusqueda
   }
 
   const q = parsed.data;
+  const searchTerms = buildIdentifierSearchTerms(q);
 
   const db = getDb();
-  const term = `%${escapeLike(q)}%`;
+  const searchConditions = searchTerms.flatMap((searchTerm) => {
+    const term = `%${escapeLike(searchTerm)}%`;
+
+    return [
+      ilike(usuarios.nombre, term),
+      ilike(usuarios.apellido, term),
+      ilike(usuarios.rut, term),
+      ilike(usuarios.email, term),
+      ilike(sql<string>`concat_ws(' ', ${usuarios.nombre}, ${usuarios.apellido})`, term),
+    ];
+  });
 
   return db
     .select({
@@ -227,11 +258,7 @@ export async function buscarAlumnosAction(query: string): Promise<AlumnoBusqueda
         eq(usuarios.rol, "alumno"),
         eq(usuarios.activo, true),
         isNull(usuarios.eliminadoAt),
-        or(
-          ilike(usuarios.nombre, term),
-          ilike(usuarios.apellido, term),
-          ilike(usuarios.rut, term),
-        ),
+        or(...searchConditions),
       ),
     )
     .orderBy(desc(usuarios.createdAt))

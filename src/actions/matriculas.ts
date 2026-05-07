@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -125,6 +125,73 @@ export async function listarMatriculasAdmin(
   return baseQuery.where(
     and(eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
   );
+}
+
+const escapeLikeMatricula = (s: string) =>
+  s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+export type MatriculaParaCertificado = {
+  id: string;
+  alumnoNombre: string | null;
+  alumnoApellido: string | null;
+  alumnoRut: string | null;
+  alumnoEmail: string | null;
+  asignaturaNombre: string;
+};
+
+/**
+ * Busca matriculas activas que coincidan con el query (nombre/apellido/RUT/email del
+ * alumno o nombre de la asignatura) para alimentar el combobox remoto del modulo
+ * Certificados, sin necesidad de cargar miles de registros al cliente.
+ */
+export async function buscarMatriculasParaCertificadoAction(
+  query: string,
+  options?: { limit?: number },
+): Promise<MatriculaParaCertificado[]> {
+  const actorResult = await requireActionActor(
+    "admin_matricula_certificado_buscar",
+    ["admin"],
+  );
+  if (!actorResult.ok) return [];
+
+  const trimmed = (query ?? "").trim();
+  if (trimmed.length < 2) return [];
+
+  const limit = Math.max(1, Math.min(options?.limit ?? 30, 80));
+  const term = `%${escapeLikeMatricula(trimmed)}%`;
+  const db = getDb();
+
+  return db
+    .select({
+      id: matriculas.id,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+      alumnoEmail: usuarios.email,
+      asignaturaNombre: asignaturas.nombre,
+    })
+    .from(matriculas)
+    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(
+      and(
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+        or(
+          ilike(usuarios.nombre, term),
+          ilike(usuarios.apellido, term),
+          ilike(usuarios.rut, term),
+          ilike(usuarios.email, term),
+          ilike(
+            sql<string>`concat_ws(' ', ${usuarios.nombre}, ${usuarios.apellido})`,
+            term,
+          ),
+          ilike(asignaturas.nombre, term),
+        ),
+      ),
+    )
+    .orderBy(desc(matriculas.createdAt))
+    .limit(limit);
 }
 
 export async function countMatriculasAdmin(

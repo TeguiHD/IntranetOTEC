@@ -4,7 +4,6 @@ import {
   invalidarCertificadoFormAction,
   listarCertificadosAdmin,
 } from "@/actions/certificados";
-import { listarMatriculasAdmin } from "@/actions/matriculas";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
@@ -43,13 +42,12 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
       ? params.tipo
       : undefined;
 
-  const [certs, totalCount, matriculas] = await Promise.all([
+  const [certs, totalCount] = await Promise.all([
     listarCertificadosAdmin(
       { limit: PAGE_SIZE, offset },
       filterTipo ? { tipo: filterTipo } : undefined,
     ),
     countCertificadosAdmin(filterTipo ? { tipo: filterTipo } : undefined),
-    listarMatriculasAdmin({ limit: 2000 }),
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -87,16 +85,7 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
             <label className="text-xs font-medium text-text-secondary dark:text-gray-400">
               Alumno / Matrícula
             </label>
-            <MatriculaCombobox
-              matriculas={matriculas.map((m) => ({
-                id: m.id,
-                alumnoNombre: m.alumnoNombre ?? "",
-                alumnoApellido: m.alumnoApellido ?? "",
-                asignaturaNombre: m.asignaturaNombre ?? "",
-              }))}
-              name="matriculaId"
-              required
-            />
+            <MatriculaCombobox name="matriculaId" required />
           </div>
 
           <div className="flex flex-col gap-1">

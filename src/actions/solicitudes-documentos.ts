@@ -6,7 +6,14 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import { alumnoAccesosDocumentos, solicitudesDocumentos, usuarios } from "@/db/schema";
+import {
+  alumnoAccesosDocumentos,
+  asignaturas,
+  matriculas,
+  periodosAcademicos,
+  solicitudesDocumentos,
+  usuarios,
+} from "@/db/schema";
 import { registrarAudit } from "@/lib/audit";
 import {
   sendEmail,
@@ -21,6 +28,133 @@ const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
   return typeof rawValue === "string" ? rawValue : "";
 };
+
+export type ElegibilidadAlumnoRegular = {
+  eligible: boolean;
+  reasons: string[];
+  matricula: {
+    id: string;
+    asignaturaNombre: string;
+    asignaturaEstado: string | null;
+    periodoNombre: string | null;
+    periodoEstado: string | null;
+    estadoPago: string | null;
+  } | null;
+};
+
+const ESTADOS_PAGO_OK = new Set(["pagado", "becado"]);
+
+/**
+ * Evalua si un alumno puede recibir un certificado de "alumno regular"
+ * automaticamente segun reglas del Word: matricula activa, periodo
+ * activo, asignatura activa y pago al dia. Devuelve siempre la
+ * matricula candidata (si existe) y motivos legibles tanto si cumple
+ * como si no, para que la observacion de la solicitud sea util al
+ * alumno y al admin.
+ */
+export async function evaluarElegibilidadAlumnoRegular(
+  alumnoId: string,
+): Promise<ElegibilidadAlumnoRegular> {
+  const db = getDb();
+
+  const filas = await db
+    .select({
+      matriculaId: matriculas.id,
+      activa: matriculas.activa,
+      eliminadoAt: matriculas.eliminadoAt,
+      estadoPago: matriculas.estadoPago,
+      asignaturaNombre: asignaturas.nombre,
+      asignaturaEstado: asignaturas.estado,
+      asignaturaEliminadoAt: asignaturas.eliminadoAt,
+      periodoNombre: periodosAcademicos.nombre,
+      periodoEstado: periodosAcademicos.estado,
+    })
+    .from(matriculas)
+    .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+    .innerJoin(periodosAcademicos, eq(asignaturas.periodoId, periodosAcademicos.id))
+    .where(eq(matriculas.alumnoId, alumnoId))
+    .orderBy(desc(matriculas.createdAt));
+
+  if (filas.length === 0) {
+    return {
+      eligible: false,
+      reasons: ["El alumno no tiene matriculas registradas."],
+      matricula: null,
+    };
+  }
+
+  const candidata =
+    filas.find(
+      (f) =>
+        f.activa === true &&
+        !f.eliminadoAt &&
+        !f.asignaturaEliminadoAt &&
+        f.asignaturaEstado === "activo" &&
+        f.periodoEstado === "activo",
+    ) ?? null;
+
+  if (!candidata) {
+    const reasons: string[] = [];
+    const last = filas[0];
+    if (last.eliminadoAt || last.activa === false) {
+      reasons.push("La ultima matricula del alumno esta inactiva o eliminada.");
+    }
+    if (last.asignaturaEstado !== "activo") {
+      reasons.push(
+        `La asignatura "${last.asignaturaNombre}" esta en estado ${last.asignaturaEstado ?? "desconocido"}, no activa.`,
+      );
+    }
+    if (last.periodoEstado !== "activo") {
+      reasons.push(
+        `El periodo "${last.periodoNombre ?? ""}" esta en estado ${last.periodoEstado ?? "desconocido"}, no activo.`,
+      );
+    }
+    if (reasons.length === 0) {
+      reasons.push(
+        "No hay matriculas que cumplan las condiciones de alumno regular en periodo activo.",
+      );
+    }
+    return {
+      eligible: false,
+      reasons,
+      matricula: {
+        id: last.matriculaId,
+        asignaturaNombre: last.asignaturaNombre,
+        asignaturaEstado: last.asignaturaEstado,
+        periodoNombre: last.periodoNombre,
+        periodoEstado: last.periodoEstado,
+        estadoPago: last.estadoPago,
+      },
+    };
+  }
+
+  const pagoOk = candidata.estadoPago && ESTADOS_PAGO_OK.has(candidata.estadoPago);
+  const reasons: string[] = [];
+
+  if (!pagoOk) {
+    reasons.push(
+      `Estado de pago "${candidata.estadoPago ?? "sin registrar"}" requiere revision.`,
+    );
+  }
+
+  return {
+    eligible: Boolean(pagoOk),
+    reasons:
+      reasons.length === 0
+        ? [
+            `Cumple: matricula activa en ${candidata.asignaturaNombre}, periodo ${candidata.periodoNombre ?? ""} activo, pago ${candidata.estadoPago ?? ""}.`,
+          ]
+        : reasons,
+    matricula: {
+      id: candidata.matriculaId,
+      asignaturaNombre: candidata.asignaturaNombre,
+      asignaturaEstado: candidata.asignaturaEstado,
+      periodoNombre: candidata.periodoNombre,
+      periodoEstado: candidata.periodoEstado,
+      estadoPago: candidata.estadoPago,
+    },
+  };
+}
 
 const formatTipoSolicitud = (
   tipo: "credencial" | "alumno_regular" | "tarjeta_beneficio",
@@ -147,7 +281,25 @@ export async function solicitarDocumentoAlumnoAction(input: {
 
   const now = new Date();
 
-  const estadoInicial = "pendiente" as const;
+  let estadoInicial: "pendiente" | "aprobada" = "pendiente";
+  let observacionInicial = parsed.data.observacion ?? null;
+
+  if (parsed.data.tipo === "alumno_regular") {
+    const elegibilidad = await evaluarElegibilidadAlumnoRegular(actorResult.actor.userId);
+    const prefix = elegibilidad.eligible
+      ? "Auto-evaluacion: cumple."
+      : "Auto-evaluacion: requiere revision.";
+    const detalle = elegibilidad.reasons.join(" ");
+    const userNote = parsed.data.observacion?.trim();
+    observacionInicial = [prefix, detalle, userNote ? `Nota del alumno: ${userNote}` : ""]
+      .filter(Boolean)
+      .join(" ")
+      .slice(0, 500);
+
+    if (elegibilidad.eligible) {
+      estadoInicial = "aprobada";
+    }
+  }
 
   const [created] = await db
     .insert(solicitudesDocumentos)
@@ -155,9 +307,9 @@ export async function solicitarDocumentoAlumnoAction(input: {
       alumnoId: actorResult.actor.userId,
       tipo: parsed.data.tipo,
       estado: estadoInicial,
-      observacion: parsed.data.observacion ?? null,
+      observacion: observacionInicial,
       resueltoPor: null,
-      resueltoAt: null,
+      resueltoAt: estadoInicial === "aprobada" ? now : null,
       createdAt: now,
       updatedAt: now,
     })
@@ -174,6 +326,8 @@ export async function solicitarDocumentoAlumnoAction(input: {
     entidadId: created.id,
     payload: {
       tipo: parsed.data.tipo,
+      estadoInicial,
+      autoEvaluacion: parsed.data.tipo === "alumno_regular" ? true : undefined,
     },
     exitoso: true,
   });
@@ -198,7 +352,7 @@ export async function solicitarDocumentoAlumnoAction(input: {
 
   return {
     ok: true,
-    code: "request_created",
+    code: estadoInicial === "aprobada" ? "request_auto_approved" : "request_created",
     solicitudId: created.id,
   };
 }

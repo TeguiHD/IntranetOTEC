@@ -212,11 +212,7 @@ export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
                   </div>
                 </div>
 
-                {s.observacion && (
-                  <p className="mt-2 text-sm italic text-text-secondary dark:text-gray-400">
-                    &ldquo;{s.observacion}&rdquo;
-                  </p>
-                )}
+                {s.observacion && <ObservacionPanel observacion={s.observacion} />}
 
                 <div className="mt-3 flex gap-2">
                   <button
@@ -356,5 +352,32 @@ export function SolicitudesView({ solicitudes }: SolicitudesViewProps) {
         variant="danger"
       />
     </>
+  );
+}
+
+function ObservacionPanel({ observacion }: { observacion: string }) {
+  const cumple = observacion.includes("Auto-evaluacion: cumple");
+  const requiere = observacion.includes("Auto-evaluacion: requiere revision");
+  const isAuto = cumple || requiere;
+
+  if (!isAuto) {
+    return (
+      <p className="mt-2 text-sm italic text-text-secondary dark:text-gray-400">
+        &ldquo;{observacion}&rdquo;
+      </p>
+    );
+  }
+
+  const tone = cumple
+    ? "border-emerald-200/80 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100"
+    : "border-amber-200/80 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100";
+
+  const label = cumple ? "Auto-evaluacion: cumple" : "Auto-evaluacion: requiere revision";
+
+  return (
+    <div className={`mt-2 rounded-xl border px-3 py-2 text-xs ${tone}`}>
+      <p className="font-semibold uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-[12px] leading-snug">{observacion}</p>
+    </div>
   );
 }

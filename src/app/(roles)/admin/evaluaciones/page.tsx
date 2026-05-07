@@ -241,7 +241,21 @@ export default async function AdminEvaluacionesPage({
   const evaluaciones = selectedAsignaturaId
     ? await listarEvaluacionesByAsignatura(selectedAsignaturaId)
     : [];
-  const pruebasLocales = selectedAsignaturaId ? await listarPruebasLocalesAction() : [];
+
+  // Carga diferida por tab: solo se consulta al servidor lo que la pestana
+  // activa va a renderizar. Antes, cada render del Server Component pagaba
+  // el costo de TODAS las consultas (banco local, resultados, respuestas,
+  // intentos, participacion, preguntas, eventos, auditoria) aunque el admin
+  // solo estuviera mirando la pestana "evaluaciones". Esto reduce
+  // drasticamente el work-per-render en la pantalla mas pesada del admin.
+  const isBancoTab = activeTab === "banco";
+  const isMaquetadorTab = activeTab === "maquetador";
+  const isResultadosTab = activeTab === "resultados";
+  const isSupervisionTab = activeTab === "supervision";
+
+  const pruebasLocales = selectedAsignaturaId && isBancoTab
+    ? await listarPruebasLocalesAction()
+    : [];
 
   const selectedEvaluacionIdRaw =
     typeof params?.evaluacionId === "string" ? params.evaluacionId : undefined;
@@ -250,27 +264,41 @@ export default async function AdminEvaluacionesPage({
       ? selectedEvaluacionIdRaw
       : evaluaciones[0]?.id;
 
-  const resultados = selectedEvaluacionId
-    ? await obtenerResultadosEvaluacion(selectedEvaluacionId)
-    : [];
-  const respuestasPendientes: RespuestaPendienteItem[] = selectedEvaluacionId
-    ? await listarRespuestasParaCalificar(selectedEvaluacionId)
-    : [];
-  const intentosRecuperables: IntentoRecuperableItem[] = selectedEvaluacionId
-    ? await listarIntentosRecuperablesEvaluacion(selectedEvaluacionId)
-    : [];
-  const participacionEvaluacion: EvaluacionParticipacionItem[] = selectedEvaluacionId
-    ? await listarParticipacionEvaluacion(selectedEvaluacionId)
-    : [];
-  const preguntasSeleccionadas = selectedEvaluacionId
-    ? await listarPreguntasByEvaluacion(selectedEvaluacionId)
-    : [];
-  const eventosSupervision = selectedEvaluacionId
-    ? await listarEventosSupervisionByEvaluacion(selectedEvaluacionId)
-    : [];
-  const auditoriaEventos = selectedEvaluacionId
-    ? await listarAuditoriaEvaluacion(selectedEvaluacionId)
-    : [];
+  const evalDetailNeeded = Boolean(
+    selectedEvaluacionId && (isMaquetadorTab || isResultadosTab || isSupervisionTab),
+  );
+
+  const [
+    preguntasSeleccionadas,
+    resultados,
+    respuestasPendientes,
+    intentosRecuperables,
+    participacionEvaluacion,
+    eventosSupervision,
+    auditoriaEventos,
+  ] = await Promise.all([
+    evalDetailNeeded && isMaquetadorTab && selectedEvaluacionId
+      ? listarPreguntasByEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([]),
+    isResultadosTab && selectedEvaluacionId
+      ? obtenerResultadosEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([] as Awaited<ReturnType<typeof obtenerResultadosEvaluacion>>),
+    isResultadosTab && selectedEvaluacionId
+      ? listarRespuestasParaCalificar(selectedEvaluacionId)
+      : Promise.resolve([] as RespuestaPendienteItem[]),
+    isResultadosTab && selectedEvaluacionId
+      ? listarIntentosRecuperablesEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([] as IntentoRecuperableItem[]),
+    (isResultadosTab || isSupervisionTab) && selectedEvaluacionId
+      ? listarParticipacionEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([] as EvaluacionParticipacionItem[]),
+    isSupervisionTab && selectedEvaluacionId
+      ? listarEventosSupervisionByEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([] as Awaited<ReturnType<typeof listarEventosSupervisionByEvaluacion>>),
+    isSupervisionTab && selectedEvaluacionId
+      ? listarAuditoriaEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([] as Awaited<ReturnType<typeof listarAuditoriaEvaluacion>>),
+  ]);
   const selectedEvaluacion = evaluaciones.find((ev) => ev.id === selectedEvaluacionId) ?? null;
   const draftCount = evaluaciones.filter((evaluacion) => !evaluacion.publicada).length;
   const publishedCount = evaluaciones.filter((evaluacion) => evaluacion.publicada).length;

@@ -1,7 +1,7 @@
 "use server";
 
 import { alias } from "drizzle-orm/pg-core";
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -423,12 +423,22 @@ export async function listarAsignaturasActivasAdmin() {
 }
 
 // Lista combinada de alumnos y docentes para envíos individuales
-export async function listarUsuariosActivosAdmin() {
+const USUARIOS_NOTIF_BOOTSTRAP_LIMIT = 2000;
+
+const escapeLikeNotif = (s: string) =>
+  s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+export async function listarUsuariosActivosAdmin(options?: { limit?: number }) {
   const actorResult = await requireActionActor("admin_notificaciones_usuarios", ["admin"]);
 
   if (!actorResult.ok) {
     return [];
   }
+
+  const limit = Math.max(
+    1,
+    Math.min(options?.limit ?? USUARIOS_NOTIF_BOOTSTRAP_LIMIT, USUARIOS_NOTIF_BOOTSTRAP_LIMIT),
+  );
 
   const db = getDb();
 
@@ -449,7 +459,130 @@ export async function listarUsuariosActivosAdmin() {
       ),
     )
     .orderBy(usuarios.apellido, usuarios.nombre)
-    .limit(500);
+    .limit(limit);
+}
+
+/**
+ * Busqueda remota para el selector individual de notificaciones.
+ * Devuelve hasta 50 resultados que coincidan con nombre/apellido/RUT/rol.
+ */
+export async function buscarUsuariosActivosAdmin(query: string) {
+  const actorResult = await requireActionActor(
+    "admin_notificaciones_usuarios_search",
+    ["admin"],
+  );
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const trimmed = (query ?? "").trim();
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  const term = `%${escapeLikeNotif(trimmed)}%`;
+  const db = getDb();
+
+  return db
+    .select({
+      id: usuarios.id,
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      rut: usuarios.rut,
+      rol: usuarios.rol,
+    })
+    .from(usuarios)
+    .where(
+      and(
+        inArray(usuarios.rol, ["alumno", "docente"]),
+        eq(usuarios.activo, true),
+        isNull(usuarios.eliminadoAt),
+        or(
+          ilike(usuarios.nombre, term),
+          ilike(usuarios.apellido, term),
+          ilike(usuarios.rut, term),
+          ilike(
+            sql<string>`concat_ws(' ', ${usuarios.nombre}, ${usuarios.apellido})`,
+            term,
+          ),
+        ),
+      ),
+    )
+    .orderBy(usuarios.apellido, usuarios.nombre)
+    .limit(50);
+}
+
+const contarDestinatariosSchema = z.object({
+  tipo: z.enum(["general", "curso", "individual"]),
+  asignaturaId: z.string().uuid().optional(),
+  usuarioIds: z.array(z.string().uuid()).optional(),
+});
+
+export type ContarDestinatariosResult = {
+  ok: boolean;
+  count: number;
+  capped?: boolean;
+  message?: string;
+};
+
+/**
+ * Estima la cantidad de destinatarios efectivos sin insertar nada.
+ * Replica la logica de enviarNotificacionAction para que la UI pueda
+ * mostrar alcance real antes de confirmar el envio.
+ */
+export async function contarDestinatariosNotificacionAction(input: {
+  tipo: "general" | "curso" | "individual";
+  asignaturaId?: string;
+  usuarioIds?: string[];
+}): Promise<ContarDestinatariosResult> {
+  const actorResult = await requireActionActor(
+    "admin_notificaciones_alcance",
+    ["admin"],
+  );
+
+  if (!actorResult.ok) {
+    return { ok: false, count: 0, message: "No autorizado." };
+  }
+
+  const parsed = contarDestinatariosSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, count: 0, message: "Entrada invalida." };
+  }
+
+  const { tipo, asignaturaId, usuarioIds } = parsed.data;
+  const db = getDb();
+
+  if (tipo === "general") {
+    const [{ total = 0 } = { total: 0 }] = await db
+      .select({ total: count(usuarios.id) })
+      .from(usuarios)
+      .where(
+        and(
+          inArray(usuarios.rol, ["alumno", "docente"]),
+          eq(usuarios.activo, true),
+          isNull(usuarios.eliminadoAt),
+        ),
+      );
+    return { ok: true, count: Number(total) };
+  }
+
+  if (tipo === "curso") {
+    if (!asignaturaId) return { ok: true, count: 0 };
+    const [{ total = 0 } = { total: 0 }] = await db
+      .select({ total: count(matriculas.id) })
+      .from(matriculas)
+      .where(
+        and(
+          eq(matriculas.asignaturaId, asignaturaId),
+          eq(matriculas.activa, true),
+          isNull(matriculas.eliminadoAt),
+        ),
+      );
+    return { ok: true, count: Number(total) };
+  }
+
+  return { ok: true, count: usuarioIds?.length ?? 0 };
 }
 
 export async function listarAlumnosActivosAdmin() {

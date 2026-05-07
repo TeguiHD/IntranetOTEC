@@ -18,7 +18,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { eliminarNotificacionAction, enviarNotificacionAction } from "@/actions/notificaciones";
+import {
+  contarDestinatariosNotificacionAction,
+  eliminarNotificacionAction,
+  enviarNotificacionAction,
+} from "@/actions/notificaciones";
+
+const ALCANCE_CONFIRMACION_UMBRAL = 50;
 
 type Usuario = { id: string; nombre: string; apellido: string; rut: string | null; rol: string };
 type Asignatura = {
@@ -312,6 +318,7 @@ function HistorialItem({ n, onDelete }: { n: Notificacion; onDelete: (id: string
 
 export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Props) {
   const [localHistorial, setLocalHistorial] = useState<Notificacion[]>(historial);
+  const [activeTab, setActiveTab] = useState<"crear" | "historial">("crear");
   const [tipo, setTipo] = useState<"general" | "curso" | "individual">("general");
   const [titulo, setTitulo] = useState("");
   const [contenido, setContenido] = useState("");
@@ -319,6 +326,9 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [buscar, setBuscar] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [alcance, setAlcance] = useState<number | null>(null);
+  const [alcanceLoading, setAlcanceLoading] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
 
   // Combobox de curso
   const [cursoQuery, setCursoQuery] = useState("");
@@ -388,6 +398,42 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
     }
   };
 
+  // Alcance estimado: server-side para general y curso, local para individual.
+  useEffect(() => {
+    let cancelled = false;
+    if (tipo === "individual") {
+      setAlcance(selectedIds.length);
+      setAlcanceLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (tipo === "curso" && !asignaturaId) {
+      setAlcance(0);
+      setAlcanceLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAlcanceLoading(true);
+    const handle = setTimeout(async () => {
+      const result = await contarDestinatariosNotificacionAction({
+        tipo,
+        asignaturaId: tipo === "curso" ? asignaturaId : undefined,
+        usuarioIds: undefined,
+      });
+      if (cancelled) return;
+      setAlcance(result.ok ? result.count : null);
+      setAlcanceLoading(false);
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [tipo, asignaturaId, selectedIds.length]);
+
   const usuariosFiltrados = buscar.trim()
     ? usuarios.filter(
         (u) =>
@@ -398,19 +444,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
       )
     : [];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (tipo === "curso" && !asignaturaId) {
-      toast.error("Debes seleccionar un curso antes de enviar.");
-      inputRef.current?.focus();
-      return;
-    }
-    if (tipo === "individual" && selectedIds.length === 0) {
-      toast.error("Debes seleccionar al menos una persona.");
-      return;
-    }
-
+  const enviarNotificacion = useCallback(() => {
     startTransition(async () => {
       const result = await enviarNotificacionAction({
         titulo,
@@ -428,10 +462,33 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
         setCursoQuery("");
         setSelectedIds([]);
         setBuscar("");
+        setPendingConfirm(false);
       } else {
         toast.error(result.message ?? "No fue posible enviar la notificación.");
       }
     });
+  }, [titulo, contenido, tipo, asignaturaId, selectedIds]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (tipo === "curso" && !asignaturaId) {
+      toast.error("Debes seleccionar un curso antes de enviar.");
+      inputRef.current?.focus();
+      return;
+    }
+    if (tipo === "individual" && selectedIds.length === 0) {
+      toast.error("Debes seleccionar al menos una persona.");
+      return;
+    }
+
+    const alcanceEstimado = alcance ?? 0;
+    if (alcanceEstimado >= ALCANCE_CONFIRMACION_UMBRAL && !pendingConfirm) {
+      setPendingConfirm(true);
+      return;
+    }
+
+    enviarNotificacion();
   };
 
   // Stats
@@ -478,9 +535,41 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
         </article>
       </div>
 
-      {/* Main grid */}
-      <div className="grid gap-5 lg:grid-cols-[420px_1fr]">
-        {/* Left: form */}
+      {/* Tabs Crear / Historial */}
+      <nav className="flex items-center gap-1 rounded-2xl border border-gray-200/80 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        {(["crear", "historial"] as const).map((t) => {
+          const isActive = activeTab === t;
+          const label = t === "crear" ? "Crear notificación" : "Historial";
+          const Icon = t === "crear" ? Send : Bell;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setActiveTab(t)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                isActive
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-text-secondary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+              {t === "historial" && localHistorial.length > 0 ? (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    isActive ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                  }`}
+                >
+                  {localHistorial.length}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Crear */}
+      {activeTab === "crear" ? (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -797,6 +886,65 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
               </p>
             </div>
 
+            {/* Alcance estimado */}
+            <div
+              className={`flex items-center justify-between gap-2 rounded-xl border px-4 py-2.5 text-sm ${
+                alcance !== null && alcance >= ALCANCE_CONFIRMACION_UMBRAL
+                  ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
+                  : "border-gray-200 bg-gray-50 text-text-secondary dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-300"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {alcanceLoading ? (
+                  <span>Calculando alcance…</span>
+                ) : alcance === null ? (
+                  <span>Alcance no disponible.</span>
+                ) : (
+                  <span>
+                    Alcance estimado:{" "}
+                    <strong className="font-semibold">{alcance.toLocaleString("es-CL")}</strong>{" "}
+                    persona{alcance === 1 ? "" : "s"}
+                  </span>
+                )}
+              </span>
+              {alcance !== null && alcance >= ALCANCE_CONFIRMACION_UMBRAL ? (
+                <span className="text-[11px] font-semibold uppercase tracking-wide">
+                  Envío masivo
+                </span>
+              ) : null}
+            </div>
+
+            {pendingConfirm ? (
+              <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700/50 dark:bg-amber-950/30">
+                <p className="font-semibold text-amber-900 dark:text-amber-100">
+                  Confirmar envío masivo
+                </p>
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Estás a punto de notificar a{" "}
+                  <strong>{(alcance ?? 0).toLocaleString("es-CL")}</strong> persona
+                  {alcance === 1 ? "" : "s"}. Esta acción no se puede deshacer.
+                </p>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setPendingConfirm(false)}
+                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-700 dark:bg-gray-900 dark:text-amber-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={enviarNotificacion}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {isPending ? "Enviando…" : "Confirmar y enviar"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             <button
               type="submit"
               disabled={isPending || !titulo.trim() || !contenido.trim()}
@@ -807,8 +955,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
             </button>
           </form>
         </article>
-
-        {/* Right: historial */}
+      ) : (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary" />
@@ -846,7 +993,7 @@ export function NotificacionesAdminView({ asignaturas, usuarios, historial }: Pr
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

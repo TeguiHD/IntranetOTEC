@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 
 import {
   countUsuariosPorRol,
@@ -6,6 +7,8 @@ import {
 } from "@/actions/usuarios";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { getDb } from "@/db";
+import { asignaturas } from "@/db/schema";
 import { DocenteCreateModal } from "./DocenteCreateModal";
 import { DocenteTable } from "./DocenteTable";
 
@@ -61,6 +64,31 @@ export default async function AdminDocentesPage({
     ),
     countUsuariosPorRol("docente", { incluirInactivos: true, query: searchQuery }),
   ]);
+  const docenteIds = docentes.map((docente) => docente.id);
+  const seccionesPorDocente = docenteIds.length > 0
+    ? await getDb()
+        .select({
+          docenteId: asignaturas.docenteId,
+          totalSecciones: count(asignaturas.id),
+        })
+        .from(asignaturas)
+        .where(
+          and(
+            inArray(asignaturas.docenteId, docenteIds),
+            isNull(asignaturas.eliminadoAt),
+          ),
+        )
+        .groupBy(asignaturas.docenteId)
+    : [];
+  const seccionesMap = new Map(
+    seccionesPorDocente
+      .filter((row): row is { docenteId: string; totalSecciones: number } => Boolean(row.docenteId))
+      .map((row) => [row.docenteId, Number(row.totalSecciones)]),
+  );
+  const docentesConFicha = docentes.map((docente) => ({
+    ...docente,
+    totalSecciones: seccionesMap.get(docente.id) ?? 0,
+  }));
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const buildHref = (page: number): string => {
@@ -143,7 +171,7 @@ export default async function AdminDocentesPage({
         </div>
 
         <DocenteTable
-          docentes={docentes}
+          docentes={docentesConFicha}
           emptyMessage={
             searchQuery
               ? `No se encontraron docentes para "${searchQuery}".`

@@ -25,6 +25,7 @@ type DocenteRow = {
   rut: string | null;
   email: string | null;
   activo: boolean | null;
+  totalSecciones?: number;
 };
 
 type DocenteTableProps = {
@@ -148,6 +149,9 @@ export function DocenteTable({
                     <p className="mt-0.5 truncate text-sm text-text-secondary dark:text-gray-400">
                       {d.email ?? "-"}
                     </p>
+                    <p className="mt-1 text-xs font-medium text-primary dark:text-primary-light">
+                      {d.totalSecciones ?? 0} sección(es) asignadas
+                    </p>
                   </div>
                   <span
                     className={`ml-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -182,6 +186,7 @@ export function DocenteTable({
                   <th className="px-3 py-2.5">Nombre</th>
                   <th className="px-3 py-2.5">RUT</th>
                   <th className="px-3 py-2.5">Correo</th>
+                  <th className="px-3 py-2.5">Ficha académica</th>
                   <th className="px-3 py-2.5">Estado</th>
                   <th className="px-3 py-2.5 text-right">Acciones</th>
                 </tr>
@@ -197,6 +202,11 @@ export function DocenteTable({
                     </td>
                     <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
                       {d.email ?? "-"}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                        {d.totalSecciones ?? 0} sección(es)
+                      </span>
                     </td>
                     <td className="px-3 py-3">
                       <span

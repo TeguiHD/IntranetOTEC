@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 
 import {
   countUsuariosPorRol,
@@ -6,6 +7,8 @@ import {
 } from "@/actions/usuarios";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { getDb } from "@/db";
+import { certificados, matriculas } from "@/db/schema";
 import { AlumnoCreateModal } from "./AlumnoCreateModal";
 import { AlumnoTable } from "./AlumnoTable";
 import { ImportarAlumnosModal } from "./ImportarAlumnosModal";
@@ -64,6 +67,35 @@ export default async function AdminAlumnosPage({
     ),
     countUsuariosPorRol("alumno", { incluirInactivos: true, query: searchQuery }),
   ]);
+  const alumnoIds = alumnos.map((alumno) => alumno.id);
+  const [matriculasPorAlumno, certificadosPorAlumno] = alumnoIds.length > 0
+    ? await Promise.all([
+        getDb()
+          .select({
+            alumnoId: matriculas.alumnoId,
+            totalMatriculas: count(matriculas.id),
+          })
+          .from(matriculas)
+          .where(and(inArray(matriculas.alumnoId, alumnoIds), isNull(matriculas.eliminadoAt)))
+          .groupBy(matriculas.alumnoId),
+        getDb()
+          .select({
+            alumnoId: matriculas.alumnoId,
+            totalCertificados: count(certificados.id),
+          })
+          .from(certificados)
+          .innerJoin(matriculas, eq(certificados.matriculaId, matriculas.id))
+          .where(and(inArray(matriculas.alumnoId, alumnoIds), eq(certificados.valido, true)))
+          .groupBy(matriculas.alumnoId),
+      ])
+    : [[], []];
+  const matriculasMap = new Map(matriculasPorAlumno.map((row) => [row.alumnoId, Number(row.totalMatriculas)]));
+  const certificadosMap = new Map(certificadosPorAlumno.map((row) => [row.alumnoId, Number(row.totalCertificados)]));
+  const alumnosConFicha = alumnos.map((alumno) => ({
+    ...alumno,
+    totalMatriculas: matriculasMap.get(alumno.id) ?? 0,
+    totalCertificados: certificadosMap.get(alumno.id) ?? 0,
+  }));
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const buildHref = (page: number): string => {
@@ -149,7 +181,7 @@ export default async function AdminAlumnosPage({
         </div>
 
         <AlumnoTable
-          alumnos={alumnos}
+          alumnos={alumnosConFicha}
           emptyMessage={
             searchQuery
               ? `No se encontraron alumnos para "${searchQuery}".`

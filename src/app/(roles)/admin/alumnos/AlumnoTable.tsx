@@ -30,6 +30,8 @@ type AlumnoRow = {
   email: string | null;
   activo: boolean | null;
   estadoAlumno: EstadoAlumno | null;
+  totalMatriculas?: number;
+  totalCertificados?: number;
 };
 
 type AlumnoTableProps = {
@@ -264,6 +266,9 @@ export function AlumnoTable({
                         {a.email}
                       </p>
                     )}
+                    <p className="mt-1 text-xs font-medium text-primary dark:text-primary-light">
+                      {a.totalMatriculas ?? 0} matrícula(s) · {a.totalCertificados ?? 0} certificado(s)
+                    </p>
                   </div>
                   <EstadoBadge estado={a.estadoAlumno} />
                 </div>
@@ -298,6 +303,7 @@ export function AlumnoTable({
                   </th>
                   <th className="px-3 py-2.5">Nombre</th>
                   <th className="px-3 py-2.5">RUT / Credencial</th>
+                  <th className="px-3 py-2.5">Ficha académica</th>
                   <th className="px-3 py-2.5">Correo</th>
                   <th className="px-3 py-2.5">Estado</th>
                   <th className="px-3 py-2.5 text-right">Acciones</th>
@@ -320,6 +326,16 @@ export function AlumnoTable({
                     </td>
                     <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
                       {formatearIdentificador(a.rut)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                          {a.totalMatriculas ?? 0} matrícula(s)
+                        </span>
+                        <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          {a.totalCertificados ?? 0} docs
+                        </span>
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
                       {a.email ?? "-"}

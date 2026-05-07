@@ -1,3 +1,6 @@
+import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { and, eq, isNull, sql } from "drizzle-orm";
+
 import {
   listarAsignaturasAdmin,
   type AsignaturaBusqueda,
@@ -9,6 +12,12 @@ import {
 } from "@/actions/matriculas";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { getDb } from "@/db";
+import {
+  asignaturas as asignaturasTable,
+  matriculas as matriculasTable,
+  periodosAcademicos,
+} from "@/db/schema";
 import { formatearIdentificador } from "@/lib/rut";
 import { AlumnoCombobox } from "./AlumnoCombobox";
 import { AsignaturaCombobox } from "./AsignaturaCombobox";
@@ -70,6 +79,63 @@ const ESTADO_PAGO_LABELS: Record<string, string> = {
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+type ContextoMatricula = {
+  asignaturaEstado: "borrador" | "activo" | "finalizado" | "archivado" | null;
+  maxAlumnos: number | null;
+  periodoNombre: string | null;
+  periodoEstado: "planificado" | "activo" | "cerrado" | null;
+  activos: number;
+};
+
+type Advertencia = { severity: "block" | "warn" | "info"; mensaje: string };
+
+function buildAdvertencias(ctx: ContextoMatricula): Advertencia[] {
+  const out: Advertencia[] = [];
+
+  if (ctx.periodoEstado && ctx.periodoEstado !== "activo") {
+    out.push({
+      severity: "block",
+      mensaje:
+        ctx.periodoEstado === "cerrado"
+          ? `Periodo cerrado: no se pueden crear nuevas matrículas en "${ctx.periodoNombre ?? ""}".`
+          : `Periodo aún en estado planificado: confirma su activación antes de matricular.`,
+    });
+  }
+
+  if (ctx.asignaturaEstado === "archivado" || ctx.asignaturaEstado === "finalizado") {
+    out.push({
+      severity: "block",
+      mensaje:
+        ctx.asignaturaEstado === "archivado"
+          ? "La sección está archivada. No se permiten nuevas matrículas."
+          : "La sección está finalizada. Las matrículas nuevas requieren reabrir la sección.",
+    });
+  }
+
+  if (ctx.asignaturaEstado === "borrador") {
+    out.push({
+      severity: "warn",
+      mensaje: "La sección está en borrador. Considera publicarla antes de matricular.",
+    });
+  }
+
+  if (ctx.maxAlumnos && ctx.maxAlumnos > 0) {
+    if (ctx.activos >= ctx.maxAlumnos) {
+      out.push({
+        severity: "block",
+        mensaje: `Cupo lleno: ${ctx.activos}/${ctx.maxAlumnos} alumnos activos.`,
+      });
+    } else if (ctx.activos / ctx.maxAlumnos >= 0.9) {
+      out.push({
+        severity: "warn",
+        mensaje: `Cupo casi lleno: ${ctx.activos}/${ctx.maxAlumnos}.`,
+      });
+    }
+  }
+
+  return out;
+}
+
 export const metadata = {
   title: "Matrículas",
 };
@@ -118,6 +184,30 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
       ])
     : [[], 0];
 
+  const contexto = selectedAsignaturaId
+    ? await getDb()
+        .select({
+          asignaturaEstado: asignaturasTable.estado,
+          maxAlumnos: asignaturasTable.maxAlumnos,
+          periodoNombre: periodosAcademicos.nombre,
+          periodoEstado: periodosAcademicos.estado,
+          activos: sql<number>`coalesce((
+            select count(*)::int from ${matriculasTable}
+            where ${matriculasTable.asignaturaId} = ${asignaturasTable.id}
+              and ${matriculasTable.activa} = true
+              and ${matriculasTable.eliminadoAt} is null
+          ), 0)`,
+        })
+        .from(asignaturasTable)
+        .innerJoin(periodosAcademicos, eq(asignaturasTable.periodoId, periodosAcademicos.id))
+        .where(and(eq(asignaturasTable.id, selectedAsignaturaId), isNull(asignaturasTable.eliminadoAt)))
+        .limit(1)
+        .then((rows) => rows[0] ?? null)
+    : null;
+
+  const advertencias = contexto ? buildAdvertencias(contexto) : [];
+  const bloqueado = advertencias.some((a) => a.severity === "block");
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   function buildHref(page: number) {
@@ -139,6 +229,41 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
           Matricula alumnos por asignatura y controla el estado de pago.
         </p>
       </header>
+
+      {advertencias.length > 0 ? (
+        <article
+          className={`rounded-2xl border p-4 text-sm shadow-sm ${
+            bloqueado
+              ? "border-red-300 bg-red-50 text-red-900 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-100"
+              : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {bloqueado ? (
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+            ) : (
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+            )}
+            <div className="space-y-1">
+              <p className="font-semibold uppercase tracking-wide text-xs">
+                {bloqueado ? "No se puede matricular en esta sección" : "Atención antes de matricular"}
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                {advertencias.map((a, idx) => (
+                  <li key={idx}>{a.mensaje}</li>
+                ))}
+              </ul>
+              {contexto ? (
+                <p className="mt-2 text-xs opacity-80">
+                  Periodo: {contexto.periodoNombre ?? "—"} · estado {contexto.periodoEstado ?? "—"} · sección{" "}
+                  {contexto.asignaturaEstado ?? "—"} · cupo {contexto.activos}
+                  {contexto.maxAlumnos ? `/${contexto.maxAlumnos}` : ""}.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </article>
+      ) : null}
 
       {/* Combined filter + create form */}
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
@@ -193,9 +318,11 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
             <div className="flex items-end">
               <button
                 type="submit"
-                className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98]"
+                disabled={bloqueado}
+                className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
+                title={bloqueado ? "Resuelve las advertencias antes de matricular" : undefined}
               >
-                Guardar matrícula
+                {bloqueado ? "Bloqueado" : "Guardar matrícula"}
               </button>
             </div>
           </div>

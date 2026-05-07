@@ -1,4 +1,6 @@
+import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { contarCursos, listarCursos } from "@/actions/cursos";
+import { listarUsuariosPorRol } from "@/actions/usuarios";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
@@ -30,13 +32,17 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
   const q = typeof params.q === "string" ? params.q.trim() : "";
 
   let listado: Awaited<ReturnType<typeof listarCursos>> = [];
+  let periodos: Awaited<ReturnType<typeof listarPeriodosDashboard>> = [];
+  let docentes: Awaited<ReturnType<typeof listarUsuariosPorRol>> = [];
   let total = 0;
   let loadFailed = false;
 
   try {
-    [listado, total] = await Promise.all([
+    [listado, total, periodos, docentes] = await Promise.all([
       listarCursos({ limit: PAGE_SIZE, offset }, { query: q, incluirInactivos: true }),
       contarCursos({ query: q, incluirInactivos: true }),
+      listarPeriodosDashboard(),
+      listarUsuariosPorRol("docente", { limit: 200, offset: 0 }),
     ]);
   } catch {
     loadFailed = true;
@@ -64,6 +70,8 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
         </header>
         <CursoManager
           cursos={listado}
+          periodos={periodos}
+          docentes={docentes}
           searchQuery={q}
           mode="header-button"
         />
@@ -89,6 +97,8 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
 
         <CursoManager
           cursos={listado}
+          periodos={periodos}
+          docentes={docentes}
           searchQuery={q}
           mode="table"
         />

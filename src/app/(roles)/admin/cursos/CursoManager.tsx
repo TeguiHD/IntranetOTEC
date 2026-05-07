@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 
-import { BookOpen, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, CalendarDays, ExternalLink, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { crearAsignaturaAction } from "@/actions/asignaturas";
 import {
   crearCurso,
   editarCurso,
@@ -29,8 +30,24 @@ type CursoRow = {
   totalSecciones: number;
 };
 
+type PeriodoOption = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  estado: "planificado" | "activo" | "cerrado";
+};
+
+type DocenteOption = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  activo: boolean | null;
+};
+
 type Props = {
   cursos: CursoRow[];
+  periodos?: PeriodoOption[];
+  docentes?: DocenteOption[];
   searchQuery: string;
   mode: "header-button" | "table";
 };
@@ -49,6 +66,18 @@ type FormState = {
   horasPracticas: number;
 };
 
+type SectionFormState = {
+  enabled: boolean;
+  nombre: string;
+  codigo: string;
+  periodoId: string;
+  turno: "manana" | "tarde" | "vespertino";
+  fechaInicio: string;
+  duracionMeses: number;
+  maxAlumnos: number;
+  docenteId: string;
+};
+
 const emptyForm: FormState = {
   nombre: "",
   codigo: "",
@@ -57,17 +86,33 @@ const emptyForm: FormState = {
   horasPracticas: 0,
 };
 
-export function CursoManager({ cursos, searchQuery, mode }: Props) {
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const createEmptySectionForm = (periodos: PeriodoOption[]): SectionFormState => ({
+  enabled: false,
+  nombre: "",
+  codigo: "",
+  periodoId: periodos.find((periodo) => periodo.estado === "activo")?.id ?? periodos[0]?.id ?? "",
+  turno: "manana",
+  fechaInicio: todayIso(),
+  duracionMeses: 1,
+  maxAlumnos: 30,
+  docenteId: "",
+});
+
+export function CursoManager({ cursos, periodos = [], docentes = [], searchQuery, mode }: Props) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<CursoRow | null>(null);
   const [deleting, setDeleting] = useState<CursoRow | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [sectionForm, setSectionForm] = useState<SectionFormState>(() => createEmptySectionForm(periodos));
   const [isPending, startTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const router = useRouter();
 
   const openCreate = () => {
     setForm(emptyForm);
+    setSectionForm(createEmptySectionForm(periodos));
     setCreating(true);
   };
 
@@ -85,14 +130,49 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     startTransition(async () => {
-      const result = editing
-        ? await editarCurso(editing.id, form)
-        : await crearCurso(form);
+      if (editing) {
+        const editResult = await editarCurso(editing.id, form);
+
+        if (editResult.ok) {
+          toast.success("Curso actualizado.");
+          setEditing(null);
+          router.refresh();
+        } else {
+          toast.error(editResult.message ?? "No fue posible guardar el curso.");
+        }
+        return;
+      }
+
+      const result = await crearCurso(form);
 
       if (result.ok) {
-        toast.success(editing ? "Curso actualizado." : "Curso creado.");
+        if (sectionForm.enabled) {
+          if (!result.id) {
+            toast.warning("Curso creado, pero no se pudo crear la primera sección.");
+          } else {
+            const sectionResult = await crearAsignaturaAction({
+              nombre: sectionForm.nombre.trim() || form.nombre,
+              descripcion: form.descripcion.trim() || undefined,
+              codigo: sectionForm.codigo.trim() || undefined,
+              cursoId: result.id,
+              periodoId: sectionForm.periodoId,
+              turno: sectionForm.turno,
+              fechaInicio: sectionForm.fechaInicio,
+              duracionMeses: sectionForm.duracionMeses,
+              maxAlumnos: sectionForm.maxAlumnos,
+              docenteId: sectionForm.docenteId || undefined,
+            });
+
+            if (!sectionResult.ok) {
+              toast.warning(sectionResult.message ?? "Curso creado, pero la primera sección requiere revisión.");
+            } else {
+              toast.success("Curso y primera sección creados.");
+            }
+          }
+        } else {
+          toast.success("Curso creado.");
+        }
         setCreating(false);
-        setEditing(null);
         router.refresh();
       } else {
         toast.error(result.message ?? "No fue posible guardar el curso.");
@@ -144,6 +224,11 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
           title="Nuevo Curso"
           form={form}
           setForm={setForm}
+          sectionForm={sectionForm}
+          setSectionForm={setSectionForm}
+          periodos={periodos}
+          docentes={docentes}
+          allowInlineSection
           onSubmit={handleSubmit}
           isPending={isPending}
           inputClass={inputClass}
@@ -306,6 +391,8 @@ export function CursoManager({ cursos, searchQuery, mode }: Props) {
         title={`Editar: ${editing?.nombre ?? ""}`}
         form={form}
         setForm={setForm}
+        periodos={periodos}
+        docentes={docentes}
         onSubmit={handleSubmit}
         isPending={isPending}
         inputClass={inputClass}
@@ -333,6 +420,11 @@ function CursoFormModal({
   title,
   form,
   setForm,
+  sectionForm,
+  setSectionForm,
+  periodos,
+  docentes,
+  allowInlineSection = false,
   onSubmit,
   isPending,
   inputClass,
@@ -343,11 +435,18 @@ function CursoFormModal({
   title: string;
   form: FormState;
   setForm: (f: FormState) => void;
+  sectionForm?: SectionFormState;
+  setSectionForm?: (f: SectionFormState) => void;
+  periodos?: PeriodoOption[];
+  docentes?: DocenteOption[];
+  allowInlineSection?: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isPending: boolean;
   inputClass: string;
   numberInputClass: string;
 }) {
+  const canCreateInlineSection = Boolean(allowInlineSection && sectionForm && setSectionForm);
+
   return (
     <ModalComp open={open} onClose={onClose} title={title} size="max-w-lg">
       <form onSubmit={onSubmit} className="space-y-4">
@@ -432,6 +531,174 @@ function CursoFormModal({
             />
           </div>
         </div>
+
+        {canCreateInlineSection && sectionForm && setSectionForm ? (
+          <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 dark:border-primary/30 dark:bg-primary/10">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={sectionForm.enabled}
+                inputMode="none"
+                onChange={(e) => setSectionForm({ ...sectionForm, enabled: e.target.checked })}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-text-primary dark:text-white">
+                  Crear primera sección al guardar
+                </span>
+                <span className="mt-0.5 block text-xs text-text-secondary dark:text-gray-400">
+                  Opcional: deja el curso con periodo, turno, docente y cupo inicial listos para matricular.
+                </span>
+              </span>
+            </label>
+
+            {sectionForm.enabled ? (
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-periodo" className="flex items-center gap-1.5 text-sm font-medium text-text-primary dark:text-gray-200">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Periodo
+                    </label>
+                    <select
+                      id="seccion-periodo"
+                      value={sectionForm.periodoId}
+                      onChange={(e) => setSectionForm({ ...sectionForm, periodoId: e.target.value })}
+                      required={sectionForm.enabled}
+                      className={inputClass}
+                    >
+                      <option value="">Seleccionar periodo</option>
+                      {(periodos ?? []).map((periodo) => (
+                        <option key={periodo.id} value={periodo.id} disabled={periodo.estado === "cerrado"}>
+                          {periodo.codigo} · {periodo.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-turno" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                      Turno
+                    </label>
+                    <select
+                      id="seccion-turno"
+                      value={sectionForm.turno}
+                      onChange={(e) => setSectionForm({ ...sectionForm, turno: e.target.value as SectionFormState["turno"] })}
+                      className={inputClass}
+                    >
+                      <option value="manana">Mañana</option>
+                      <option value="tarde">Tarde</option>
+                      <option value="vespertino">Vespertino</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-fecha" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                      Inicio
+                    </label>
+                    <input
+                      id="seccion-fecha"
+                      type="date"
+                      value={sectionForm.fechaInicio}
+                      inputMode="numeric"
+                      onChange={(e) => setSectionForm({ ...sectionForm, fechaInicio: e.target.value })}
+                      className={numberInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-docente" className="flex items-center gap-1.5 text-sm font-medium text-text-primary dark:text-gray-200">
+                      <Users className="h-3.5 w-3.5" />
+                      Docente
+                    </label>
+                    <select
+                      id="seccion-docente"
+                      value={sectionForm.docenteId}
+                      onChange={(e) => setSectionForm({ ...sectionForm, docenteId: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">Sin docente asignado</option>
+                      {(docentes ?? []).map((docente) => (
+                        <option key={docente.id} value={docente.id}>
+                          {docente.nombre} {docente.apellido}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-duracion" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                      Duración meses
+                    </label>
+                    <input
+                      id="seccion-duracion"
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={sectionForm.duracionMeses}
+                      inputMode="numeric"
+                      onChange={(e) => setSectionForm({ ...sectionForm, duracionMeses: Number(e.target.value) })}
+                      className={numberInputClass}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-cupo" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                      Cupo
+                    </label>
+                    <input
+                      id="seccion-cupo"
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={sectionForm.maxAlumnos}
+                      inputMode="numeric"
+                      onChange={(e) => setSectionForm({ ...sectionForm, maxAlumnos: Number(e.target.value) })}
+                      className={numberInputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-nombre" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                      Nombre sección
+                    </label>
+                    <input
+                      id="seccion-nombre"
+                      type="text"
+                      maxLength={120}
+                      value={sectionForm.nombre}
+                      inputMode="text"
+                      onChange={(e) => setSectionForm({ ...sectionForm, nombre: e.target.value })}
+                      placeholder="Usa el nombre del curso"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="seccion-codigo" className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                      Código sección
+                    </label>
+                    <input
+                      id="seccion-codigo"
+                      type="text"
+                      maxLength={24}
+                      value={sectionForm.codigo}
+                      inputMode="text"
+                      onChange={(e) => setSectionForm({ ...sectionForm, codigo: e.target.value.toUpperCase() })}
+                      placeholder="Auto"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800">
           <button

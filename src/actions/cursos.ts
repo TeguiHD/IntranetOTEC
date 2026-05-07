@@ -131,7 +131,7 @@ export async function listarCursosCombobox() {
 
 // ---- Mutaciones ----
 
-export async function crearCurso(input: unknown): Promise<MutationResult> {
+export async function crearCurso(input: unknown): Promise<MutationResult & { id?: string }> {
   const actorResult = await requireActionActor("crear_curso", ["admin"]);
   if (!actorResult.ok) return actorResult.result;
 
@@ -178,7 +178,7 @@ export async function crearCurso(input: unknown): Promise<MutationResult> {
   });
 
   revalidatePath("/admin/cursos");
-  return { ok: true, code: "curso_creado" };
+  return { ok: true, code: "curso_creado", id: nuevo.id };
 }
 
 export async function editarCurso(id: string, input: unknown): Promise<MutationResult> {

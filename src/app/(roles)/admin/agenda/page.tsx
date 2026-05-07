@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
-import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 import { getDb } from "@/db";
 import {
   asignaturas,
@@ -375,42 +375,28 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
       </header>
 
       <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
-        <form method="GET" className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_240px_220px_auto]">
-          <div className="space-y-1.5">
-            <label htmlFor="agenda-periodo" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Periodo
-            </label>
-            <select
-              id="agenda-periodo"
-              name="periodoId"
-              defaultValue={selectedPeriodoId}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            >
-              {periodos.map((periodo) => (
-                <option key={periodo.id} value={periodo.id}>
-                  {periodo.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="agenda-asignatura" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-              Asignatura
-            </label>
-            <AsignaturaFilterSelect
-              options={asignaturasRows.map((item) => ({
-                id: item.id,
-                nombre: item.nombre,
-                codigo: item.codigo,
-              }))}
-              defaultValue={selectedAsignaturaId}
-              name="asignaturaId"
-              allowEmpty
-              emptyLabel="Todas las asignaturas"
-              autoSubmit={false}
-            />
-          </div>
+        <form method="GET" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px_220px_auto]">
+          <PeriodoCursoSeccionPicker
+            asForm={false}
+            autoSubmit={false}
+            layout="stack"
+            periodos={periodos.map((periodo) => ({
+              id: periodo.id,
+              label: periodo.nombre,
+              badge: periodo.estado,
+            }))}
+            asignaturas={asignaturasRows.map((item) => ({
+              id: item.id,
+              label: item.nombre,
+              badge: item.codigo,
+            }))}
+            selected={{
+              periodoId: selectedPeriodoId,
+              asignaturaId: selectedAsignaturaId,
+            }}
+            labels={{ asignatura: "Asignatura" }}
+            emptyLabels={{ asignatura: "Todas las asignaturas" }}
+          />
 
           <div className="space-y-1.5">
             <label htmlFor="agenda-docente" className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">

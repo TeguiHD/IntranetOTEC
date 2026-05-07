@@ -21,6 +21,12 @@ type Props = {
   emptyLabels?: Partial<{ periodo: string; curso: string; asignatura: string }>;
   autoSubmit?: boolean;
   className?: string;
+  /**
+   * Si false, no se renderiza el form wrapper. Util para anidar el picker
+   * dentro de un form padre que ya maneja submit, hidden inputs y otros
+   * filtros propios de la pagina.
+   */
+  asForm?: boolean;
 };
 
 const DEFAULT_LABELS = {
@@ -54,6 +60,7 @@ export function PeriodoCursoSeccionPicker({
   emptyLabels,
   autoSubmit = true,
   className,
+  asForm = true,
 }: Props) {
   const labelMap = { ...DEFAULT_LABELS, ...labels };
   const placeholderMap = { ...DEFAULT_PLACEHOLDERS, ...placeholders };
@@ -68,15 +75,13 @@ export function PeriodoCursoSeccionPicker({
     ([, value]) => typeof value === "string" && value.length > 0,
   ) as Array<[string, string]>;
 
-  return (
-    <form
-      method="get"
-      action={formAction}
-      className={[wrapperClass, className].filter(Boolean).join(" ")}
-    >
-      {hiddenEntries.map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} readOnly />
-      ))}
+  const fields = (
+    <>
+      {asForm
+        ? hiddenEntries.map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} readOnly />
+          ))
+        : null}
 
       {periodos ? (
         <PickerField
@@ -117,14 +122,30 @@ export function PeriodoCursoSeccionPicker({
         />
       ) : null}
 
-      <noscript>
-        <button
-          type="submit"
-          className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
-        >
-          Aplicar
-        </button>
-      </noscript>
+      {asForm ? (
+        <noscript>
+          <button
+            type="submit"
+            className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-white"
+          >
+            Aplicar
+          </button>
+        </noscript>
+      ) : null}
+    </>
+  );
+
+  if (!asForm) {
+    return fields;
+  }
+
+  return (
+    <form
+      method="get"
+      action={formAction}
+      className={[wrapperClass, className].filter(Boolean).join(" ")}
+    >
+      {fields}
     </form>
   );
 }

@@ -32,8 +32,8 @@ import {
 import { AuditTimeline } from "@/components/evaluaciones/AuditTimeline";
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
-import { AsignaturaFilterSelect } from "@/components/shared/AsignaturaFilterSelect";
 import { EntityFilterSelect } from "@/components/shared/EntityFilterSelect";
+import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { describeEvaluationWriteLock } from "@/lib/academic-state";
@@ -388,47 +388,28 @@ export default async function AdminEvaluacionesPage({
         className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5"
       >
         <input type="hidden" name="tab" value={activeTab} />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_1fr_auto]">
-          <div className="space-y-1.5">
-            <label
-              htmlFor="eval-periodo"
-              className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400"
-            >
-              Periodo
-            </label>
-            <div id="eval-periodo">
-              <EntityFilterSelect
-                name="periodoId"
-                defaultValue={selectedPeriodoId}
-                placeholder="Buscar periodo"
-                searchPlaceholder="Filtrar por nombre o estado…"
-                countLabel="periodos"
-                autoSubmit={false}
-                options={periodos.map((periodo) => ({
-                  id: periodo.id,
-                  label: periodo.nombre,
-                  description: periodo.estado,
-                  badge: periodo.estado,
-                }))}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              htmlFor="eval-asig"
-              className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400"
-            >
-              Seccion
-            </label>
-            <AsignaturaFilterSelect
-              options={asignaturas.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo }))}
-              defaultValue={selectedAsignaturaId}
-              name="asignaturaId"
-              placeholder="Buscar sección…"
-              autoSubmit={false}
-            />
-          </div>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <PeriodoCursoSeccionPicker
+            asForm={false}
+            autoSubmit={false}
+            layout="inline"
+            periodos={periodos.map((periodo) => ({
+              id: periodo.id,
+              label: periodo.nombre,
+              description: periodo.estado,
+              badge: periodo.estado,
+            }))}
+            asignaturas={asignaturas.map((a) => ({
+              id: a.id,
+              label: a.nombre,
+              badge: a.codigo,
+            }))}
+            selected={{
+              periodoId: selectedPeriodoId,
+              asignaturaId: selectedAsignaturaId,
+            }}
+            placeholders={{ asignatura: "Buscar sección…" }}
+          />
           <div className="flex items-end">
             <button
               type="submit"

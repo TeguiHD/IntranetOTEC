@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { and, asc, count, eq, gte, isNull } from "drizzle-orm";
+import { and, asc, count, eq, gte, isNull, sql } from "drizzle-orm";
 import {
   ArrowLeft,
   Award,
@@ -11,16 +11,20 @@ import {
   ClipboardList,
   GraduationCap,
   IdCard,
+  FolderOpen,
   Users,
 } from "lucide-react";
 
 import { getDb } from "@/db";
 import {
   asignaturas,
+  asistencia,
+  certificados,
   clases,
   cursos,
   evaluaciones,
   matriculas,
+  notasDocente,
   periodosAcademicos,
   usuarios,
 } from "@/db/schema";
@@ -30,6 +34,7 @@ const UUID_REGEX =
 
 const TABS = [
   { id: "resumen", label: "Resumen", Icon: BookOpen, href: null },
+  { id: "carpeta", label: "Carpeta", Icon: FolderOpen, href: null },
   { id: "alumnos", label: "Alumnos", Icon: Users, href: "/admin/matriculas" },
   { id: "horario", label: "Horario", Icon: CalendarDays, href: "/admin/horarios" },
   { id: "clases", label: "Clases", Icon: ClipboardList, href: "/admin/clases" },
@@ -160,6 +165,73 @@ export default async function FichaSeccionPage({ params, searchParams }: PagePro
     )
     .orderBy(asc(evaluaciones.fechaLimite))
     .limit(5);
+
+  const [alumnosCarpeta, notasCarpeta, asistenciaCarpeta, certificadosCarpeta] = await Promise.all([
+    db
+      .select({
+        matriculaId: matriculas.id,
+        alumnoId: usuarios.id,
+        alumnoNombre: usuarios.nombre,
+        alumnoApellido: usuarios.apellido,
+        alumnoRut: usuarios.rut,
+        estadoPago: matriculas.estadoPago,
+        activa: matriculas.activa,
+        fechaMatricula: matriculas.createdAt,
+      })
+      .from(matriculas)
+      .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+      .where(and(eq(matriculas.asignaturaId, id), isNull(matriculas.eliminadoAt)))
+      .orderBy(asc(usuarios.apellido), asc(usuarios.nombre)),
+    db
+      .select({
+        matriculaId: notasDocente.matriculaId,
+        totalNotas: sql<number>`count(${notasDocente.id})::int`,
+        promedio: sql<number | null>`avg(${notasDocente.nota}::numeric)::float`,
+      })
+      .from(notasDocente)
+      .where(eq(notasDocente.asignaturaId, id))
+      .groupBy(notasDocente.matriculaId),
+    db
+      .select({
+        matriculaId: asistencia.matriculaId,
+        totalRegistros: sql<number>`count(${asistencia.id})::int`,
+        presentes: sql<number>`count(*) filter (where ${asistencia.estado} in ('presente', 'tardanza', 'justificado'))::int`,
+      })
+      .from(asistencia)
+      .innerJoin(clases, eq(asistencia.claseId, clases.id))
+      .where(and(eq(clases.asignaturaId, id), isNull(clases.eliminadoAt)))
+      .groupBy(asistencia.matriculaId),
+    db
+      .select({
+        matriculaId: certificados.matriculaId,
+        totalCertificados: sql<number>`count(${certificados.id})::int`,
+      })
+      .from(certificados)
+      .innerJoin(matriculas, eq(certificados.matriculaId, matriculas.id))
+      .where(and(eq(matriculas.asignaturaId, id), eq(certificados.valido, true)))
+      .groupBy(certificados.matriculaId),
+  ]);
+
+  const notasByMatricula = new Map(notasCarpeta.map((row) => [row.matriculaId, row]));
+  const asistenciaByMatricula = new Map(asistenciaCarpeta.map((row) => [row.matriculaId, row]));
+  const certificadosByMatricula = new Map(certificadosCarpeta.map((row) => [row.matriculaId, row]));
+  const carpetaAcademica = alumnosCarpeta.map((alumno) => {
+    const nota = notasByMatricula.get(alumno.matriculaId);
+    const asist = asistenciaByMatricula.get(alumno.matriculaId);
+    const cert = certificadosByMatricula.get(alumno.matriculaId);
+    const totalAsistencia = Number(asist?.totalRegistros ?? 0);
+    const presentes = Number(asist?.presentes ?? 0);
+    const asistenciaPct = totalAsistencia > 0 ? Math.round((presentes / totalAsistencia) * 100) : null;
+
+    return {
+      ...alumno,
+      totalNotas: Number(nota?.totalNotas ?? 0),
+      promedio: nota?.promedio ?? null,
+      asistenciaPct,
+      asistenciaDetalle: `${presentes}/${totalAsistencia}`,
+      totalCertificados: Number(cert?.totalCertificados ?? 0),
+    };
+  });
 
   const activeTab: TabId = (TABS.find((t) => t.id === sp.tab)?.id ?? "resumen") as TabId;
   const estadoMeta = ESTADO_LABELS[seccion.estado ?? "borrador"] ?? ESTADO_LABELS.borrador;
@@ -312,10 +384,143 @@ export default async function FichaSeccionPage({ params, searchParams }: PagePro
             </div>
           </aside>
         </div>
+      ) : activeTab === "carpeta" ? (
+        <article className="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-text-primary dark:text-white">
+                  Carpeta académica de la sección
+                </h2>
+                <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+                  Vista integrada por alumno: matrícula, pago, asistencia, notas y certificados.
+                </p>
+              </div>
+              <span className="mt-2 inline-flex w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light sm:mt-0">
+                {carpetaAcademica.length} alumno(s)
+              </span>
+            </div>
+          </div>
+
+          {carpetaAcademica.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-text-secondary dark:text-gray-400">
+              No hay matrículas registradas para esta sección.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-3 p-4 sm:hidden">
+                {carpetaAcademica.map((row) => (
+                  <CarpetaAlumnoCard key={row.matriculaId} row={row} />
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
+                <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                      <th className="px-4 py-3">Alumno</th>
+                      <th className="px-4 py-3">Matrícula</th>
+                      <th className="px-4 py-3">Asistencia</th>
+                      <th className="px-4 py-3">Notas</th>
+                      <th className="px-4 py-3">Certificados</th>
+                      <th className="px-4 py-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                    {carpetaAcademica.map((row) => (
+                      <tr key={row.matriculaId} className="hover:bg-primary/[0.02] dark:hover:bg-primary/5">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary dark:text-white">
+                            {row.alumnoNombre} {row.alumnoApellido}
+                          </p>
+                          <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">
+                            {row.alumnoRut ?? "Sin RUT"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary dark:text-gray-400">
+                          <p>{row.activa ? "Activa" : "Inactiva"}</p>
+                          <p className="text-xs">Pago: {row.estadoPago ?? "-"}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-text-primary dark:text-white">
+                            {row.asistenciaPct === null ? "Sin registros" : `${row.asistenciaPct}%`}
+                          </p>
+                          <p className="text-xs text-text-secondary dark:text-gray-400">{row.asistenciaDetalle}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-text-primary dark:text-white">
+                            {row.promedio === null ? "Sin notas" : Number(row.promedio).toFixed(1)}
+                          </p>
+                          <p className="text-xs text-text-secondary dark:text-gray-400">{row.totalNotas} registro(s)</p>
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary dark:text-gray-400">
+                          {row.totalCertificados}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/admin/historial?periodoId=${seccion.periodoId}`}
+                            className="inline-flex rounded-lg border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/30 dark:text-primary-light"
+                          >
+                            Ver historial
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </article>
       ) : (
         <TabHub tabId={activeTab} asignaturaId={id} periodoId={seccion.periodoId} />
       )}
     </section>
+  );
+}
+
+type CarpetaRow = {
+  matriculaId: string;
+  alumnoNombre: string;
+  alumnoApellido: string;
+  alumnoRut: string | null;
+  activa: boolean | null;
+  estadoPago: "pendiente" | "pagado" | "mora" | "becado" | null;
+  asistenciaPct: number | null;
+  asistenciaDetalle: string;
+  totalNotas: number;
+  promedio: number | null;
+  totalCertificados: number;
+};
+
+function CarpetaAlumnoCard({ row }: { row: CarpetaRow }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/60">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-text-primary dark:text-white">
+            {row.alumnoNombre} {row.alumnoApellido}
+          </p>
+          <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">{row.alumnoRut ?? "Sin RUT"}</p>
+        </div>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-text-secondary shadow-sm dark:bg-gray-900 dark:text-gray-300">
+          {row.estadoPago ?? "-"}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="rounded-lg bg-white p-2 dark:bg-gray-900">
+          <p className="font-bold text-text-primary dark:text-white">{row.asistenciaPct === null ? "-" : `${row.asistenciaPct}%`}</p>
+          <p className="text-text-secondary dark:text-gray-400">Asistencia</p>
+        </div>
+        <div className="rounded-lg bg-white p-2 dark:bg-gray-900">
+          <p className="font-bold text-text-primary dark:text-white">{row.promedio === null ? "-" : Number(row.promedio).toFixed(1)}</p>
+          <p className="text-text-secondary dark:text-gray-400">Promedio</p>
+        </div>
+        <div className="rounded-lg bg-white p-2 dark:bg-gray-900">
+          <p className="font-bold text-text-primary dark:text-white">{row.totalCertificados}</p>
+          <p className="text-text-secondary dark:text-gray-400">Docs</p>
+        </div>
+      </div>
+    </div>
   );
 }
 

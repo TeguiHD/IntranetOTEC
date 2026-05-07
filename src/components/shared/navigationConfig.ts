@@ -113,13 +113,13 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Inteligencia y control",
+    // Analítica consolida Dashboard de KPIs + sub-reportes (Rendimiento, Retención,
+    // Asistencia, Notas) que antes ocupaban entradas independientes en el nav lateral.
+    // El Word marcó este apartado como sobrecargado: las sub-vistas siguen siendo
+    // accesibles desde /admin/reportes pero ya no inflan el menú.
+    title: "Analítica",
     items: [
-      { href: "/admin/reportes", label: "Dashboard", Icon: BarChart3, gradient: "grad-purple", capability: "reportes.admin" },
-      { href: "/admin/reportes/rendimiento", label: "Rendimiento", Icon: TrendingUp, gradient: "grad-blue", capability: "reportes.admin" },
-      { href: "/admin/reportes/retencion", label: "Retención", Icon: Users, gradient: "grad-amber", capability: "reportes.admin" },
-      { href: "/admin/reportes/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "reportes.admin" },
-      { href: "/admin/reportes/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-violet", capability: "reportes.admin" },
+      { href: "/admin/reportes", label: "Analítica", Icon: BarChart3, gradient: "grad-purple", capability: "reportes.admin" },
       { href: "/admin/historial", label: "Historial", Icon: FileText, gradient: "grad-slate", capability: "historial.admin" },
       { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp, gradient: "grad-emerald", capability: "finanzas.admin" },
       { href: "/admin/auditoria", label: "Auditoria", Icon: ClipboardList, gradient: "grad-slate", capability: "auditoria.admin" },

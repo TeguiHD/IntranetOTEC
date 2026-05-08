@@ -90,7 +90,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw) && asignaturas.some((a) => a.id === selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
-      : asignaturas[0]?.id;
+      : "";
 
   const [clases, totalCount, bloquesHorario] = selectedAsignaturaId
     ? await Promise.all([
@@ -155,6 +155,18 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
           />
         </div>
       </div>
+
+      {asignaturas.length > 0 && !selectedAsignaturaId ? (
+        <article className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-sm text-text-secondary shadow-sm dark:border-primary/30 dark:bg-primary/10 dark:text-gray-300">
+          <p className="font-semibold text-text-primary dark:text-white">
+            Selecciona una sección antes de crear o autogenerar clases.
+          </p>
+          <p className="mt-1">
+            La pantalla ya no toma la primera sección disponible. Esto evita publicar sesiones
+            o generar clases recurrentes en un curso equivocado.
+          </p>
+        </article>
+      ) : null}
 
       {selectedAsignaturaId && (
         <article className={`rounded-2xl border p-5 shadow-sm sm:p-6 ${

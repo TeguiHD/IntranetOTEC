@@ -65,7 +65,7 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
   const asignaturaSelId =
     requestedAsignaturaId && secciones.some((s) => s.id === requestedAsignaturaId)
       ? requestedAsignaturaId
-      : secciones[0]?.id;
+      : "";
   let bloques: {
     id: string;
     asignaturaNombre: string;
@@ -155,6 +155,18 @@ export default async function AdminHorariosPage({ searchParams }: PageProps) {
           No hay secciones disponibles para el periodo seleccionado.
         </article>
       )}
+
+      {secciones.length > 0 && !asignaturaSelId ? (
+        <article className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-sm text-text-secondary shadow-sm dark:border-primary/30 dark:bg-primary/10 dark:text-gray-300">
+          <p className="font-semibold text-text-primary dark:text-white">
+            Selecciona una sección para revisar su horario.
+          </p>
+          <p className="mt-1">
+            Horarios ya no abre automáticamente la primera sección del periodo. Así el calendario,
+            el resumen semanal y el salto a Clases siempre corresponden a una elección explícita.
+          </p>
+        </article>
+      ) : null}
 
       {asignaturaSelId && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(18rem,1fr)]">

@@ -129,7 +129,7 @@ export function DocenteFilterCombobox({
                 ))
               ) : (
                 <p className="px-4 py-3 text-sm text-text-secondary dark:text-gray-400">
-                  Sin docentes para "{query}"
+                  Sin docentes para &quot;{query}&quot;
                 </p>
               )}
             </div>

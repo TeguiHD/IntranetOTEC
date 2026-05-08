@@ -141,7 +141,7 @@ export function AdminRutLookup() {
 
             {searched && results.length === 0 && !isPending ? (
               <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                Sin resultados para "{query.trim()}".
+                Sin resultados para &quot;{query.trim()}&quot;.
               </div>
             ) : null}
 

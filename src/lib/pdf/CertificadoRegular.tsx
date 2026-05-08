@@ -3,10 +3,12 @@
 import {
   Circle,
   Document,
+  Font,
   Image,
   Link,
   Page,
   Path,
+  Rect,
   StyleSheet,
   Svg,
   Text,
@@ -15,6 +17,24 @@ import {
 
 import { INSTITUCION_OTEC } from "@/lib/institucion";
 import { formatearRut } from "@/lib/rut";
+
+// Fuentes embebidas — sirve same-origin desde /public/fonts en cliente
+Font.register({
+  family: "Lora",
+  fonts: [
+    { src: "/fonts/Lora-Regular.ttf", fontWeight: 400 },
+    { src: "/fonts/Lora-Italic.ttf", fontWeight: 400, fontStyle: "italic" },
+    { src: "/fonts/Lora-Bold.ttf", fontWeight: 700 },
+  ],
+});
+
+Font.register({
+  family: "Montserrat",
+  fonts: [
+    { src: "/fonts/Montserrat-Bold.ttf", fontWeight: 700 },
+    { src: "/fonts/Montserrat-Black.ttf", fontWeight: 900 },
+  ],
+});
 
 export type CertificadoRegularPdfData = {
   codigoUnico: string;
@@ -28,270 +48,312 @@ export type CertificadoRegularPdfData = {
   numeroCertificado?: string | null;
 };
 
-const COLORS = {
-  morado: "#6B21A8",
-  moradoOscuro: "#3F1370",
-  moradoMedio: "#7E2EB8",
-  moradoSuave: "#E9DDF5",
-  dorado: "#D9A93C",
-  doradoClaro: "#F2C65A",
-  texto: "#1A1230",
-  textoTenue: "#5B5670",
-  campoBg: "#EFE6F8",
-  fondo: "#FFFFFF",
+const C = {
+  dark: "#2A1657",
+  purple: "#5F259F",
+  purpleSoft: "#8C52FF",
+  gold: "#F4B819",
+  goldSoft: "#FDE6B0",
+  banner: "#351C61",
+  inner: "#E8E0F0",
+  diamond: "#D1C4E9",
+  fieldBg: "#F3EDF8",
+  fieldText: "#4A237A",
+  text: "#1A1230",
+  textMuted: "#5B5670",
 };
 
 const styles = StyleSheet.create({
   page: {
     padding: 0,
-    backgroundColor: COLORS.fondo,
-    fontFamily: "Times-Roman",
-    color: COLORS.texto,
+    backgroundColor: "#FFFFFF",
+    fontFamily: "Lora",
+    color: C.text,
   },
-  cornerTL: { position: "absolute", top: 24, left: 24, width: 160, height: 160 },
-  cornerTR: { position: "absolute", top: 24, right: 24, width: 160, height: 160 },
-  cornerBL: { position: "absolute", bottom: 24, left: 24, width: 160, height: 160 },
-  cornerBR: { position: "absolute", bottom: 24, right: 24, width: 160, height: 160 },
-  dotsTR: { position: "absolute", top: 50, right: 36, width: 80, height: 42 },
-  dotsBL: { position: "absolute", bottom: 110, left: 36, width: 80, height: 42 },
+  innerBorder: {
+    position: "absolute",
+    top: 35,
+    left: 35,
+    right: 35,
+    bottom: 35,
+    borderWidth: 0.6,
+    borderColor: C.inner,
+    borderStyle: "solid",
+    borderRadius: 2,
+  },
+  diamondL: {
+    position: "absolute",
+    top: "50%",
+    left: 31,
+    width: 8,
+    height: 8,
+    backgroundColor: C.diamond,
+    transform: "translateY(-4) rotate(45deg)",
+  },
+  diamondR: {
+    position: "absolute",
+    top: "50%",
+    right: 31,
+    width: 8,
+    height: 8,
+    backgroundColor: C.diamond,
+    transform: "translateY(-4) rotate(45deg)",
+  },
+  cornerTL: { position: "absolute", top: 0, left: 0, width: 280, height: 280 },
+  cornerBR: { position: "absolute", bottom: 0, right: 0, width: 300, height: 300 },
+  dotsTR: { position: "absolute", top: 56, right: 50, width: 70, height: 90 },
   watermark: {
     position: "absolute",
     top: 240,
-    left: 137,
-    width: 320,
+    left: 168,
+    width: 260,
     height: 320,
-    opacity: 0.05,
+    opacity: 0.04,
   },
   contenido: {
     paddingTop: 36,
     paddingBottom: 22,
-    paddingHorizontal: 78,
+    paddingHorizontal: 72,
   },
-  header: {
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  logo: {
-    width: 270,
-    height: 110,
-    objectFit: "contain",
-    marginBottom: 8,
-  },
-  institucionRow: {
+  headerRow: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  logoImg: {
+    width: 200,
+    height: 70,
+    objectFit: "contain",
+  },
+  institLine: {
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 10.5,
+    color: C.purple,
+    textAlign: "center",
+    letterSpacing: 3,
     marginTop: 4,
   },
-  institucionLine: {
-    width: 70,
-    height: 0.7,
-    backgroundColor: COLORS.morado,
-  },
-  institucionDiamond: {
-    width: 6,
-    height: 6,
-    backgroundColor: COLORS.dorado,
-    transform: "rotate(45deg)",
-  },
-  institucionTexto: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: COLORS.moradoOscuro,
-    letterSpacing: 2.5,
-    fontFamily: "Times-Bold",
-  },
   titulo: {
-    marginTop: 18,
-    fontSize: 44,
-    color: COLORS.moradoOscuro,
+    fontFamily: "Lora",
+    fontWeight: 700,
+    fontSize: 42,
+    color: C.dark,
     textAlign: "center",
-    letterSpacing: 7,
-    fontFamily: "Times-Bold",
+    letterSpacing: 6,
+    marginTop: 12,
   },
   subtitulo: {
-    fontSize: 22,
-    color: COLORS.moradoOscuro,
+    fontFamily: "Lora",
+    fontWeight: 700,
+    fontSize: 20,
+    color: C.dark,
     textAlign: "center",
     letterSpacing: 4,
     marginTop: 2,
-    fontFamily: "Times-Bold",
   },
-  diamanteRow: {
+  divider: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
     gap: 8,
   },
-  diamanteLine: {
-    width: 80,
-    height: 1,
-    backgroundColor: COLORS.dorado,
-  },
-  diamante: {
-    width: 7,
-    height: 7,
-    backgroundColor: COLORS.dorado,
-    transform: "rotate(45deg)",
-  },
+  divLine: { width: 80, height: 1, backgroundColor: C.gold },
+  divDiamond: { width: 7, height: 7, backgroundColor: C.gold, transform: "rotate(45deg)" },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-end",
     marginTop: 16,
+    paddingBottom: 4,
+    borderBottomWidth: 0.6,
+    borderBottomColor: "#F1F1F4",
+    borderBottomStyle: "solid",
   },
   metaLbl: {
-    fontSize: 12,
-    color: COLORS.textoTenue,
-    fontFamily: "Times-Roman",
+    fontFamily: "Lora",
+    fontStyle: "italic",
+    fontSize: 13,
+    color: C.dark,
   },
-  metaValBox: {
-    borderWidth: 1,
-    borderColor: COLORS.morado,
-    borderStyle: "solid",
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  metaVal: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: COLORS.moradoOscuro,
-    letterSpacing: 0.6,
-    fontFamily: "Times-Bold",
-  },
-  cuerpo: {
-    marginTop: 18,
-    fontSize: 12,
-    lineHeight: 1.7,
-    color: COLORS.texto,
-    textAlign: "justify",
-  },
-  campo: {
-    backgroundColor: COLORS.campoBg,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    color: COLORS.moradoOscuro,
-    fontFamily: "Times-Bold",
-  },
-  fechaRow: {
-    marginTop: 16,
+  metaNum: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    borderBottomWidth: 0.8,
+    borderBottomColor: C.dark,
+    borderBottomStyle: "solid",
+    paddingBottom: 1,
+    gap: 4,
   },
-  fechaIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1.2,
-    borderColor: COLORS.morado,
-    borderStyle: "solid",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fechaLbl: {
+  metaNumLbl: {
+    fontFamily: "Montserrat",
+    fontWeight: 700,
     fontSize: 12,
-    color: COLORS.texto,
-    fontFamily: "Times-Roman",
+    color: C.dark,
   },
-  fechaValBox: {
-    backgroundColor: COLORS.campoBg,
-    borderRadius: 4,
-    paddingVertical: 2,
+  metaNumVal: {
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 12,
+    color: C.dark,
+    letterSpacing: 0.6,
+  },
+  body: {
+    marginTop: 14,
+    fontFamily: "Lora",
+    fontSize: 11.5,
+    lineHeight: 1.65,
+    color: "#2A2436",
+  },
+  bodyP: { marginBottom: 6 },
+  field: {
+    backgroundColor: C.fieldBg,
+    color: C.fieldText,
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 11.5,
     paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 3,
+    letterSpacing: 0.4,
   },
-  fechaVal: {
-    fontSize: 11,
-    color: COLORS.moradoOscuro,
-    fontFamily: "Times-Bold",
-  },
-  firmaSection: {
+  bottomRow: {
     marginTop: 18,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    position: "relative",
   },
-  qrCol: {
-    width: 110,
-    alignItems: "center",
+  qrBlock: {
+    width: 140,
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 14,
   },
-  qr: {
-    width: 80,
-    height: 80,
+  qrBox: {
+    width: 86,
+    height: 86,
+    backgroundColor: "#FFFFFF",
+    padding: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: C.purpleSoft,
+    borderStyle: "solid",
   },
-  qrLbl: {
-    fontSize: 7.5,
-    color: COLORS.textoTenue,
-    marginTop: 3,
+  qrImg: { width: "100%", height: "100%" },
+  qrCaption: {
+    fontFamily: "Lora",
+    fontStyle: "italic",
+    fontSize: 7,
+    color: C.textMuted,
+    marginTop: 4,
+    width: 100,
     textAlign: "center",
-    fontFamily: "Times-Roman",
+  },
+  fechaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  fechaIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: C.gold,
+    borderStyle: "solid",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fechaLabelText: {
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 10,
+    color: C.dark,
+  },
+  fechaValBox: {
+    backgroundColor: C.fieldBg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
+  },
+  fechaVal: {
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 11,
+    color: C.fieldText,
+    letterSpacing: 0.3,
   },
   firmaCol: {
     flex: 1,
     alignItems: "center",
-    paddingBottom: 4,
+    paddingBottom: 6,
   },
   firmaImg: {
-    width: 160,
-    height: 64,
+    width: 170,
+    height: 70,
     objectFit: "contain",
-    marginBottom: -10,
+    marginBottom: -12,
   },
-  firmaLinea: {
-    width: 230,
-    height: 0.8,
-    backgroundColor: COLORS.texto,
+  firmaLineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 220,
     marginBottom: 6,
   },
+  firmaLine: { flex: 1, height: 0.8, backgroundColor: C.dark },
+  firmaDot: {
+    width: 6,
+    height: 6,
+    backgroundColor: C.dark,
+    transform: "rotate(45deg)",
+    marginHorizontal: 4,
+  },
   firmaNombre: {
-    fontSize: 13,
-    color: COLORS.texto,
-    letterSpacing: 0.6,
-    fontFamily: "Times-Bold",
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 12,
+    color: C.dark,
+    letterSpacing: 0.5,
   },
   firmaCargo: {
-    fontSize: 10.5,
-    color: COLORS.textoTenue,
-    letterSpacing: 0.6,
+    fontFamily: "Lora",
+    fontSize: 10,
+    color: C.dark,
     marginTop: 2,
+    letterSpacing: 0.4,
   },
-  timbreCol: {
-    width: 120,
+  selloBox: {
+    width: 130,
     alignItems: "center",
   },
-  timbre: {
-    width: 110,
-    height: 110,
+  sello: {
+    width: 122,
+    height: 122,
     objectFit: "contain",
-    opacity: 0.92,
   },
-  pieWrap: {
-    marginTop: 22,
-    paddingTop: 10,
-    borderTopWidth: 0.6,
-    borderTopColor: COLORS.morado,
-    borderTopStyle: "solid",
+  banner: {
+    marginTop: 16,
+    alignSelf: "center",
+    backgroundColor: C.banner,
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
   },
-  pieTexto: {
-    color: COLORS.moradoOscuro,
+  bannerText: {
+    color: "#FFFFFF",
+    fontFamily: "Montserrat",
+    fontWeight: 700,
     fontSize: 9,
-    fontFamily: "Times-Roman",
-    letterSpacing: 0.3,
+    letterSpacing: 0.6,
   },
-  pieDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: COLORS.dorado,
+  bannerSep: {
+    color: C.gold,
+    fontFamily: "Montserrat",
+    fontWeight: 400,
+    fontSize: 11,
   },
   webRow: {
     marginTop: 10,
@@ -300,15 +362,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  webGlobo: {
-    width: 13,
-    height: 13,
-  },
   webText: {
-    fontSize: 12,
-    color: COLORS.morado,
-    fontFamily: "Times-Bold",
+    fontFamily: "Montserrat",
+    fontWeight: 700,
+    fontSize: 11,
+    color: C.dark,
     textDecoration: "none",
+    letterSpacing: 0.4,
   },
 });
 
@@ -332,65 +392,42 @@ const formatFecha = (iso: string): string => {
   }).format(d);
 };
 
-function CornerOrnament({ variant }: { variant: "tl" | "tr" | "bl" | "br" }) {
-  const flipX = variant === "tr" || variant === "br";
-  const flipY = variant === "bl" || variant === "br";
-  const tx = flipX ? 160 : 0;
-  const ty = flipY ? 160 : 0;
-  const sx = flipX ? -1 : 1;
-  const sy = flipY ? -1 : 1;
-  const tr = `translate(${tx} ${ty}) scale(${sx} ${sy})`;
-
+function CornerTopLeft() {
   return (
-    <Svg viewBox="0 0 160 160" width="160" height="160">
-      {/* Curva exterior morada (línea delgada) */}
-      <Path
-        d="M0,28 C40,28 90,58 132,160"
-        transform={tr}
-        stroke={COLORS.morado}
-        strokeWidth={1.2}
-        fill="none"
-      />
-      {/* Curva intermedia dorada */}
-      <Path
-        d="M0,46 C36,46 78,72 110,160"
-        transform={tr}
-        stroke={COLORS.dorado}
-        strokeWidth={1}
-        fill="none"
-      />
-      {/* Curva interior morado claro */}
-      <Path
-        d="M0,64 C32,64 66,88 92,160"
-        transform={tr}
-        stroke={COLORS.moradoMedio}
-        strokeWidth={0.8}
-        fill="none"
-      />
-      {/* Pequeña flor de lis en el vértice */}
-      <Path
-        d="M22,22 L30,14 M22,22 L14,14 M22,22 L22,32"
-        transform={tr}
-        stroke={COLORS.dorado}
-        strokeWidth={0.8}
-        fill="none"
-      />
-      <Circle cx={22} cy={22} r={1.6} fill={COLORS.dorado} transform={tr} />
+    <Svg viewBox="0 0 400 400" width="280" height="280">
+      <Path d="M0 0 L350 0 C180 30 80 180 0 380 Z" fill={C.dark} />
+      <Path d="M0 0 L290 0 C150 20 50 150 0 300 Z" fill="#FFFFFF" />
+      <Path d="M0 0 L260 0 C130 15 40 130 0 270 Z" fill={C.gold} />
+      <Path d="M0 0 L220 0 C110 10 30 110 0 230 Z" fill="#FFFFFF" />
+      <Path d="M0 0 L190 0 C90 5 20 90 0 190 Z" fill={C.dark} />
+    </Svg>
+  );
+}
+
+function CornerBottomRight() {
+  return (
+    <Svg viewBox="0 0 400 400" width="300" height="300">
+      <Path d="M400 400 L0 400 C220 370 320 220 400 20 Z" fill={C.dark} />
+      <Path d="M400 400 L60 400 C250 380 350 250 400 100 Z" fill="#FFFFFF" />
+      <Path d="M400 400 L90 400 C270 385 370 270 400 130 Z" fill={C.gold} />
+      <Path d="M400 400 L140 400 C290 390 380 290 400 170 Z" fill="#FFFFFF" />
+      <Path d="M400 400 L170 400 C310 395 390 310 400 210 Z" fill={C.dark} />
+      <Path d="M400 400 L250 400 C350 398 400 350 400 280 Z" fill={C.purpleSoft} />
     </Svg>
   );
 }
 
 function DotsPattern() {
   const dots: { cx: number; cy: number }[] = [];
-  for (let row = 0; row < 5; row += 1) {
-    for (let col = 0; col < 9; col += 1) {
-      dots.push({ cx: 5 + col * 10, cy: 5 + row * 10 });
+  for (let r = 0; r < 8; r += 1) {
+    for (let c = 0; c < 6; c += 1) {
+      dots.push({ cx: 4 + c * 12, cy: 4 + r * 12 });
     }
   }
   return (
-    <Svg viewBox="0 0 80 42" width="80" height="42">
+    <Svg viewBox="0 0 70 96" width="70" height="96">
       {dots.map((d, i) => (
-        <Circle key={i} cx={d.cx} cy={d.cy} r={1.4} fill={COLORS.moradoMedio} fillOpacity={0.55} />
+        <Circle key={i} cx={d.cx} cy={d.cy} r={1.5} fill={C.dark} fillOpacity={0.85} />
       ))}
     </Svg>
   );
@@ -398,10 +435,36 @@ function DotsPattern() {
 
 function CalendarIcon() {
   return (
-    <Svg viewBox="0 0 24 24" width="18" height="18">
-      <Path d="M5,4 L19,4 C20,4 21,5 21,6 L21,19 C21,20 20,21 19,21 L5,21 C4,21 3,20 3,19 L3,6 C3,5 4,4 5,4 Z" fill="none" stroke={COLORS.morado} strokeWidth={1.5} />
-      <Path d="M3,9 L21,9" stroke={COLORS.morado} strokeWidth={1.5} />
-      <Path d="M8,2 L8,6 M16,2 L16,6" stroke={COLORS.morado} strokeWidth={1.5} />
+    <Svg viewBox="0 0 24 24" width="16" height="16">
+      <Rect x={3} y={5} width={18} height={16} rx={2} fill="none" stroke={C.dark} strokeWidth={1.5} />
+      <Path d="M3 10 L21 10" stroke={C.dark} strokeWidth={1.5} />
+      <Path d="M8 3 L8 7 M16 3 L16 7" stroke={C.dark} strokeWidth={1.5} strokeLinecap="round" />
+      <Circle cx={8} cy={14} r={1.2} fill={C.dark} />
+      <Circle cx={12} cy={14} r={1.2} fill={C.dark} />
+      <Circle cx={16} cy={14} r={1.2} fill={C.dark} />
+      <Circle cx={8} cy={18} r={1.2} fill={C.dark} />
+      <Circle cx={12} cy={18} r={1.2} fill={C.dark} />
+      <Circle cx={16} cy={18} r={1.2} fill={C.dark} />
+    </Svg>
+  );
+}
+
+function CardIcon() {
+  return (
+    <Svg viewBox="0 0 24 24" width="14" height="14">
+      <Rect x={3} y={6} width={18} height={12} rx={2} fill="none" stroke={C.gold} strokeWidth={1.5} />
+      <Circle cx={8} cy={11} r={2} fill="none" stroke={C.gold} strokeWidth={1.5} />
+      <Path d="M14 10 L18 10 M14 14 L18 14" stroke={C.gold} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M5 16 C 6.5 14.5, 9.5 14.5, 11 16" stroke={C.gold} strokeWidth={1.5} fill="none" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function MedalIcon() {
+  return (
+    <Svg viewBox="0 0 24 24" width="14" height="14">
+      <Circle cx={12} cy={8} r={4} fill="none" stroke={C.gold} strokeWidth={1.5} />
+      <Path d="M9.5 11.5 L7 20 L12 18 L17 20 L14.5 11.5" fill="none" stroke={C.gold} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -409,8 +472,9 @@ function CalendarIcon() {
 function GlobeIcon() {
   return (
     <Svg viewBox="0 0 24 24" width="13" height="13">
-      <Circle cx="12" cy="12" r="10" fill="none" stroke={COLORS.morado} strokeWidth={1.4} />
-      <Path d="M2,12 L22,12 M12,2 C16,6 16,18 12,22 C8,18 8,6 12,2 Z" fill="none" stroke={COLORS.morado} strokeWidth={1.4} />
+      <Circle cx={12} cy={12} r={10} fill="none" stroke={C.gold} strokeWidth={1.6} />
+      <Path d="M2 12 L22 12" stroke={C.gold} strokeWidth={1.6} />
+      <Path d="M12 2 C 16 6 16 18 12 22 C 8 18 8 6 12 2 Z" fill="none" stroke={C.gold} strokeWidth={1.6} />
     </Svg>
   );
 }
@@ -429,103 +493,117 @@ export function CertificadoRegularDocument({ data }: { data: CertificadoRegularP
       producer="Mi Otec"
     >
       <Page size="A4" style={styles.page}>
-        <View style={styles.cornerTL}><CornerOrnament variant="tl" /></View>
-        <View style={styles.cornerTR}><CornerOrnament variant="tr" /></View>
-        <View style={styles.cornerBL}><CornerOrnament variant="bl" /></View>
-        <View style={styles.cornerBR}><CornerOrnament variant="br" /></View>
+        {/* Marco interior + rombos laterales */}
+        <View style={styles.innerBorder} />
+        <View style={styles.diamondL} />
+        <View style={styles.diamondR} />
 
+        {/* Esquinas decorativas */}
+        <View style={styles.cornerTL}><CornerTopLeft /></View>
         <View style={styles.dotsTR}><DotsPattern /></View>
-        <View style={styles.dotsBL}><DotsPattern /></View>
+        <View style={styles.cornerBR}><CornerBottomRight /></View>
 
+        {/* Watermark */}
         {/* eslint-disable-next-line jsx-a11y/alt-text */}
         <Image src="/certificados/logo-impulsate.png" style={styles.watermark} />
 
         <View style={styles.contenido}>
-          <View style={styles.header}>
+          {/* Logo */}
+          <View style={styles.headerRow}>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src="/certificados/logo-impulsate.png" style={styles.logo} />
-            <View style={styles.institucionRow}>
-              <View style={styles.institucionLine} />
-              <View style={styles.institucionDiamond} />
-              <Text style={styles.institucionTexto}>OTEC IMPÚLSATE & EMPRENDE</Text>
-              <View style={styles.institucionDiamond} />
-              <View style={styles.institucionLine} />
-            </View>
+            <Image src="/certificados/logo-impulsate.png" style={styles.logoImg} />
           </View>
 
+          {/* OTEC IMPÚLSATE & EMPRENDE */}
+          <Text style={styles.institLine}>OTEC IMPÚLSATE &amp; EMPRENDE</Text>
+
+          {/* Título */}
           <Text style={styles.titulo}>CERTIFICADO</Text>
           <Text style={styles.subtitulo}>DE ALUMNO REGULAR</Text>
 
-          <View style={styles.diamanteRow}>
-            <View style={styles.diamanteLine} />
-            <View style={styles.diamante} />
-            <View style={styles.diamanteLine} />
+          {/* Divider dorado */}
+          <View style={styles.divider}>
+            <View style={styles.divLine} />
+            <View style={styles.divDiamond} />
+            <View style={styles.divLine} />
           </View>
 
+          {/* Documento Institucional / N° */}
           <View style={styles.metaRow}>
             <Text style={styles.metaLbl}>Documento Institucional</Text>
-            <View style={styles.metaValBox}>
-              <Text style={styles.metaVal}>N.°  {numero}</Text>
+            <View style={styles.metaNum}>
+              <Text style={styles.metaNumLbl}>N.°</Text>
+              <Text style={styles.metaNumVal}>{numero}</Text>
             </View>
           </View>
 
-          <View style={styles.cuerpo}>
-            <Text>
-              Por medio del presente, OTEC Impúlsate & Emprende certifica que{" "}
-              <Text style={styles.campo}> {nombreCompleto || "—"} </Text>, RUT{" "}
-              <Text style={styles.campo}> {rutFmt} </Text>, es alumno(a) regular del programa/curso{" "}
-              <Text style={styles.campo}> {data.cursoNombre} </Text>, impartido por{" "}
-              <Text style={styles.campo}> {INSTITUCION_OTEC.nombreCorto} </Text>, manteniendo matrícula vigente a la fecha de emisión.
+          {/* Cuerpo */}
+          <View style={styles.body}>
+            <Text style={styles.bodyP}>
+              Por medio del presente, OTEC Impúlsate &amp; Emprende certifica que{" "}
+              <Text style={styles.field}>{nombreCompleto || "—"}</Text>, RUT{" "}
+              <Text style={styles.field}>{rutFmt}</Text>, es alumno(a) regular del programa/curso{" "}
+              <Text style={styles.field}>{data.cursoNombre}</Text>, impartido por{" "}
+              <Text style={styles.field}>{INSTITUCION_OTEC.nombreCorto}</Text>, manteniendo matrícula vigente a la fecha de emisión.
             </Text>
-            <Text style={{ marginTop: 12 }}>
+            <Text style={[styles.bodyP, { marginTop: 10 }]}>
               Se extiende el presente certificado a solicitud del interesado(a) para{" "}
-              <Text style={styles.campo}> {data.finalidad} </Text>.
+              <Text style={styles.field}>{data.finalidad}</Text>.
             </Text>
           </View>
 
-          <View style={styles.fechaRow}>
-            <View style={styles.fechaIconWrap}>
-              <CalendarIcon />
+          {/* Bottom row: QR+Fecha · Firma · Sello */}
+          <View style={styles.bottomRow}>
+            <View style={styles.qrBlock}>
+              <View style={styles.qrBox}>
+                {data.qrDataUrl ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text
+                  <Image src={data.qrDataUrl} style={styles.qrImg} />
+                ) : null}
+              </View>
+              <View style={styles.fechaRow}>
+                <View style={styles.fechaIcon}><CalendarIcon /></View>
+                <View>
+                  <Text style={styles.fechaLabelText}>Fecha de emisión</Text>
+                  <View style={styles.fechaValBox}>
+                    <Text style={styles.fechaVal}>{fechaFmt}</Text>
+                  </View>
+                </View>
+              </View>
             </View>
-            <Text style={styles.fechaLbl}>Fecha de emisión:</Text>
-            <View style={styles.fechaValBox}>
-              <Text style={styles.fechaVal}>{fechaFmt}</Text>
-            </View>
-          </View>
 
-          <View style={styles.firmaSection}>
-            <View style={styles.qrCol}>
-              {data.qrDataUrl ? (
-                // eslint-disable-next-line jsx-a11y/alt-text
-                <Image src={data.qrDataUrl} style={styles.qr} />
-              ) : null}
-              <Text style={styles.qrLbl}>Verifica este certificado escaneando el QR</Text>
-            </View>
             <View style={styles.firmaCol}>
               {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image src="/certificados/firma-yoel-labra.png" style={styles.firmaImg} />
-              <View style={styles.firmaLinea} />
+              <View style={styles.firmaLineRow}>
+                <View style={styles.firmaLine} />
+                <View style={styles.firmaDot} />
+                <View style={styles.firmaLine} />
+              </View>
               <Text style={styles.firmaNombre}>{INSTITUCION_OTEC.director.nombre}</Text>
               <Text style={styles.firmaCargo}>{INSTITUCION_OTEC.director.cargo}</Text>
             </View>
-            <View style={styles.timbreCol}>
+
+            <View style={styles.selloBox}>
               {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image src="/certificados/timbre-otec.png" style={styles.timbre} />
+              <Image src="/certificados/timbre-otec.png" style={styles.sello} />
             </View>
           </View>
 
-          <View style={styles.pieWrap}>
-            <Text style={styles.pieTexto}>RUT {INSTITUCION_OTEC.rut}</Text>
-            <View style={styles.pieDot} />
-            <Text style={styles.pieTexto}>{INSTITUCION_OTEC.registroSence}</Text>
-            <View style={styles.pieDot} />
-            <Text style={styles.pieTexto}>{INSTITUCION_OTEC.idOtec}</Text>
-            <View style={styles.pieDot} />
-            <Text style={styles.pieTexto}>{INSTITUCION_OTEC.registroInn}</Text>
+          {/* Banner pill */}
+          <View style={styles.banner}>
+            <CardIcon />
+            <Text style={styles.bannerText}>RUT {INSTITUCION_OTEC.rut}</Text>
+            <Text style={styles.bannerSep}>|</Text>
+            <Text style={styles.bannerText}>{INSTITUCION_OTEC.registroSence}</Text>
+            <Text style={styles.bannerSep}>|</Text>
+            <Text style={styles.bannerText}>{INSTITUCION_OTEC.idOtec}</Text>
+            <MedalIcon />
           </View>
 
+          {/* Web row */}
           <View style={styles.webRow}>
-            <View style={styles.webGlobo}><GlobeIcon /></View>
+            <GlobeIcon />
             <Link src={INSTITUCION_OTEC.sitioWebUrl} style={styles.webText}>
               www.{INSTITUCION_OTEC.sitioWeb}
             </Link>

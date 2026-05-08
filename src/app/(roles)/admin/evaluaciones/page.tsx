@@ -232,7 +232,7 @@ export default async function AdminEvaluacionesPage({
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw) && asignaturas.some((a) => a.id === selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
-      : asignaturas[0]?.id;
+      : "";
 
   const selectedAsignatura =
     asignaturas.find((a) => a.id === selectedAsignaturaId) ?? null;
@@ -454,6 +454,19 @@ export default async function AdminEvaluacionesPage({
           No hay secciones disponibles para el periodo seleccionado.
         </article>
       )}
+
+      {asignaturas.length > 0 && !selectedAsignaturaId ? (
+        <article className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-sm text-text-secondary shadow-sm dark:border-primary/30 dark:bg-primary/10 dark:text-gray-300">
+          <p className="font-semibold text-text-primary dark:text-white">
+            Selecciona una sección para trabajar evaluaciones.
+          </p>
+          <p className="mt-1">
+            La pantalla ya no abre la primera sección del periodo por defecto. Así los borradores,
+            importaciones desde banco, resultados y supervisión quedan amarrados al contexto que
+            eligió el administrador.
+          </p>
+        </article>
+      ) : null}
 
       {selectedAsignaturaId && (
         <div className="grid gap-3 md:grid-cols-3">

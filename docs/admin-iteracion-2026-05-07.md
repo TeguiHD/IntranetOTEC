@@ -146,7 +146,7 @@ Nota de lectura: el Word original mezcla algunos puntos principales con subpunto
 | 17 | Matrículas: estado + bloqueos por pago con notificación | Hecho | No autoselecciona sección; muestra bloqueos por cupo/periodo/sección y advertencia por mora/pendientes del alumno antes de guardar. |
 | 18 | Notificaciones: tabs historial/nueva, popup | Hecho | Tabs Crear/Historial, alcance estimado, confirmación masiva. |
 | 19 | Solicitudes: badge en navbar/sidebar + push PWA en tiempo real | Hecho | Sidebar/Topbar muestran badge con `countSolicitudesPendientesAdmin`; nuevas solicitudes disparan push PWA a admins suscritos. |
-| 20 | Beneficios y credenciales: un solo icono, selector moderno, cambio masivo | Parcial | Cambio masivo por curso tiene cascada periodo/curso/sección, alcance y confirmación. El filtro de control por persona aún usa un selector plano de sección. |
+| 20 | Beneficios y credenciales: un solo icono, selector moderno, cambio masivo | Hecho | Cambio masivo por curso tiene cascada periodo/curso/sección, alcance y confirmación. El control por persona también usa filtro contextual periodo → curso → sección con búsqueda. |
 | 21 | Certificados: automatizar desde solicitud alumno regular | Hecho | Auto-evaluación + combobox remoto. |
 | 22 | Importar Alumnos: flujo operacional OTEC claro | Hecho | El flujo se orientó a sección/matrícula y validación OTEC, en vez de una carga plana de usuarios. |
 | 23 | Dashboard: métricas reales, no botones-link | Hecho | El panel dejó de ser grilla de módulos; ahora muestra KPIs accionables: solicitudes, clases hoy, mora, pagos, secciones, certificados y envíos. |
@@ -161,8 +161,8 @@ Nota de lectura: el Word original mezcla algunos puntos principales con subpunto
 
 **Resumen numérico**
 
-- Hecho pleno: 23 filas de control.
-- Parcial con valor entregado: 8 filas de control.
+- Hecho pleno: 24 filas de control.
+- Parcial con valor entregado: 7 filas de control.
 - Pendiente real de producto: 1 fila de control (`7b`) + reproducción con datos reales para PDF/Historial.
 - Fuera de alcance: 1 fila de control.
 
@@ -171,11 +171,10 @@ Nota de lectura: el Word original mezcla algunos puntos principales con subpunto
 Lista honesta después de esta segunda tanda. Ya no quedan los pendientes visibles que Claude enumeró como primera prioridad, pero sí quedan mejoras estructurales si se quiere cerrar Admin con estándar alto:
 
 1. **Ficha profunda de alumno y docente**: hoy hay resumen en tabla; falta página/modal de detalle con relaciones académicas completas.
-2. **Beneficios/Credenciales**: reemplazar el selector plano del filtro por persona por la misma cascada periodo → curso → sección.
-3. **Curso base vs secciones por periodo**: definir política completa de eliminar/archivar curso base y secciones específicas.
-4. **Carpeta académica por alumno**: la ficha de sección existe; falta la vista transversal por alumno.
-5. **Ruta legacy `/admin/encuestas`**: decidir si se migra a builder, se deja como reporte histórico o se redirige.
-6. **PDF/Historial con datos reales**: el código quedó blindado, pero falta reproducir con snapshot/dump representativo.
+2. **Curso base vs secciones por periodo**: definir política completa de eliminar/archivar curso base y secciones específicas.
+3. **Carpeta académica por alumno**: la ficha de sección existe; falta la vista transversal por alumno.
+4. **Ruta legacy `/admin/encuestas`**: decidir si se migra a builder, se deja como reporte histórico o se redirige.
+5. **PDF/Historial con datos reales**: el código quedó blindado, pero falta reproducir con snapshot/dump representativo.
 
 ## 9. Verificación
 

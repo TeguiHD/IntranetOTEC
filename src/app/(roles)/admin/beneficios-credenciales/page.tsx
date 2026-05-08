@@ -1,4 +1,4 @@
-import { IdCard, Search, ShieldCheck, Users } from "lucide-react";
+import { IdCard, ShieldCheck, Users } from "lucide-react";
 
 import {
   actualizarAccesoDocumentosAlumnoFormAction,
@@ -9,6 +9,7 @@ import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearIdentificador } from "@/lib/rut";
 
 import { BeneficiosCursoForm } from "./BeneficiosCursoForm";
+import { BeneficiosPersonaFilter } from "./BeneficiosPersonaFilter";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   acceso_alumno_actualizado: { tone: "success", text: "Acceso del alumno actualizado correctamente." },
@@ -76,34 +77,11 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto]">
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-text-primary dark:text-gray-200">Buscar persona</span>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                  <input
-                    name="q"
-                    defaultValue={q}
-                    placeholder="Nombre, apellido, RUT, credencial o correo"
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus-visible:ring-2 focus-visible:ring-primary/30 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" inputMode="email"
-                  />
-                </div>
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-sm font-medium text-text-primary dark:text-gray-200">Curso / sección</span>
-                <select name="asignaturaId" defaultValue={asignaturaId} className={selectClass}>
-                  <option value="">Todos los cursos</option>
-                  {secciones.map((seccion) => (
-                    <option key={seccion.id} value={seccion.id}>
-                      {seccion.cursoNombre} - {seccion.nombre} ({seccion.matriculados})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit" className={`${actionButtonClass} self-end`}>
-                Filtrar
-              </button>
-            </form>
+            <BeneficiosPersonaFilter
+              secciones={secciones}
+              initialQuery={q}
+              initialAsignaturaId={asignaturaId}
+            />
           </article>
 
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">

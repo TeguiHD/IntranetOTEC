@@ -22,6 +22,7 @@ type Props = {
   countLabel?: string;
   allowClear?: boolean;
   clearLabel?: string;
+  onValueChange?: (value: string) => void;
 };
 
 export function EntityFilterSelect({
@@ -35,6 +36,7 @@ export function EntityFilterSelect({
   countLabel = "opciones",
   allowClear = false,
   clearLabel,
+  onValueChange,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -74,6 +76,7 @@ export function EntityFilterSelect({
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
+    onValueChange?.(id);
     setOpen(false);
     setQuery("");
     if (hiddenRef.current) hiddenRef.current.value = id;

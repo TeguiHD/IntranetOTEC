@@ -118,69 +118,64 @@ Todas las pasadas se cerraron con `tsc`, `quality:gate` y `security:test` (45/45
 
 ## 8. Verificación honesta del Word, punto por punto
 
-Tabla de cumplimiento real verificada contra el código actual y contra `Mejoras ADMINISTRACIÓN(1).docx` línea por línea. Las celdas "Parcial" detallan qué se hizo y qué no.
+Tabla actualizada tras la segunda tanda de commits del 2026-05-07. Ya no refleja el cierre inicial de Claude: ahora cruza el Word con el código local actual, incluyendo búsqueda global, dashboard operativo, push de solicitudes, navegación Analítica, finanzas por matrícula, encuestas builder, carpeta de sección y la corrección de selección explícita en Matrículas/Horarios/Clases/Evaluaciones.
+
+Nota de lectura: el Word original mezcla algunos puntos principales con subpuntos (`5b`, `6b`, `7b`). Por eso esta tabla usa **filas de control** y no fuerza porcentajes sobre 31 exactos.
 
 | # | Punto del Word | Estado | Detalle |
 |---|---|---|---|
 | 1 | Panel: vista por periodo, evaluar modal/desplegable | Hecho | `PeriodoCursoSeccionPicker` con `allowClear`; el "all" centinela ya no es necesario. |
-| 2 | Panel: Métricas por Asignatura sin paginado | Pendiente | El bloque sigue sin paginación ni colapso por contexto. |
-| 3 | Panel: búsqueda RUT mejor ubicada (modal/topbar) | Pendiente | Sigue debajo de tarjetas y métricas. |
-| 4 | Panel: Datos Subidos por Docentes paginado | Pendiente | Acordeón sin paginación. |
-| 5 | Agenda: periodo modal, asignatura combobox, docentes filtrados | Parcial | Periodo y asignatura ahora usan picker. Docente sigue como `<select>`. |
-| 5b | Agenda: mes/año intuitivo (no input numérico) | Pendiente | Continúan los `<input type="number">`. La etiqueta "Anio" sigue mal escrita. |
-| 6 | Secciones: tabs estado optimizados, eliminar 10/pag | Parcial | Picker adoptado. La paginación 10/20/50 sigue prominente en `/admin/asignaturas`. |
-| 6b | Secciones: lógica tipo universidad curso+secciones | Parcial | Vista `/admin/academico` cubre el modelo mental, pero `/admin/asignaturas` no fue rediseñada. |
-| 7 | Cursos: al crear, asignar secciones/docentes/alumnos inline | Pendiente | El flujo "compañerismo-relación" no se implementó. |
-| 7b | Cursos: borrar por interfaz general y específicos por periodo | Pendiente | |
-| 8 | Horarios: calendario 3/4 a la izquierda + listado 1/4 | Pendiente | Sigue grilla semanal. |
-| 9 | Unificación conceptual Cursos+Secciones | Parcial | `/admin/academico` y la ficha `/admin/secciones/[id]` cubren la unificación operacional sin borrar las pantallas existentes. |
-| 10 | Clases: selección intuitiva con dependencia de horarios | Parcial | Picker adoptado. La autogeneración desde bloques horarios ya existía pero no se unificó visualmente con la ficha de sección. |
-| 11 | Evaluaciones: intuitividad y carga | Hecho | Picker adoptado y carga diferida por tab implementada (`perf(admin/evaluaciones): carga diferida por tab activa`). |
+| 2 | Panel: Métricas por Asignatura sin paginado | Hecho | Se retiró del panel. El dashboard quedó como centro operativo; el detalle vive en Analítica/vistas de sección. |
+| 3 | Panel: búsqueda RUT mejor ubicada (modal/topbar) | Hecho | `AdminRutLookup` está en Topbar admin, abre con botón y Cmd/Ctrl+K, busca por RUT/nombre/correo y lista alumnos/docentes. |
+| 4 | Panel: Datos Subidos por Docentes paginado | Parcial | Se retiró del panel para bajar ruido visual. Falta crear una vista analítica dedicada si se quiere conservar ese histórico como reporte. |
+| 5 | Agenda: periodo modal, asignatura combobox, docentes filtrados | Hecho | Periodo/sección usan picker; docente se filtra desde secciones disponibles. Sigue siendo `<select>`, pero ya no muestra docentes fuera de contexto. |
+| 5b | Agenda: mes/año intuitivo (no input numérico) | Hecho | Mes y año pasaron a `select`; la etiqueta quedó como "Año". |
+| 6 | Secciones: tabs estado optimizados, eliminar 10/pag | Parcial | Tabs por estado y resumen operativo mejorados. El selector de tamaño sigue existiendo, aunque menos dominante. |
+| 6b | Secciones: lógica tipo universidad curso+secciones | Hecho | `/admin/academico` y `/admin/secciones/[id]` ordenan curso -> secciones por periodo sin eliminar las pantallas especializadas. |
+| 7 | Cursos: al crear, asignar secciones/docentes/alumnos inline | Parcial | `CursoManager` permite crear primera sección opcional con periodo/turno/fechas/docente/cupo. Falta alta inline de alumnos en el mismo flujo. |
+| 7b | Cursos: borrar por interfaz general y específicos por periodo | Pendiente | Hay acciones de archivar/eliminar en secciones, pero no se rediseñó una política completa curso-base vs sección-periodo. |
+| 8 | Horarios: calendario 3/4 a la izquierda + listado 1/4 | Hecho | `/admin/horarios` usa `WeeklyScheduleGrid` en columna 3/4 y resumen/listado 1/4; ya exige sección explícita. |
+| 9 | Unificación conceptual Cursos+Secciones | Hecho | `/admin/academico` + ficha de sección actúan como hub operacional. |
+| 10 | Clases: selección intuitiva con dependencia de horarios | Hecho | Muestra dependencia de bloques, autogenera desde horario, enlaza a Horarios y ya no toma la primera sección por defecto. |
+| 11 | Evaluaciones: intuitividad y carga | Hecho | Picker, carga diferida por tab y selección explícita de sección para evitar operar sobre la primera sección del periodo. |
 | 12 | Asistencias: detalle por curso/sección, paginación, métricas | Hecho | `limit/offset` server-side, `count(*) FILTER` SQL para resumen. |
 | 13 | Notas: detalle por curso/sección, paginación, métricas | Hecho | Mismo patrón. |
-| 14 | Encuestas: intuitividad y responsive | Pendiente | No abordado. |
-| 15 | Docentes: gestión intuitiva, ver asignaciones | Pendiente | No abordado. |
-| 16 | Alumnos: gestión cuenta + comunicación con matrícula | Pendiente | No abordado en su flujo principal. |
-| 17 | Matrículas: estado + bloqueos por pago con notificación | Parcial | Bug RUT corregido. La advertencia visual de bloqueo por pago/cupo no se agregó. |
+| 14 | Encuestas: intuitividad y responsive | Parcial | La ruta principal del menú usa `/admin/encuestas-builder` con wizard responsive. La ruta legacy `/admin/encuestas` aún existe para análisis de encuesta docente. |
+| 15 | Docentes: gestión intuitiva, ver asignaciones | Parcial | Listado muestra ficha resumida con cantidad de secciones y estado. Falta vista de detalle por docente con secciones/clases/evaluaciones/material. |
+| 16 | Alumnos: gestión cuenta + comunicación con matrícula | Parcial | Listado muestra matrículas/certificados y acciones de cuenta. Falta ficha profunda por alumno con historial completo navegable. |
+| 17 | Matrículas: estado + bloqueos por pago con notificación | Hecho | No autoselecciona sección; muestra bloqueos por cupo/periodo/sección y advertencia por mora/pendientes del alumno antes de guardar. |
 | 18 | Notificaciones: tabs historial/nueva, popup | Hecho | Tabs Crear/Historial, alcance estimado, confirmación masiva. |
-| 19 | Solicitudes: badge en navbar/sidebar + push PWA en tiempo real | Parcial | Auto-evaluación, paginación y resumen agregado: hechos. Badge persistente y push tiempo real: pendientes. |
-| 20 | Beneficios y credenciales: un solo icono, selector moderno, cambio masivo | Hecho | `BeneficiosCursoForm` con filtros en cascada, alcance, confirmación, único icono. |
+| 19 | Solicitudes: badge en navbar/sidebar + push PWA en tiempo real | Hecho | Sidebar/Topbar muestran badge con `countSolicitudesPendientesAdmin`; nuevas solicitudes disparan push PWA a admins suscritos. |
+| 20 | Beneficios y credenciales: un solo icono, selector moderno, cambio masivo | Parcial | Cambio masivo por curso tiene cascada periodo/curso/sección, alcance y confirmación. El filtro de control por persona aún usa un selector plano de sección. |
 | 21 | Certificados: automatizar desde solicitud alumno regular | Hecho | Auto-evaluación + combobox remoto. |
-| 22 | Importar Alumnos: flujo operacional OTEC claro | Pendiente | El flujo existente no fue reorientado a sección/matrícula. |
-| 23 | Dashboard: métricas reales, no botones-link | Pendiente | El panel sigue mezclando KPIs con tarjetas-modulo. |
-| 24 | Optimizar 4 secciones del menú lateral | Pendiente | `navigationConfig.ts` ganó "Vista académica" pero no se consolidó "Reportes/Rendimiento/Retención/Asistencia/Notas" bajo "Analítica". |
+| 22 | Importar Alumnos: flujo operacional OTEC claro | Hecho | El flujo se orientó a sección/matrícula y validación OTEC, en vez de una carga plana de usuarios. |
+| 23 | Dashboard: métricas reales, no botones-link | Hecho | El panel dejó de ser grilla de módulos; ahora muestra KPIs accionables: solicitudes, clases hoy, mora, pagos, secciones, certificados y envíos. |
+| 24 | Optimizar 4 secciones del menú lateral | Hecho | Subreportes se consolidaron bajo Analítica; las URLs siguen accesibles desde `/admin/reportes`. |
 | 25 | Historial: error "Algo salió mal" | Hecho (blindado) | Validación + fallback + logging. La reproducción runtime requiere datos reales. |
-| 26 | Finanzas: ingresos por inscripciones | Pendiente | No abordado. |
+| 26 | Finanzas: ingresos por inscripciones | Hecho | Finanzas incluye resumen de ingresos por matrícula/arancel, pagado, pendiente, mora y becado. |
 | 27 | Carpeta académica (resultados/notas/asistencia ordenado) | Parcial | La ficha de sección actúa de hub con tabs que delegan a módulos. La "vista carpeta" unificada por alumno aún no existe. |
 | 28 | PDF malo (`pdf_failed`) | Hecho (blindado) | `runtime = "nodejs"`. Reproducción runtime pendiente. |
-| 29 | Asignación estudiantes a cursos intuitiva | Parcial | Bug RUT corregido. La "matrícula contextual desde sección" sigue pendiente como Fase 2 incremental. |
+| 29 | Asignación estudiantes a cursos intuitiva | Hecho | Bug RUT corregido, búsqueda normalizada y matrícula ya se abre con sección explícita desde fichas/rutas relacionadas. |
 | 30 | Páginas con scroll gigante (`docente/asignaturas`) | Fuera de alcance | Pertenece a la iteración Docente. |
 | 31 | BUG matrícula no encuentra alumnos | Hecho | Normalización RUT/email/credencial. |
 
 **Resumen numérico**
 
-- Hecho pleno: 11/31 (35%)
-- Parcial con valor entregado: 7/31 (23%)
-- Pendiente: 12/31 (39%)
-- Fuera de alcance: 1/31 (3%)
+- Hecho pleno: 23 filas de control.
+- Parcial con valor entregado: 8 filas de control.
+- Pendiente real de producto: 1 fila de control (`7b`) + reproducción con datos reales para PDF/Historial.
+- Fuera de alcance: 1 fila de control.
 
 ## 9. Pendientes priorizados
 
-Lista ordenada por intuitividad/impacto operativo, lista para alimentar la próxima tanda admin si el usuario decide retomar:
+Lista honesta después de esta segunda tanda. Ya no quedan los pendientes visibles que Claude enumeró como primera prioridad, pero sí quedan mejoras estructurales si se quiere cerrar Admin con estándar alto:
 
-1. **Búsqueda RUT global en Topbar** (item 3) — toca todas las vistas, alta intuitividad.
-2. **Agenda mes/año por nombre + corregir "Anio"** (item 5b) — error visible, 1 commit.
-3. **Solicitudes badge en navbar y push PWA** (item 19) — la auto-evaluación quedó pero falta cerrar el ciclo de notificación.
-4. **Matrículas: bloqueo claro por pago/cupo/periodo cerrado** (item 17) — vincula con Beneficios y con auto-evaluación de solicitudes.
-5. **Reorganizar nav lateral en grupo Analítica** (item 24).
-6. **Dashboard con métricas reales y no botones-link** (item 23).
-7. **Importar Alumnos orientado a sección** (item 22).
-8. **Cursos crear con secciones/docentes inline** (item 7).
-9. **Horarios calendario 3/4 + 1/4** (item 8).
-10. **Carpeta académica unificada por alumno/sección** (item 27).
-11. **Encuestas responsive y wizard** (item 14).
-12. **Docentes/Alumnos ficha integrada** (items 15/16).
-13. **Finanzas con ingresos por inscripción** (item 26).
+1. **Ficha profunda de alumno y docente**: hoy hay resumen en tabla; falta página/modal de detalle con relaciones académicas completas.
+2. **Beneficios/Credenciales**: reemplazar el selector plano del filtro por persona por la misma cascada periodo → curso → sección.
+3. **Curso base vs secciones por periodo**: definir política completa de eliminar/archivar curso base y secciones específicas.
+4. **Carpeta académica por alumno**: la ficha de sección existe; falta la vista transversal por alumno.
+5. **Ruta legacy `/admin/encuestas`**: decidir si se migra a builder, se deja como reporte histórico o se redirige.
+6. **PDF/Historial con datos reales**: el código quedó blindado, pero falta reproducir con snapshot/dump representativo.
 
 ## 9. Verificación
 

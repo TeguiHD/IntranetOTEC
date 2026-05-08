@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const csp = [
 	"default-src 'self'",
-	`script-src 'self' ${process.env.NODE_ENV === 'production' ? "" : "'unsafe-eval'"} 'unsafe-inline'`,
+	`script-src 'self' 'wasm-unsafe-eval' ${process.env.NODE_ENV === 'production' ? "" : "'unsafe-eval'"} 'unsafe-inline'`,
 	"style-src 'self' 'unsafe-inline'",
 	"img-src 'self' data: blob:",
 	"media-src 'self' data: blob:",
 	"frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://drive.google.com",
-	"connect-src 'self'",
+	"connect-src 'self' data: blob:",
 	"worker-src 'self' blob:",
 	"object-src 'none'",
 	"base-uri 'self'",

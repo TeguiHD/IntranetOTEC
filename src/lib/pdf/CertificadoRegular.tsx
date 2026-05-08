@@ -48,10 +48,10 @@ const styles = StyleSheet.create({
     fontFamily: "Times-Roman",
     color: COLORS.texto,
   },
-  cornerTL: { position: "absolute", top: 0, left: 0, width: 200, height: 200 },
-  cornerTR: { position: "absolute", top: 0, right: 0, width: 200, height: 200 },
-  cornerBL: { position: "absolute", bottom: 0, left: 0, width: 200, height: 200 },
-  cornerBR: { position: "absolute", bottom: 0, right: 0, width: 200, height: 200 },
+  cornerTL: { position: "absolute", top: 24, left: 24, width: 160, height: 160 },
+  cornerTR: { position: "absolute", top: 24, right: 24, width: 160, height: 160 },
+  cornerBL: { position: "absolute", bottom: 24, left: 24, width: 160, height: 160 },
+  cornerBR: { position: "absolute", bottom: 24, right: 24, width: 160, height: 160 },
   dotsTR: { position: "absolute", top: 50, right: 36, width: 80, height: 42 },
   dotsBL: { position: "absolute", bottom: 110, left: 36, width: 80, height: 42 },
   watermark: {
@@ -271,49 +271,27 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   pieWrap: {
-    marginTop: 18,
-    position: "relative",
-    height: 50,
-  },
-  pieMorado: {
-    position: "absolute",
-    top: 8,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.morado,
-    borderRadius: 30,
-    paddingVertical: 11,
-    paddingHorizontal: 24,
+    marginTop: 22,
+    paddingTop: 10,
+    borderTopWidth: 0.6,
+    borderTopColor: COLORS.morado,
+    borderTopStyle: "solid",
     flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-  },
-  pieIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+    gap: 14,
   },
   pieTexto: {
-    color: "#FFFFFF",
-    fontSize: 9.5,
-    fontFamily: "Times-Bold",
-    letterSpacing: 0.4,
+    color: COLORS.moradoOscuro,
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    letterSpacing: 0.3,
   },
-  pieMedalla: {
-    position: "absolute",
-    right: 16,
-    top: -2,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  pieDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: COLORS.dorado,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
   },
   webRow: {
     marginTop: 10,
@@ -357,19 +335,47 @@ const formatFecha = (iso: string): string => {
 function CornerOrnament({ variant }: { variant: "tl" | "tr" | "bl" | "br" }) {
   const flipX = variant === "tr" || variant === "br";
   const flipY = variant === "bl" || variant === "br";
-  const tx = flipX ? 200 : 0;
-  const ty = flipY ? 200 : 0;
+  const tx = flipX ? 160 : 0;
+  const ty = flipY ? 160 : 0;
   const sx = flipX ? -1 : 1;
   const sy = flipY ? -1 : 1;
   const tr = `translate(${tx} ${ty}) scale(${sx} ${sy})`;
 
   return (
-    <Svg viewBox="0 0 200 200" width="200" height="200">
-      <Path d="M0,0 L220,0 C170,32 115,68 75,110 C45,142 20,178 0,220 Z" transform={tr} fill={COLORS.dorado} />
-      <Path d="M0,0 L188,0 C150,28 100,60 65,105 C40,140 18,175 0,205 Z" transform={tr} fill={COLORS.morado} />
-      <Path d="M0,0 L150,0 C120,24 80,55 55,90 C32,118 14,150 0,180 Z" transform={tr} fill={COLORS.moradoOscuro} />
-      <Path d="M0,0 L98,0 C85,16 60,35 42,58 C25,82 10,115 0,140 Z" transform={tr} fill={COLORS.doradoClaro} />
-      <Path d="M0,0 L55,0 C48,12 32,28 22,45 C12,65 5,90 0,110 Z" transform={tr} fill={COLORS.moradoMedio} />
+    <Svg viewBox="0 0 160 160" width="160" height="160">
+      {/* Curva exterior morada (línea delgada) */}
+      <Path
+        d="M0,28 C40,28 90,58 132,160"
+        transform={tr}
+        stroke={COLORS.morado}
+        strokeWidth={1.2}
+        fill="none"
+      />
+      {/* Curva intermedia dorada */}
+      <Path
+        d="M0,46 C36,46 78,72 110,160"
+        transform={tr}
+        stroke={COLORS.dorado}
+        strokeWidth={1}
+        fill="none"
+      />
+      {/* Curva interior morado claro */}
+      <Path
+        d="M0,64 C32,64 66,88 92,160"
+        transform={tr}
+        stroke={COLORS.moradoMedio}
+        strokeWidth={0.8}
+        fill="none"
+      />
+      {/* Pequeña flor de lis en el vértice */}
+      <Path
+        d="M22,22 L30,14 M22,22 L14,14 M22,22 L22,32"
+        transform={tr}
+        stroke={COLORS.dorado}
+        strokeWidth={0.8}
+        fill="none"
+      />
+      <Circle cx={22} cy={22} r={1.6} fill={COLORS.dorado} transform={tr} />
     </Svg>
   );
 }
@@ -396,26 +402,6 @@ function CalendarIcon() {
       <Path d="M5,4 L19,4 C20,4 21,5 21,6 L21,19 C21,20 20,21 19,21 L5,21 C4,21 3,20 3,19 L3,6 C3,5 4,4 5,4 Z" fill="none" stroke={COLORS.morado} strokeWidth={1.5} />
       <Path d="M3,9 L21,9" stroke={COLORS.morado} strokeWidth={1.5} />
       <Path d="M8,2 L8,6 M16,2 L16,6" stroke={COLORS.morado} strokeWidth={1.5} />
-    </Svg>
-  );
-}
-
-function CardIcon() {
-  return (
-    <Svg viewBox="0 0 24 24" width="14" height="14">
-      <Path d="M3,5 L21,5 C22,5 22.5,5.5 22.5,6.5 L22.5,17.5 C22.5,18.5 22,19 21,19 L3,19 C2,19 1.5,18.5 1.5,17.5 L1.5,6.5 C1.5,5.5 2,5 3,5 Z" fill={COLORS.morado} stroke={COLORS.morado} strokeWidth={1} />
-      <Circle cx="7" cy="11" r="2.2" fill="#FFFFFF" />
-      <Path d="M11,11 L19,11 M11,14 L17,14" stroke="#FFFFFF" strokeWidth={1.2} />
-    </Svg>
-  );
-}
-
-function MedalIcon() {
-  return (
-    <Svg viewBox="0 0 24 24" width="20" height="20">
-      <Path d="M7,2 L17,2 L15,9 L9,9 Z" fill="#FFFFFF" />
-      <Circle cx="12" cy="15" r="6" fill="#FFFFFF" stroke={COLORS.dorado} strokeWidth={1.2} />
-      <Path d="M12,12 L12.8,14 L15,14.2 L13.3,15.6 L13.8,17.7 L12,16.6 L10.2,17.7 L10.7,15.6 L9,14.2 L11.2,14 Z" fill={COLORS.dorado} />
     </Svg>
   );
 }
@@ -529,18 +515,13 @@ export function CertificadoRegularDocument({ data }: { data: CertificadoRegularP
           </View>
 
           <View style={styles.pieWrap}>
-            <View style={styles.pieMorado}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <View style={styles.pieIconWrap}><CardIcon /></View>
-                <Text style={styles.pieTexto}>RUT {INSTITUCION_OTEC.rut}</Text>
-              </View>
-              <Text style={styles.pieTexto}>{INSTITUCION_OTEC.registroSence}</Text>
-              <Text style={styles.pieTexto}>{INSTITUCION_OTEC.idOtec}</Text>
-              <View style={{ width: 24 }} />
-            </View>
-            <View style={styles.pieMedalla}>
-              <MedalIcon />
-            </View>
+            <Text style={styles.pieTexto}>RUT {INSTITUCION_OTEC.rut}</Text>
+            <View style={styles.pieDot} />
+            <Text style={styles.pieTexto}>{INSTITUCION_OTEC.registroSence}</Text>
+            <View style={styles.pieDot} />
+            <Text style={styles.pieTexto}>{INSTITUCION_OTEC.idOtec}</Text>
+            <View style={styles.pieDot} />
+            <Text style={styles.pieTexto}>{INSTITUCION_OTEC.registroInn}</Text>
           </View>
 
           <View style={styles.webRow}>

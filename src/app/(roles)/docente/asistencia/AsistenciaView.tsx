@@ -300,6 +300,13 @@ function ClasePanel({
   const total = localClase.alumnos.length;
   const completo = total > 0 && marcados === total;
   const pct = total > 0 ? Math.round((marcados / total) * 100) : 0;
+  const marcarTodos = (estado: NonNullable<EstadoAsist>) => {
+    localClase.alumnos.forEach((alumno) => {
+      if (alumno.estado !== estado) {
+        onMarcar(clase.id, alumno.matriculaId, estado, clase.fecha);
+      }
+    });
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -363,41 +370,103 @@ function ClasePanel({
               Sin alumnos matriculados.
             </p>
           ) : (
-            localClase.alumnos.map((alumno) => (
-              <div
-                key={alumno.matriculaId}
-                className="flex flex-wrap items-center gap-2 px-4 py-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-text-primary dark:text-white">
-                    {alumno.alumnoApellido}, {alumno.alumnoNombre}
+            <>
+              <div className="flex flex-col gap-3 bg-gray-50/70 px-4 py-3 dark:bg-gray-800/40 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                    Nomina del curso
                   </p>
-                  {alumno.alumnoRut && (
-                    <p className="text-xs text-text-secondary dark:text-gray-500">
-                      {alumno.alumnoRut}
-                    </p>
-                  )}
+                  <p className="text-xs text-text-secondary dark:text-gray-500">
+                    Marca con el punto verde si asiste o rojo si no asiste.
+                  </p>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  {(["presente", "tardanza", "ausente"] as const).map((est) => {
-                    const cfg = ESTADO_CONFIG[est];
-                    const active = alumno.estado === est;
-                    return (
-                      <button
-                        key={est}
-                        onClick={() => onMarcar(clase.id, alumno.matriculaId, est, clase.fecha)}
-                        className={[
-                          "rounded-lg border px-2.5 py-1 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,opacity,transform] active:scale-95",
-                          active ? cfg.activBtn : cfg.btn,
-                        ].join(" ")}
-                      >
-                        {cfg.label}
-                      </button>
-                    );
-                  })}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => marcarTodos("presente")}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-800 dark:bg-gray-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    Todos presentes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => marcarTodos("ausente")}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+                    Todos ausentes
+                  </button>
                 </div>
               </div>
-            ))
+
+              {localClase.alumnos.map((alumno) => {
+                const nombreCompleto = `${alumno.alumnoApellido}, ${alumno.alumnoNombre}`;
+
+                return (
+                  <div
+                    key={alumno.matriculaId}
+                    className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-text-primary dark:text-white">
+                        {nombreCompleto}
+                      </p>
+                      <p className="text-xs text-text-secondary dark:text-gray-500">
+                        RUT / credencial: {alumno.alumnoRut ?? "-"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onMarcar(clase.id, alumno.matriculaId, "presente", clase.fecha)}
+                        title={`Marcar presente a ${nombreCompleto}`}
+                        aria-label={`Marcar presente a ${nombreCompleto}`}
+                        className={[
+                          "inline-flex h-10 w-10 items-center justify-center rounded-full border transition-all active:scale-95",
+                          alumno.estado === "presente"
+                            ? ESTADO_CONFIG.presente.activBtn
+                            : "border-emerald-300 bg-white text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-gray-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40",
+                        ].join(" ")}
+                      >
+                        <span className="h-4 w-4 rounded-full bg-current" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onMarcar(clase.id, alumno.matriculaId, "ausente", clase.fecha)}
+                        title={`Marcar ausente a ${nombreCompleto}`}
+                        aria-label={`Marcar ausente a ${nombreCompleto}`}
+                        className={[
+                          "inline-flex h-10 w-10 items-center justify-center rounded-full border transition-all active:scale-95",
+                          alumno.estado === "ausente"
+                            ? ESTADO_CONFIG.ausente.activBtn
+                            : "border-rose-300 bg-white text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
+                        ].join(" ")}
+                      >
+                        <span className="h-4 w-4 rounded-full bg-current" />
+                      </button>
+                      {(["tardanza", "justificado"] as const).map((est) => {
+                        const cfg = ESTADO_CONFIG[est];
+                        const active = alumno.estado === est;
+                        return (
+                          <button
+                            key={est}
+                            type="button"
+                            onClick={() => onMarcar(clase.id, alumno.matriculaId, est, clase.fecha)}
+                            className={[
+                              "h-9 rounded-lg border px-2.5 text-xs font-semibold transition-all active:scale-95",
+                              active ? cfg.activBtn : cfg.btn,
+                            ].join(" ")}
+                          >
+                            {cfg.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
       )}

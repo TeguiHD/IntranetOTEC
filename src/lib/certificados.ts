@@ -1,5 +1,9 @@
-export const CERTIFICADO_CODIGO_REGEX =
+const CERTIFICADO_CODIGO_UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const CERTIFICADO_CODIGO_AR_REGEX = /^AR-\d{4}-[A-Z0-9]{8}$/;
+
+export const CERTIFICADO_CODIGO_REGEX = CERTIFICADO_CODIGO_UUID_REGEX;
 
 const CONTROL_CHARS_REGEX = /[\u0000-\u001f\u007f]/g;
 const TAG_CHARS_REGEX = /[<>]/g;
@@ -11,6 +15,14 @@ export type CertificadoSnapshot = {
   alumnoRut: string | null;
   asignaturaId: string | null;
   fechaEmision: string | null;
+  nombreCurso: string | null;
+  nombreEstablecimiento: string | null;
+  finalidad: string | null;
+  codigoUnico: string | null;
+  rutInstitucion: string | null;
+  registrosInstitucionales: string | null;
+  nombreFirmante: string | null;
+  cargoFirmante: string | null;
 };
 
 const EMPTY_SNAPSHOT: CertificadoSnapshot = {
@@ -19,6 +31,14 @@ const EMPTY_SNAPSHOT: CertificadoSnapshot = {
   alumnoRut: null,
   asignaturaId: null,
   fechaEmision: null,
+  nombreCurso: null,
+  nombreEstablecimiento: null,
+  finalidad: null,
+  codigoUnico: null,
+  rutInstitucion: null,
+  registrosInstitucionales: null,
+  nombreFirmante: null,
+  cargoFirmante: null,
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
@@ -58,7 +78,30 @@ export const isCodigoCertificadoValido = (codigo: string): boolean => {
     return false;
   }
 
-  return CERTIFICADO_CODIGO_REGEX.test(normalized);
+  return (
+    CERTIFICADO_CODIGO_UUID_REGEX.test(normalized) ||
+    CERTIFICADO_CODIGO_AR_REGEX.test(normalized)
+  );
+};
+
+export const generarCodigoCertificadoAR = (year: number = new Date().getFullYear()): string => {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(8);
+
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 8; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  let suffix = "";
+  for (let i = 0; i < 8; i += 1) {
+    suffix += alphabet[bytes[i] % alphabet.length];
+  }
+
+  return `AR-${year}-${suffix}`;
 };
 
 export const coerceCertificadoSnapshot = (value: unknown): CertificadoSnapshot => {
@@ -72,5 +115,13 @@ export const coerceCertificadoSnapshot = (value: unknown): CertificadoSnapshot =
     alumnoRut: sanitizeCertificadoText(value.alumnoRut, 32),
     asignaturaId: sanitizeCertificadoText(value.asignaturaId, 64),
     fechaEmision: sanitizeCertificadoText(value.fechaEmision, 64),
+    nombreCurso: sanitizeCertificadoText(value.nombreCurso, 200),
+    nombreEstablecimiento: sanitizeCertificadoText(value.nombreEstablecimiento, 200),
+    finalidad: sanitizeCertificadoText(value.finalidad, 200),
+    codigoUnico: sanitizeCertificadoText(value.codigoUnico, 64),
+    rutInstitucion: sanitizeCertificadoText(value.rutInstitucion, 32),
+    registrosInstitucionales: sanitizeCertificadoText(value.registrosInstitucionales, 300),
+    nombreFirmante: sanitizeCertificadoText(value.nombreFirmante, 120),
+    cargoFirmante: sanitizeCertificadoText(value.cargoFirmante, 120),
   };
 };

@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   Brain,
+  Award,
   BarChart3,
   CalendarDays,
   CalendarRange,
@@ -192,8 +193,9 @@ const ALUMNO_SECTIONS: NavSection[] = [
   {
     title: "Solicitudes",
     items: [
+      { href: "/alumno/certificados", label: "Mis Certificados", Icon: Award, gradient: "grad-purple", capability: "solicitudes.alumno" },
       { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet", capability: "solicitudes.alumno" },
-      { href: "/alumno/solicitudes/alumno-regular", label: "Certificado Alumno Regular", Icon: FileCheck, gradient: "grad-blue", capability: "solicitudes.alumno" },
+      { href: "/alumno/solicitudes/alumno-regular", label: "Solicitud manual", Icon: FileCheck, gradient: "grad-blue", capability: "solicitudes.alumno" },
       { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink", capability: "solicitudes.alumno" },
     ],
   },

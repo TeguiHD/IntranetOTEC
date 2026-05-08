@@ -74,9 +74,18 @@ next-env.d.ts
 
 # local operational data and transcripts
 /30ABRIL2026*
+/6Mayo2026*
+/7Mayo2026*
+/8Mayo2026*
 /DATOS/
 /LOGOS OTEC/
 /MEJORAS/
 /PRUEBAS/
+/IMPLEMENTACIONES/
 /docs/superpowers/
 /scripts/seed-*.mjs
+/Mejoras*.docx
+/intranetotec.zip
+/cert-preview*.png
+/public/cert-preview-temp.html
+/.playwright-mcp/

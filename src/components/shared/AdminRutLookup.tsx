@@ -5,31 +5,36 @@ import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ClipboardList, IdCard, Loader2, Search, UserRound, X } from "lucide-react";
 
-import { buscarPersonaPorRutAdmin, type BuscarPersonaPorRutAdminResult } from "@/actions/usuarios";
+import {
+  buscarPersonasAdminAction,
+  type PersonaBusquedaAdmin,
+} from "@/actions/usuarios";
 import { formatearIdentificador } from "@/lib/rut";
-
-const formatDate = (value: Date | string | null): string => {
-  if (!value) return "-";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-};
 
 const roleLabel = (role: "alumno" | "docente"): string =>
   role === "alumno" ? "Alumno" : "Docente";
 
 export function AdminRutLookup() {
   const [open, setOpen] = useState(false);
-  const [rut, setRut] = useState("");
-  const [result, setResult] = useState<BuscarPersonaPorRutAdminResult | null>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PersonaBusquedaAdmin[]>([]);
+  const [searched, setSearched] = useState(false);
   const [isPending, startTransition] = useTransition();
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const keyHandler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setOpen(true);
+      }
+    };
+
+    document.addEventListener("keydown", keyHandler);
+
+    return () => document.removeEventListener("keydown", keyHandler);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -58,12 +63,13 @@ export function AdminRutLookup() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const query = rut.trim();
-    if (!query || isPending) return;
+    const value = query.trim();
+    if (value.length < 2 || isPending) return;
 
     startTransition(async () => {
-      const data = await buscarPersonaPorRutAdmin({ rut: query });
-      setResult(data);
+      const data = await buscarPersonasAdminAction(value);
+      setResults(data);
+      setSearched(true);
     });
   };
 
@@ -71,8 +77,8 @@ export function AdminRutLookup() {
     <div ref={panelRef} className="relative">
       <button
         type="button"
-        aria-label="Buscar persona por RUT"
-        title="Buscar por RUT"
+        aria-label="Buscar persona"
+        title="Buscar persona"
         onClick={() => setOpen((current) => !current)}
         className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
       >
@@ -84,7 +90,7 @@ export function AdminRutLookup() {
           type="button"
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] md:hidden"
           onClick={() => setOpen(false)}
-          aria-label="Cerrar búsqueda por RUT"
+          aria-label="Cerrar búsqueda global"
         />
       )}
 
@@ -98,13 +104,13 @@ export function AdminRutLookup() {
             <div className="flex items-center gap-2">
               <IdCard className="h-4 w-4 text-primary dark:text-primary-light" />
               <span className="text-sm font-semibold text-text-primary dark:text-white">
-                Búsqueda RUT global
+                Búsqueda global
               </span>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Cerrar búsqueda por RUT"
+              aria-label="Cerrar búsqueda global"
               className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <X className="h-4 w-4" />
@@ -115,128 +121,90 @@ export function AdminRutLookup() {
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input
                 ref={inputRef}
-                value={rut}
+                value={query}
                 inputMode="text"
-                onChange={(event) => setRut(event.target.value)}
-                placeholder="12.345.678-9 o EXT-A123"
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setSearched(false);
+                }}
+                placeholder="RUT, nombre o correo"
                 className="h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary transition-[border-color,box-shadow] placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
               <button
                 type="submit"
-                disabled={!rut.trim() || isPending}
+                disabled={query.trim().length < 2 || isPending}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
               </button>
             </form>
 
-            {result && !result.ok && (
-              <div className="mt-4 rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger dark:border-danger/30 dark:bg-danger/10">
-                {result.message}
+            {searched && results.length === 0 && !isPending ? (
+              <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                Sin resultados para "{query.trim()}".
               </div>
-            )}
+            ) : null}
 
-            {result?.ok && (
+            {results.length > 0 && (
               <div className="mt-4 space-y-3">
-                <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/30 dark:bg-primary/10">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm dark:bg-gray-900 dark:text-primary-light">
-                      <UserRound className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
-                        {result.persona.nombre} {result.persona.apellido}
-                      </p>
-                      <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">
-                        {formatearIdentificador(result.persona.rut)} · {roleLabel(result.persona.rol)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {results.map((persona) => {
+                  const href =
+                    persona.rol === "alumno"
+                      ? `/admin/alumnos?q=${encodeURIComponent(persona.rut ?? query.trim())}`
+                      : `/admin/docentes?q=${encodeURIComponent(persona.rut ?? query.trim())}`;
 
-                {result.role === "alumno" ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3 text-center dark:border-gray-800 dark:bg-gray-800/60">
-                        <p className="text-xl font-bold text-primary">{result.metrics.asignaturasHistoricas}</p>
-                        <p className="text-xs text-text-secondary dark:text-gray-400">Históricas</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3 text-center dark:border-gray-800 dark:bg-gray-800/60">
-                        <p className="text-xl font-bold text-success">{result.metrics.asignaturasActivas}</p>
-                        <p className="text-xs text-text-secondary dark:text-gray-400">Activas</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {result.historial.slice(0, 4).map((row) => (
-                        <div
-                          key={row.matriculaId}
-                          className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 text-xs dark:border-gray-800 dark:bg-gray-900"
-                        >
-                          <p className="truncate font-medium text-text-primary dark:text-white">{row.asignaturaNombre}</p>
-                          <p className="mt-1 text-text-secondary dark:text-gray-400">
-                            Pago: {row.estadoPago ?? "-"} · {row.activa ? "Activa" : "Inactiva"} · {formatDate(row.fechaMatricula)}
-                          </p>
-                        </div>
-                      ))}
-                      {result.historial.length === 0 && (
-                        <p className="rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-3 text-sm text-text-secondary dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-400">
-                          Sin matrículas registradas.
-                        </p>
-                      )}
-                    </div>
-
+                  return (
                     <Link
-                      href={`/admin/alumnos?q=${encodeURIComponent(rut.trim())}`}
+                      key={persona.id}
+                      href={href}
                       onClick={() => setOpen(false)}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/25 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 dark:border-primary/40 dark:text-primary-light"
+                      className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white px-3 py-3 transition-colors hover:border-primary/30 hover:bg-primary/5 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-primary/40 dark:hover:bg-primary/10"
                     >
-                      <ClipboardList className="h-4 w-4" />
-                      Ver en Alumnos
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3 text-center dark:border-gray-800 dark:bg-gray-800/60">
-                        <p className="text-xl font-bold text-primary">{result.metrics.cursosHistoricos}</p>
-                        <p className="text-xs text-text-secondary dark:text-gray-400">Cursos</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3 text-center dark:border-gray-800 dark:bg-gray-800/60">
-                        <p className="text-xl font-bold text-secondary">{result.metrics.materialCargado}</p>
-                        <p className="text-xs text-text-secondary dark:text-gray-400">Materiales</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {result.asignaturas.slice(0, 4).map((row) => (
-                        <div
-                          key={row.asignaturaId}
-                          className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 text-xs dark:border-gray-800 dark:bg-gray-900"
+                      <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
+                        <UserRound className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-text-primary dark:text-white">
+                          {persona.nombre} {persona.apellido}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-text-secondary dark:text-gray-400">
+                          {formatearIdentificador(persona.rut)} · {persona.email ?? "Sin correo"}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                          {roleLabel(persona.rol)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            persona.activo
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          }`}
                         >
-                          <p className="truncate font-medium text-text-primary dark:text-white">{row.asignaturaNombre}</p>
-                          <p className="mt-1 text-text-secondary dark:text-gray-400">
-                            {row.estadoAsignatura ?? "-"} · {row.totalEstudiantes} estudiantes
-                          </p>
-                        </div>
-                      ))}
-                      {result.asignaturas.length === 0 && (
-                        <p className="rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-3 text-sm text-text-secondary dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-400">
-                          Sin secciones asignadas.
-                        </p>
-                      )}
-                    </div>
-
-                    <Link
-                      href={`/admin/docentes?q=${encodeURIComponent(rut.trim())}`}
-                      onClick={() => setOpen(false)}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/25 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 dark:border-primary/40 dark:text-primary-light"
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Ver en Docentes
+                          {persona.activo ? "Activo" : "Inactivo"}
+                        </span>
+                      </span>
                     </Link>
-                  </>
-                )}
+                  );
+                })}
+
+                <Link
+                  href={`/admin/alumnos?q=${encodeURIComponent(query.trim())}`}
+                  onClick={() => setOpen(false)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/25 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 dark:border-primary/40 dark:text-primary-light"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Ver coincidencias en Alumnos
+                </Link>
+                <Link
+                  href={`/admin/docentes?q=${encodeURIComponent(query.trim())}`}
+                  onClick={() => setOpen(false)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Ver coincidencias en Docentes
+                </Link>
               </div>
             )}
           </div>

@@ -216,6 +216,75 @@ export type AlumnoBusqueda = {
   rut: string | null;
 };
 
+export type PersonaBusquedaAdmin = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  email: string | null;
+  rut: string | null;
+  rol: "alumno" | "docente";
+  activo: boolean | null;
+};
+
+export async function buscarPersonasAdminAction(query: string): Promise<PersonaBusquedaAdmin[]> {
+  const actorResult = await requireActionActor("admin_persona_global_search", ["admin"]);
+
+  if (!actorResult.ok) {
+    return [];
+  }
+
+  const parsed = comboboxSearchQuerySchema.safeParse(query);
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  const searchTerms = buildIdentifierSearchTerms(parsed.data);
+  const searchConditions = searchTerms.flatMap((searchTerm) => {
+    const term = `%${escapeLike(searchTerm)}%`;
+
+    return [
+      ilike(usuarios.nombre, term),
+      ilike(usuarios.apellido, term),
+      ilike(usuarios.rut, term),
+      ilike(usuarios.email, term),
+      ilike(sql<string>`concat_ws(' ', ${usuarios.nombre}, ${usuarios.apellido})`, term),
+    ];
+  });
+
+  const rows = await getDb()
+    .select({
+      id: usuarios.id,
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      email: usuarios.email,
+      rut: usuarios.rut,
+      rol: usuarios.rol,
+      activo: usuarios.activo,
+    })
+    .from(usuarios)
+    .where(
+      and(
+        or(eq(usuarios.rol, "alumno"), eq(usuarios.rol, "docente")),
+        isNull(usuarios.eliminadoAt),
+        or(...searchConditions),
+      ),
+    )
+    .orderBy(desc(usuarios.createdAt))
+    .limit(10);
+
+  return rows.flatMap((row) => {
+    if (row.rol !== "alumno" && row.rol !== "docente") {
+      return [];
+    }
+
+    return [{
+      ...row,
+      rol: row.rol,
+    }];
+  });
+}
+
 export async function buscarAlumnosAction(query: string): Promise<AlumnoBusqueda[]> {
   const actorResult = await requireActionActor("admin_alumno_search", ["admin"]);
 

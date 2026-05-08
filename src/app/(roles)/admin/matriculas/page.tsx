@@ -155,7 +155,7 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
-      : asignaturas[0]?.id;
+      : undefined;
 
   const selectedAsignaturaCombobox: AsignaturaBusqueda | null = selectedAsignaturaId
     ? (() => {
@@ -229,6 +229,20 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
           Matricula alumnos por asignatura y controla el estado de pago.
         </p>
       </header>
+
+      {!selectedAsignaturaId ? (
+        <article className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-text-primary shadow-sm dark:border-primary/30 dark:bg-primary/10 dark:text-gray-100">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary dark:text-primary-light" aria-hidden />
+            <div>
+              <p className="font-semibold">Selecciona una sección antes de operar matrículas.</p>
+              <p className="mt-1 text-text-secondary dark:text-gray-400">
+                Esta pantalla ya no elige automáticamente la primera sección disponible. Así se evita matricular alumnos en un curso equivocado y se mantiene el flujo periodo → curso → sección.
+              </p>
+            </div>
+          </div>
+        </article>
+      ) : null}
 
       {advertencias.length > 0 ? (
         <article
@@ -347,7 +361,9 @@ export default async function AdminMatriculasPage({ searchParams }: AdminMatricu
 
         {matriculas.length === 0 ? (
           <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-            No hay matrículas registradas para esta asignatura.
+            {selectedAsignaturaId
+              ? "No hay matrículas registradas para esta sección."
+              : "Selecciona una sección para revisar su nómina de matrículas."}
           </p>
         ) : (
           <>

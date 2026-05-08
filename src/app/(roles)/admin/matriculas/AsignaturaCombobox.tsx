@@ -103,6 +103,8 @@ export function AsignaturaCombobox({
           <input
             type="text"
             inputMode="text"
+            required={required}
+            aria-required={required}
             value={query}
             onChange={(event) => handleInput(event.target.value)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}

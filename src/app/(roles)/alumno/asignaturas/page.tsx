@@ -76,7 +76,7 @@ export default async function AlumnoAsignaturasPage() {
       obtenerDashboardAlumno(),
     ]);
 
-    const asigIds = resumenAsistencia.map((a) => a.asignaturaId);
+    const asigIds = dashboard?.cursos.map((curso) => curso.asignaturaId) ?? [];
     const materialResults = await Promise.all(
       asigIds.map((id) => listarMaterialPorAsignatura(id)),
     );
@@ -114,18 +114,25 @@ export default async function AlumnoAsignaturasPage() {
   }
 
   // Build lookup: asignaturaId → matriculaId (from dashboard.cursos)
+  const cursos = dashboard?.cursos ?? [];
+
+  const asistenciaPorAsig = new Map<string, Awaited<ReturnType<typeof obtenerResumenAsistenciaAlumno>>[number]>();
+  for (const resumen of resumenAsistencia) {
+    asistenciaPorAsig.set(resumen.asignaturaId, resumen);
+  }
+
   const matriculaPorAsig = new Map<string, string>();
   const estadoCursoPorAsig = new Map<string, string | null>();
-  for (const c of dashboard?.cursos ?? []) {
+  for (const c of cursos) {
     matriculaPorAsig.set(c.asignaturaId, c.matriculaId);
     estadoCursoPorAsig.set(c.asignaturaId, c.estado ?? null);
   }
 
   // Fetch nota final ponderada per matricula
   const notasFinalPorMatricula = new Map<string, number | null>();
-  if (dashboard?.cursos) {
+  if (cursos.length > 0) {
     await Promise.all(
-      dashboard.cursos.map(async (curso) => {
+      cursos.map(async (curso) => {
         const result = await calcularNotaFinalPonderada(curso.matriculaId, curso.asignaturaId);
         notasFinalPorMatricula.set(curso.matriculaId, result.notaFinal);
       }),
@@ -146,7 +153,7 @@ export default async function AlumnoAsignaturasPage() {
 
   // Build lookup: asignaturaId → docente
   const docentePorAsig = new Map<string, string | null>();
-  for (const c of dashboard?.cursos ?? []) {
+  for (const c of cursos) {
     docentePorAsig.set(c.asignaturaId, c.docenteNombre ?? null);
   }
 
@@ -157,13 +164,13 @@ export default async function AlumnoAsignaturasPage() {
           Mis Cursos
         </h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
-          {resumenAsistencia.length > 0
-            ? `${resumenAsistencia.length} asignatura${resumenAsistencia.length !== 1 ? "s" : ""} matriculada${resumenAsistencia.length !== 1 ? "s" : ""}`
+          {cursos.length > 0
+            ? `${cursos.length} asignatura${cursos.length !== 1 ? "s" : ""} matriculada${cursos.length !== 1 ? "s" : ""}`
             : "Sin asignaturas matriculadas"}
         </p>
       </header>
 
-      {resumenAsistencia.length === 0 ? (
+      {cursos.length === 0 ? (
         <article className="rounded-xl border border-gray-200 bg-white p-10 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <BookOpen className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" strokeWidth={1.5} />
           <p className="mt-3 text-sm font-medium text-text-secondary dark:text-gray-300">
@@ -172,29 +179,30 @@ export default async function AlumnoAsignaturasPage() {
         </article>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {resumenAsistencia.map((asig, idx) => {
+          {cursos.map((curso, idx) => {
+            const asistencia = asistenciaPorAsig.get(curso.asignaturaId);
             const color = COURSE_COLORS[idx % COURSE_COLORS.length];
-            const pct = asig.total > 0
-              ? Math.round((asig.presente / asig.total) * 100)
+            const pct = asistencia && asistencia.total > 0
+              ? Math.round((asistencia.presente / asistencia.total) * 100)
               : null;
-            const proximaClase = proximaClasePorAsig.get(asig.asignaturaId) ?? null;
-            const docente = docentePorAsig.get(asig.asignaturaId) ?? null;
-            const mats = materialesPorAsig.get(asig.asignaturaId) ?? [];
-            const matriculaId = matriculaPorAsig.get(asig.asignaturaId) ?? null;
+            const proximaClase = proximaClasePorAsig.get(curso.asignaturaId) ?? null;
+            const docente = docentePorAsig.get(curso.asignaturaId) ?? null;
+            const mats = materialesPorAsig.get(curso.asignaturaId) ?? [];
+            const matriculaId = matriculaPorAsig.get(curso.asignaturaId) ?? null;
             const notaFinal = matriculaId !== null ? (notasFinalPorMatricula.get(matriculaId) ?? null) : null;
-            const estadoAsig = estadoCursoPorAsig.get(asig.asignaturaId) ?? null;
+            const estadoAsig = estadoCursoPorAsig.get(curso.asignaturaId) ?? null;
             const estadoCurso = calcularEstadoCurso(notaFinal, pct, estadoAsig === "activo");
 
             return (
               <article
-                key={asig.asignaturaId}
+                key={curso.asignaturaId}
                 className="flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
               >
                 {/* Header con color */}
                 <div className={`bg-gradient-to-br ${color.bg} px-5 py-4`}>
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-base font-bold leading-snug text-white">
-                      {normalizarTextoVisible(asig.asignaturaNombre)}
+                      {normalizarTextoVisible(curso.nombre)}
                     </h2>
                     <BookOpen className={`mt-0.5 h-5 w-5 shrink-0 ${color.icon}`} strokeWidth={1.5} />
                   </div>
@@ -234,8 +242,8 @@ export default async function AlumnoAsignaturasPage() {
                       </div>
                     )}
                     <p className="mt-1 text-[11px] text-text-secondary dark:text-gray-500">
-                      {asig.presente}P · {asig.ausente}A · {asig.tardanza}T · {asig.justificado}J
-                      &nbsp;({asig.total} clases)
+                      {asistencia?.presente ?? 0}P · {asistencia?.ausente ?? 0}A · {asistencia?.tardanza ?? 0}T · {asistencia?.justificado ?? 0}J
+                      &nbsp;({asistencia?.total ?? 0} clases)
                     </p>
                   </div>
 
@@ -314,13 +322,13 @@ export default async function AlumnoAsignaturasPage() {
                   {/* Acciones */}
                   <div className="mt-auto flex flex-wrap gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
                     <Link
-                      href={`/alumno/asistencias?asignaturaId=${asig.asignaturaId}`}
+                      href={`/alumno/asistencias?asignaturaId=${curso.asignaturaId}`}
                       className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
                     >
                       Ver asistencia
                     </Link>
                     <Link
-                      href={`/alumno/notas?asignaturaId=${asig.asignaturaId}`}
+                      href={`/alumno/notas?asignaturaId=${curso.asignaturaId}`}
                       className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
                     >
                       Ver notas
@@ -330,17 +338,17 @@ export default async function AlumnoAsignaturasPage() {
                   {/* Chat */}
                   <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                     <ChatAsignatura
-                      asignaturaId={asig.asignaturaId}
-                      asignaturaNombre={normalizarTextoVisible(asig.asignaturaNombre)}
+                      asignaturaId={curso.asignaturaId}
+                      asignaturaNombre={normalizarTextoVisible(curso.nombre)}
                     />
                   </div>
 
                   {/* Anuncios */}
-                  {(anunciosPorAsig.get(asig.asignaturaId)?.length ?? 0) > 0 && (
+                  {(anunciosPorAsig.get(curso.asignaturaId)?.length ?? 0) > 0 && (
                     <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                       <AnunciosBoard
-                        anuncios={anunciosPorAsig.get(asig.asignaturaId) ?? []}
-                        asignaturaId={asig.asignaturaId}
+                        anuncios={anunciosPorAsig.get(curso.asignaturaId) ?? []}
+                        asignaturaId={curso.asignaturaId}
                         puedeEliminar={false}
                       />
                     </div>

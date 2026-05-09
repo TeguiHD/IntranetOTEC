@@ -183,6 +183,13 @@
       "when": 1777651200000,
       "tag": "0025_alumno_accesos_documentos",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1778348400000,
+      "tag": "0026_pruebas_destinatarios_calendario_docente",
+      "breakpoints": true
     }
   ]
 }

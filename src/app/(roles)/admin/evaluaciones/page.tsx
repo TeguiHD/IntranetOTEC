@@ -9,6 +9,7 @@ import {
   calificarRespuestaEvaluacionFormAction,
   crearEvaluacionFormAction,
   crearPlantillaEncuestaFormAction,
+  actualizarDestinatariosEvaluacionFormAction,
   despublicarEvaluacionFormAction,
   eliminarEvaluacionFormAction,
   importarPruebaLocalFormAction,
@@ -54,6 +55,7 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   evaluacion_deleted: { tone: "success", text: "Evaluación eliminada correctamente." },
   already_deleted: { tone: "success", text: "La evaluación ya había sido eliminada." },
   pregunta_created: { tone: "success", text: "Pregunta agregada correctamente." },
+  destinatarios_updated: { tone: "success", text: "Destinatarios actualizados correctamente." },
   local_test_imported: { tone: "success", text: "Prueba importada en borrador. Revísala antes de publicar." },
   test_exists: { tone: "error", text: "Esa prueba ya existe en la asignatura seleccionada." },
   empty_test: { tone: "error", text: "No se reconocieron preguntas en el archivo seleccionado." },
@@ -1356,6 +1358,71 @@ export default async function AdminEvaluacionesPage({
           <div className="mt-6">
             <EvaluacionParticipacionPanel participacion={participacionEvaluacion} />
           </div>
+
+          {selectedEvaluacion ? (
+            <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary dark:text-white">
+                    Destinatarios de la prueba
+                  </h3>
+                  <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                    Sin seleccion personalizada, la prueba aplica a toda la seccion.
+                  </p>
+                </div>
+                <form action={actualizarDestinatariosEvaluacionFormAction}>
+                  <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                  <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                  <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
+                  <input type="hidden" name="redirectTo" value={currentResultadosHref} />
+                  <input type="hidden" name="modo" value="seccion" />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-primary/30 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 dark:border-primary-light/30 dark:text-primary-light"
+                  >
+                    Toda la seccion
+                  </button>
+                </form>
+              </div>
+              <form action={actualizarDestinatariosEvaluacionFormAction} className="mt-4">
+                <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
+                <input type="hidden" name="redirectTo" value={currentResultadosHref} />
+                <input type="hidden" name="modo" value="personalizado" />
+                <div className="grid max-h-72 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                  {participacionEvaluacion.map((item) => (
+                    <label
+                      key={item.matriculaId}
+                      className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2 text-sm dark:border-gray-800"
+                    >
+                      <input
+                        type="checkbox"
+                        name="matriculaId"
+                        value={item.matriculaId}
+                        defaultChecked={item.destinatarioAsignado}
+                        className="h-4 w-4 rounded border-gray-300 text-primary"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-text-primary dark:text-white">
+                          {item.alumnoApellido}, {item.alumnoNombre}
+                        </span>
+                        <span className="block truncate text-xs text-text-secondary dark:text-gray-400">
+                          {formatRut(item.alumnoRut)}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="submit"
+                  className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                >
+                  Guardar seleccion
+                </button>
+              </form>
+            </div>
+          ) : null}
 
           {resultados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">

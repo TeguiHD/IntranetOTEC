@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   crearClaseDocenteFormAction,
   editarClaseDocenteFormAction,
@@ -28,7 +30,6 @@ import {
   publicarAnuncioFormAction,
 } from "@/actions/anuncios";
 import { AnunciosBoard } from "@/components/shared/AnunciosBoard";
-import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 import { formatearRut } from "@/lib/rut";
@@ -224,6 +225,32 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
 
       {selectedAsignaturaId ? (
         <>
+          <nav className="grid gap-2 rounded-md border border-gray-200 bg-white p-3 text-sm shadow-sm sm:grid-cols-4 lg:grid-cols-8 dark:border-gray-700 dark:bg-gray-900">
+            {[
+              ["#resumen", "Resumen"],
+              ["#alumnos", "Alumnos"],
+              ["#clases", "Clases"],
+              ["#asistencia", "Asistencia"],
+              ["#notas", "Notas"],
+              ["#material", "Material"],
+              ["#observaciones", "Observaciones"],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                className="rounded-lg border border-gray-100 px-3 py-2 text-center font-medium text-text-secondary hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:text-gray-300"
+              >
+                {label}
+              </a>
+            ))}
+            <Link
+              href={`/docente/asignaturas/${selectedAsignaturaId}/evaluaciones`}
+              className="rounded-lg bg-primary px-3 py-2 text-center font-semibold text-white hover:bg-primary-dark"
+            >
+              Pruebas
+            </Link>
+          </nav>
+
           <article className="hidden rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Crear clase del curso</h2>
             <form action={crearClaseDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
@@ -792,13 +819,6 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
             </div>
           </article>
 
-          {/* Chat del curso */}
-          {selectedAsignaturaId && (
-            <ChatAsignatura
-              asignaturaId={selectedAsignaturaId}
-              asignaturaNombre={asignaturas.find((a) => a.id === selectedAsignaturaId)?.nombre ?? "Asignatura"}
-            />
-          )}
         </>
       ) : (
         <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">

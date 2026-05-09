@@ -7,8 +7,10 @@ import { notFound } from "next/navigation";
 
 import {
   agregarPreguntaFormAction,
+  actualizarDestinatariosEvaluacionFormAction,
   calificarRespuestaEvaluacionFormAction,
   crearEvaluacionFormAction,
+  despublicarEvaluacionFormAction,
   listarEvaluacionesByAsignatura,
   listarEventosSupervisionByEvaluacion,
   listarIntentosRecuperablesEvaluacion,
@@ -16,6 +18,7 @@ import {
   listarPreguntasByEvaluacion,
   listarRespuestasParaCalificar,
   obtenerResultadosEvaluacion,
+  publicarEvaluacionFormAction,
   type EvaluacionParticipacionItem,
   type IntentoRecuperableItem,
   type RespuestaPendienteItem,
@@ -173,7 +176,7 @@ export default async function DocenteEvaluacionesPage({
             Nueva evaluación
           </h2>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-            Se crea en borrador. La publicación sigue siendo control de administración.
+            Se crea en borrador. Puedes publicarla cuando tengas preguntas y destinatarios listos.
           </p>
           <form action={crearEvaluacionFormAction} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="asignaturaId" value={asigId} />
@@ -386,6 +389,34 @@ export default async function DocenteEvaluacionesPage({
               </div>
             </div>
 
+            <div className="mt-4 flex flex-wrap gap-2">
+              {selectedEvaluacion.publicada ? (
+                <form action={despublicarEvaluacionFormAction}>
+                  <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                  <input type="hidden" name="asignaturaId" value={asigId} />
+                  <input type="hidden" name="redirectTo" value={redirectBase} />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:border-amber-800/60 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                  >
+                    Deshabilitar
+                  </button>
+                </form>
+              ) : (
+                <form action={publicarEvaluacionFormAction}>
+                  <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                  <input type="hidden" name="asignaturaId" value={asigId} />
+                  <input type="hidden" name="redirectTo" value={redirectBase} />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-dark"
+                  >
+                    Publicar
+                  </button>
+                </form>
+              )}
+            </div>
+
             <form action={agregarPreguntaFormAction} className="mt-5 space-y-3">
               <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
               <input type="hidden" name="asignaturaId" value={asigId} />
@@ -501,6 +532,67 @@ export default async function DocenteEvaluacionesPage({
 
           <div className="space-y-5">
             <EvaluacionParticipacionPanel participacion={participacionEvaluacion} />
+
+            <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-text-primary dark:text-white">
+                    Destinatarios
+                  </h2>
+                  <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+                    Deja sin seleccion personalizada para aplicar a toda la seccion.
+                  </p>
+                </div>
+                <form action={actualizarDestinatariosEvaluacionFormAction}>
+                  <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                  <input type="hidden" name="asignaturaId" value={asigId} />
+                  <input type="hidden" name="redirectTo" value={redirectBase} />
+                  <input type="hidden" name="modo" value="seccion" />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-primary/30 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 dark:border-primary-light/30 dark:text-primary-light"
+                  >
+                    Toda la seccion
+                  </button>
+                </form>
+              </div>
+              <form action={actualizarDestinatariosEvaluacionFormAction} className="mt-4">
+                <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                <input type="hidden" name="asignaturaId" value={asigId} />
+                <input type="hidden" name="redirectTo" value={redirectBase} />
+                <input type="hidden" name="modo" value="personalizado" />
+                <div className="grid max-h-72 gap-2 overflow-auto pr-1">
+                  {participacionEvaluacion.map((item) => (
+                    <label
+                      key={item.matriculaId}
+                      className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2 text-sm dark:border-gray-800"
+                    >
+                      <input
+                        type="checkbox"
+                        name="matriculaId"
+                        value={item.matriculaId}
+                        defaultChecked={item.destinatarioAsignado}
+                        className="h-4 w-4 rounded border-gray-300 text-primary"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-text-primary dark:text-white">
+                          {item.alumnoApellido}, {item.alumnoNombre}
+                        </span>
+                        <span className="block truncate text-xs text-text-secondary dark:text-gray-400">
+                          {item.alumnoRut ?? "Sin RUT"}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="submit"
+                  className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                >
+                  Guardar seleccion
+                </button>
+              </form>
+            </article>
 
             <article className="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">

@@ -112,6 +112,7 @@ const DOCENTE_CAPABILITIES: AppCapability[] = [
   "dashboard.docente",
   "encuestas.docente",
   "evaluaciones.create",
+  "evaluaciones.publish",
   "evaluaciones.read_answer_key",
   "evaluaciones.read_assigned",
   "evaluaciones.read_results",

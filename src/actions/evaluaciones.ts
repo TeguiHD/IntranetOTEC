@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import { getDb } from "@/db";
 import {
   asignaturas,
   auditLogs,
+  evaluacionDestinatarios,
   evaluacionIntentos,
   evaluaciones,
   eventosSupervision,
@@ -179,6 +180,8 @@ export type EvaluacionItem = {
   estadoVentana: EvaluationWindowStatus;
   totalRespondidas: number;
   totalCalificadas: number;
+  totalDestinatarios: number;
+  destinatariosPersonalizados: boolean;
   notaAlumno: string | null;
   respondidaPorAlumno: boolean;
 };
@@ -251,6 +254,7 @@ export type EvaluacionParticipacionItem = {
   respuestasCount: number;
   nota: string | null;
   ultimaActividadAt: Date | null;
+  destinatarioAsignado: boolean;
 };
 
 export type PruebaLocalItem = Pick<
@@ -323,6 +327,55 @@ const getEvaluacionAccessRow = async (
     .limit(1);
 
   return row ?? null;
+};
+
+const listarDestinatariosByEvaluacionIds = async (
+  evaluacionIds: string[],
+): Promise<Map<string, Set<string>>> => {
+  if (evaluacionIds.length === 0) return new Map();
+  const db = getDb();
+  const rows = await db
+    .select({
+      evaluacionId: evaluacionDestinatarios.evaluacionId,
+      matriculaId: evaluacionDestinatarios.matriculaId,
+    })
+    .from(evaluacionDestinatarios)
+    .where(inArray(evaluacionDestinatarios.evaluacionId, evaluacionIds));
+
+  const byEvaluacion = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const current = byEvaluacion.get(row.evaluacionId) ?? new Set<string>();
+    current.add(row.matriculaId);
+    byEvaluacion.set(row.evaluacionId, current);
+  }
+  return byEvaluacion;
+};
+
+const matriculaHabilitadaParaEvaluacion = async (
+  evaluacionId: string,
+  matriculaId: string,
+): Promise<boolean> => {
+  const db = getDb();
+  const [firstRecipient] = await db
+    .select({ id: evaluacionDestinatarios.id })
+    .from(evaluacionDestinatarios)
+    .where(eq(evaluacionDestinatarios.evaluacionId, evaluacionId))
+    .limit(1);
+
+  if (!firstRecipient) return true;
+
+  const [recipient] = await db
+    .select({ id: evaluacionDestinatarios.id })
+    .from(evaluacionDestinatarios)
+    .where(
+      and(
+        eq(evaluacionDestinatarios.evaluacionId, evaluacionId),
+        eq(evaluacionDestinatarios.matriculaId, matriculaId),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(recipient);
 };
 
 const forbiddenMutationResult = (message = "No autorizado para esta acción."): MutationResult => ({
@@ -424,6 +477,7 @@ export async function listarEvaluacionesByAsignatura(
     respuestasCounts.map((item) => [item.evaluacionId, Number(item.total)]),
   );
   const notaMap = new Map(notasCounts.map((item) => [item.evaluacionId, Number(item.total)]));
+  const destinatariosMap = await listarDestinatariosByEvaluacionIds(rows.map((r) => r.id));
 
   return rows.map((r) => ({
     ...r,
@@ -435,6 +489,8 @@ export async function listarEvaluacionesByAsignatura(
     }),
     totalRespondidas: respuestaMap.get(r.id) ?? 0,
     totalCalificadas: notaMap.get(r.id) ?? 0,
+    totalDestinatarios: destinatariosMap.get(r.id)?.size ?? 0,
+    destinatariosPersonalizados: destinatariosMap.has(r.id),
     notaAlumno: null,
     respondidaPorAlumno: false,
   }));
@@ -465,6 +521,7 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
       modoSupervision: evaluaciones.modoSupervision,
       mostrarResultados: evaluaciones.mostrarResultados,
       asignaturaNombre: asignaturas.nombre,
+      matriculaId: matriculas.id,
     })
     .from(evaluaciones)
     .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
@@ -512,24 +569,46 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
       and(eq(matriculas.alumnoId, actorResult.actor.userId), isNull(notas.eliminadoAt)),
     );
 
+  const destinatariosMap = await listarDestinatariosByEvaluacionIds(rows.map((r) => r.id));
+  const visibleRows = rows.filter((r) => {
+    const destinatarios = destinatariosMap.get(r.id);
+    return !destinatarios || destinatarios.has(r.matriculaId);
+  });
+  if (visibleRows.length === 0) return [];
+
   const countMap = new Map(counts.map((c) => [c.evaluacionId, Number(c.total)]));
   const respuestaMap = new Map(
     respuestasAlumno.map((item) => [item.evaluacionId, Number(item.total)]),
   );
   const notaMap = new Map(notasAlumno.map((item) => [item.evaluacionId, item.nota ?? null]));
 
-  return rows.map((r) => ({
-    ...r,
-    totalPreguntas: countMap.get(r.id) ?? 0,
+  return visibleRows.map((row) => ({
+    id: row.id,
+    asignaturaId: row.asignaturaId,
+    titulo: row.titulo,
+    tipo: row.tipo,
+    ponderacion: row.ponderacion,
+    instrucciones: row.instrucciones,
+    intentosMax: row.intentosMax,
+    duracionMinutos: row.duracionMinutos,
+    fechaInicio: row.fechaInicio,
+    fechaLimite: row.fechaLimite,
+    publicada: row.publicada,
+    modoSupervision: row.modoSupervision,
+    mostrarResultados: row.mostrarResultados,
+    asignaturaNombre: row.asignaturaNombre,
+    totalPreguntas: countMap.get(row.id) ?? 0,
     estadoVentana: getEvaluationWindowStatus({
-      publicada: r.publicada,
-      fechaInicio: r.fechaInicio,
-      fechaLimite: r.fechaLimite,
+      publicada: row.publicada,
+      fechaInicio: row.fechaInicio,
+      fechaLimite: row.fechaLimite,
     }),
     totalRespondidas: 0,
-    totalCalificadas: notaMap.get(r.id) ? 1 : 0,
-    notaAlumno: notaMap.get(r.id) ?? null,
-    respondidaPorAlumno: (respuestaMap.get(r.id) ?? 0) > 0,
+    totalCalificadas: notaMap.get(row.id) ? 1 : 0,
+    totalDestinatarios: destinatariosMap.get(row.id)?.size ?? 0,
+    destinatariosPersonalizados: destinatariosMap.has(row.id),
+    notaAlumno: notaMap.get(row.id) ?? null,
+    respondidaPorAlumno: (respuestaMap.get(row.id) ?? 0) > 0,
   }));
 }
 
@@ -562,7 +641,7 @@ export async function listarPreguntasAlumnoByEvaluacion(
   const db = getDb();
 
   const [ev] = await db
-    .select({ id: evaluaciones.id })
+    .select({ id: evaluaciones.id, matriculaId: matriculas.id })
     .from(evaluaciones)
     .innerJoin(matriculas, eq(matriculas.asignaturaId, evaluaciones.asignaturaId))
     .where(
@@ -578,6 +657,7 @@ export async function listarPreguntasAlumnoByEvaluacion(
     .limit(1);
 
   if (!ev) return [];
+  if (!(await matriculaHabilitadaParaEvaluacion(evaluacionId, ev.matriculaId))) return [];
 
   const rows = await fetchPreguntasByEvaluacion(evaluacionId);
   return rows.map((pregunta) => ({
@@ -630,6 +710,7 @@ export async function asegurarIntentoEvaluacionActivo(
     .limit(1);
 
   if (!matricula) return null;
+  if (!(await matriculaHabilitadaParaEvaluacion(evaluacionId, matricula.id))) return null;
 
   const [activeAttempt] = await db
     .select({
@@ -921,6 +1002,11 @@ export async function listarParticipacionEvaluacion(
             and i.matricula_id = ${matriculas.id}
         ), '-infinity'::timestamptz)
       )`,
+      destinatarioAsignado: sql<boolean>`exists (
+        select 1 from evaluacion_destinatarios d
+        where d.evaluacion_id = ${evaluacionId}
+          and d.matricula_id = ${matriculas.id}
+      )`,
     })
     .from(evaluaciones)
     .innerJoin(matriculas, eq(matriculas.asignaturaId, evaluaciones.asignaturaId))
@@ -939,6 +1025,7 @@ export async function listarParticipacionEvaluacion(
     ...row,
     ultimoIntento: row.ultimoIntento ? Number(row.ultimoIntento) : null,
     respuestasCount: Number(row.respuestasCount ?? 0),
+    destinatarioAsignado: Boolean(row.destinatarioAsignado),
     ultimaActividadAt:
       row.ultimaActividadAt && Number.isFinite(new Date(row.ultimaActividadAt).getTime())
         ? row.ultimaActividadAt
@@ -1727,6 +1814,7 @@ export async function listarResultadosEvaluacionAlumno(
 
   const matriculaId = matriculaRows[0]?.id ?? null;
   if (!matriculaId) return [];
+  if (!(await matriculaHabilitadaParaEvaluacion(evaluacionId, matriculaId))) return [];
 
   // Only if mostrar_resultados = true
   const evRows = await db
@@ -1968,6 +2056,110 @@ export async function crearPlantillaEncuestaFormAction(formData: FormData): Prom
   });
 }
 
+export async function actualizarDestinatariosEvaluacionAction(input: {
+  evaluacionId: string;
+  matriculaIds: string[];
+  modo: "seccion" | "personalizado";
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_destinatarios_update",
+    "evaluaciones.publish",
+  );
+  if (!actorResult.ok) return actorResult.result;
+
+  const evaluacion = await getEvaluacionAccessRow(input.evaluacionId);
+  if (!evaluacion) {
+    return { ok: false, code: "evaluacion_not_found", message: "Evaluación no encontrada." };
+  }
+  if (!actorCanManageEvaluacion(actorResult.actor, evaluacion)) {
+    return forbiddenMutationResult("No tienes permiso para asignar destinatarios.");
+  }
+
+  const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(input.evaluacionId);
+  if (!periodoCheck.ok) return periodoCheck.result;
+
+  const db = getDb();
+  const uniqueMatriculaIds = Array.from(new Set(input.matriculaIds.filter(Boolean)));
+  if (input.modo === "personalizado" && uniqueMatriculaIds.length === 0) {
+    return { ok: false, code: "invalid_input", message: "Selecciona al menos una matrícula." };
+  }
+
+  const validRows = uniqueMatriculaIds.length
+    ? await db
+        .select({ id: matriculas.id })
+        .from(matriculas)
+        .where(
+          and(
+            inArray(matriculas.id, uniqueMatriculaIds),
+            eq(matriculas.asignaturaId, evaluacion.asignaturaId),
+            eq(matriculas.activa, true),
+            isNull(matriculas.eliminadoAt),
+          ),
+        )
+    : [];
+  const validIds = validRows.map((row) => row.id);
+
+  if (input.modo === "personalizado" && validIds.length === 0) {
+    return { ok: false, code: "invalid_input", message: "No hay matrículas válidas para esta evaluación." };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(evaluacionDestinatarios)
+      .where(eq(evaluacionDestinatarios.evaluacionId, input.evaluacionId));
+
+    if (input.modo === "personalizado") {
+      await tx.insert(evaluacionDestinatarios).values(
+        validIds.map((matriculaId) => ({
+          evaluacionId: input.evaluacionId,
+          matriculaId,
+          asignadoPor: actorResult.actor.userId,
+        })),
+      );
+    }
+  });
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "editar",
+    entidad: "evaluacion_destinatarios",
+    entidadId: input.evaluacionId,
+    payload: { modo: input.modo, totalDestinatarios: validIds.length },
+    exitoso: true,
+  });
+
+  return { ok: true, code: "destinatarios_updated" };
+}
+
+export async function actualizarDestinatariosEvaluacionFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+  const modo = getStringField(formData, "modo") === "personalizado" ? "personalizado" : "seccion";
+  const matriculaIds = formData
+    .getAll("matriculaId")
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+  const result = await actualizarDestinatariosEvaluacionAction({
+    evaluacionId,
+    matriculaIds,
+    modo,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
+}
+
 export async function publicarEvaluacionAction(id: string): Promise<MutationResult> {
   const actorResult = await requireActionCapability(
     "evaluacion_publicar",
@@ -2031,8 +2223,19 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
       .limit(1);
 
     if (evalData) {
+      const destinatarios = await db
+        .select({ matriculaId: evaluacionDestinatarios.matriculaId })
+        .from(evaluacionDestinatarios)
+        .where(eq(evaluacionDestinatarios.evaluacionId, id));
+      const destinatarioIds = destinatarios.map((item) => item.matriculaId);
       const alumnos = await db
-        .select({ id: usuarios.id, nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email })
+        .select({
+          id: usuarios.id,
+          nombre: usuarios.nombre,
+          apellido: usuarios.apellido,
+          email: usuarios.email,
+          matriculaId: matriculas.id,
+        })
         .from(matriculas)
         .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
         .where(
@@ -2040,6 +2243,9 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
             eq(matriculas.asignaturaId, evalData.asignaturaId),
             eq(matriculas.activa, true),
             isNull(matriculas.eliminadoAt),
+            ...(destinatarioIds.length > 0
+              ? [inArray(matriculas.id, destinatarioIds)]
+              : []),
           ),
         );
 
@@ -2492,6 +2698,9 @@ export async function enviarRespuestasAction(input: {
 
     if (!matricula) {
       return { ok: false, code: "not_enrolled", message: "No tienes matrícula en esta asignatura." };
+    }
+    if (!(await matriculaHabilitadaParaEvaluacion(input.evaluacionId, matricula.id))) {
+      return { ok: false, code: "not_assigned", message: "Esta evaluación no está habilitada para tu matrícula." };
     }
 
     const trackByRut = isMandatorySurveyTitle(ev.titulo) && Boolean(matricula.alumnoRut);

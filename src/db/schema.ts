@@ -416,6 +416,26 @@ export const evaluacionIntentos = pgTable(
   }),
 );
 
+export const evaluacionDestinatarios = pgTable(
+  "evaluacion_destinatarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    evaluacionId: uuid("evaluacion_id")
+      .notNull()
+      .references(() => evaluaciones.id),
+    matriculaId: uuid("matricula_id")
+      .notNull()
+      .references(() => matriculas.id),
+    asignadoPor: uuid("asignado_por").references(() => usuarios.id),
+    createdAt: tstz("created_at").defaultNow(),
+  },
+  (t) => ({
+    uniq: unique().on(t.evaluacionId, t.matriculaId),
+    evaluacionIdx: index("evaluacion_destinatarios_eval_idx").on(t.evaluacionId),
+    matriculaIdx: index("evaluacion_destinatarios_matricula_idx").on(t.matriculaId),
+  }),
+);
+
 export const eventosSupervision = pgTable(
   "eventos_supervision",
   {
@@ -435,6 +455,31 @@ export const eventosSupervision = pgTable(
 );
 
 // --- Asignaciones de encuesta: quién debe responder y si ya lo hizo ---
+export const calendarioDocenteEventos = pgTable(
+  "calendario_docente_eventos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    docenteId: uuid("docente_id")
+      .notNull()
+      .references(() => usuarios.id),
+    fecha: date("fecha").notNull(),
+    titulo: text("titulo").notNull(),
+    nota: text("nota"),
+    tipo: text("tipo").notNull().default("recordatorio"),
+    color: text("color").notNull().default("#6366F1"),
+    relevante: boolean("relevante").default(false).notNull(),
+    eliminadoAt: tstz("eliminado_at"),
+    eliminadoPor: uuid("eliminado_por").references(() => usuarios.id),
+    createdAt: tstz("created_at").defaultNow(),
+    updatedAt: tstz("updated_at").defaultNow(),
+  },
+  (t) => ({
+    docenteFechaIdx: index("calendario_docente_eventos_docente_fecha_idx")
+      .on(t.docenteId, t.fecha)
+      .where(sql`${t.eliminadoAt} IS NULL`),
+  }),
+);
+
 export const encuestaAsignaciones = pgTable(
   "encuesta_asignaciones",
   {

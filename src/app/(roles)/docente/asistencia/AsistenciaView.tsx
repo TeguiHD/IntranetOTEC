@@ -81,7 +81,13 @@ function CalendarTab({
   anio: number;
   onMesChange: (m: number, a: number) => void;
 }) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const todayIso = (() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  })();
+  const [selectedDate, setSelectedDate] = useState<string | null>(() =>
+    clasesMes.some((clase) => clase.fecha === todayIso) ? todayIso : null,
+  );
   const [localClases, setLocalClases] = useOptimistic(clasesMes);
   const [isPending, startTransition] = useTransition();
 

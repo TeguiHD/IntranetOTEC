@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { BookOpen, ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
+import { Bell, BookOpen, CalendarCheck2, ChevronLeft, ChevronRight, ClipboardList, Star } from "lucide-react";
 
 import type { EventoCalendario } from "@/actions/calendario";
 
@@ -60,6 +60,13 @@ export function CalendarioMensual({
   const selectedEventos = selectedDate
     ? eventos.filter((evento) => evento.fecha === selectedDate)
     : [];
+  const getEventoIcon = (tipo: EventoCalendario["tipo"], relevante?: boolean) => {
+    if (relevante) return Star;
+    if (tipo === "evaluacion" || tipo === "prueba") return ClipboardList;
+    if (tipo === "recordatorio") return Bell;
+    if (tipo === "dia_libre") return CalendarCheck2;
+    return BookOpen;
+  };
 
   const irMesAnterior = () => {
     const nuevo = mes === 1 ? 12 : mes - 1;
@@ -203,7 +210,7 @@ export function CalendarioMensual({
           ) : (
             <div className="mt-3 space-y-2">
               {selectedEventos.map((evento) => {
-                const Icon = evento.tipo === "evaluacion" ? ClipboardList : BookOpen;
+                const Icon = getEventoIcon(evento.tipo, evento.relevante);
                 return (
                   <div key={`${evento.tipo}-${evento.id}`} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50">
                     <span

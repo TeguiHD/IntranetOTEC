@@ -148,7 +148,8 @@ export async function GET(
       alumnoApellido:
         snapshot.alumnoApellido ?? certificadoRow.alumnoApellidoActual ?? "",
       alumnoRut: snapshot.alumnoRut ?? certificadoRow.alumnoRutActual ?? null,
-      asignaturaNombre: certificadoRow.asignaturaNombre ?? null,
+      cursoNombre: snapshot.nombreCurso ?? certificadoRow.asignaturaNombre ?? null,
+      finalidad: snapshot.finalidad ?? null,
       fechaEmision:
         snapshot.fechaEmision ?? certificadoRow.fechaEmision ?? new Date().toISOString(),
       urlVerificacion: `${verifyOrigin}/verificar/${encodeURIComponent(certificadoRow.codigoUnico)}`,

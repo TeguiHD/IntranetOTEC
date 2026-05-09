@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import Image from "next/image";
@@ -66,14 +65,16 @@ function OtecLogo() {
 }
 
 export function LoginView({ authError }: LoginViewProps) {
-  const router = useRouter();
-
   const [activeTab, setActiveTab] = useState<LoginTab>("alumno");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("login_tab");
-    if (saved === "staff") {
-      setActiveTab("staff");
+    try {
+      const saved = window.localStorage.getItem("login_tab");
+      if (saved === "staff") {
+        setActiveTab("staff");
+      }
+    } catch {
+      // Safari en modo privado o políticas corporativas pueden bloquear localStorage.
     }
   }, []);
   const [rut, setRut] = useState("");
@@ -126,8 +127,7 @@ export function LoginView({ authError }: LoginViewProps) {
       }
 
       toast.success("Inicio de sesión exitoso. Redirigiendo...");
-      window.location.assign("/");
-      router.refresh();
+      window.location.replace(result.url ?? "/");
     });
   };
 
@@ -194,7 +194,11 @@ export function LoginView({ authError }: LoginViewProps) {
                   onClick={() => {
                     setFormError(null);
                     setActiveTab(tab);
-                    window.localStorage.setItem("login_tab", tab);
+                    try {
+                      window.localStorage.setItem("login_tab", tab);
+                    } catch {
+                      // No es crítico recordar la pestaña si el navegador bloquea storage.
+                    }
                   }}
                   className={`relative flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
                     active

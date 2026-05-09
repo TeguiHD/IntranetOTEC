@@ -113,7 +113,7 @@ export default async function AdminAlumnosPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Gestion de Alumnos
+            Gestión de Alumnos
           </h1>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
             Registra alumnos con RUT o credencial extranjera y controla su estado de acceso.

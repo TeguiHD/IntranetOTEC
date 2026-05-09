@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, inArray, isNull } from "drizzle-orm";
 
 import {
   countUsuariosPorRol,
@@ -106,7 +106,7 @@ export default async function AdminDocentesPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Gestion de Docentes
+            Gestión de Docentes
           </h1>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
             Crea cuentas docentes seguras y administra su estado operativo.

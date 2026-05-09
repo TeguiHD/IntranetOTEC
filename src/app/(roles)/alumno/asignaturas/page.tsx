@@ -14,6 +14,7 @@ import { listarAnunciosAsignatura } from "@/actions/anuncios";
 import { listarMaterialPorAsignatura } from "@/actions/material";
 import { AnunciosBoard } from "@/components/shared/AnunciosBoard";
 import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
+import { normalizarTextoVisible } from "@/lib/displayText";
 import { calcularNotaFinalPonderada } from "@/lib/notas-utils";
 
 export const metadata = {
@@ -193,7 +194,7 @@ export default async function AlumnoAsignaturasPage() {
                 <div className={`bg-gradient-to-br ${color.bg} px-5 py-4`}>
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-base font-bold leading-snug text-white">
-                      {asig.asignaturaNombre}
+                      {normalizarTextoVisible(asig.asignaturaNombre)}
                     </h2>
                     <BookOpen className={`mt-0.5 h-5 w-5 shrink-0 ${color.icon}`} strokeWidth={1.5} />
                   </div>
@@ -297,9 +298,9 @@ export default async function AlumnoAsignaturasPage() {
                             <a
                               href={`/api/files/download/${m.id}`}
                               className="truncate text-primary underline hover:opacity-80 dark:text-primary-light"
-                              title={`${m.claseTitulo} — ${m.nombre}`}
+                              title={`${normalizarTextoVisible(m.claseTitulo)} — ${normalizarTextoVisible(m.nombre)}`}
                             >
-                              {m.nombre}
+                              {normalizarTextoVisible(m.nombre)}
                             </a>
                             <span className="shrink-0 text-text-secondary dark:text-gray-400">
                               {m.tamanioBytes ? `${(m.tamanioBytes / 1024).toFixed(0)} KB` : ""}
@@ -330,7 +331,7 @@ export default async function AlumnoAsignaturasPage() {
                   <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                     <ChatAsignatura
                       asignaturaId={asig.asignaturaId}
-                      asignaturaNombre={asig.asignaturaNombre}
+                      asignaturaNombre={normalizarTextoVisible(asig.asignaturaNombre)}
                     />
                   </div>
 

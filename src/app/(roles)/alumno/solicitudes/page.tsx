@@ -26,11 +26,11 @@ const SOLICITUD_CARDS = [
     iconBg: "bg-primary/10 text-primary",
   },
   {
-    href: "/alumno/solicitudes/alumno-regular",
+    href: "/alumno/certificados",
     accessKey: null,
     Icon: FileCheck,
-    title: "Certificado Alumno Regular",
-    description: "Genera tu certificado oficial de alumno regular.",
+    title: "Mis Certificados",
+    description: "Genera tu certificado de alumno regular de forma automática.",
     iconBg: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   },
   {

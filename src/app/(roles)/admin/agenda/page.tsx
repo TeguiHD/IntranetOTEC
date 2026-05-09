@@ -391,9 +391,9 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
   return (
     <section className="space-y-5">
       <header className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 text-white shadow-lg shadow-primary/15 sm:p-6">
-        <h1 className="text-xl font-bold uppercase sm:text-2xl">Agenda academica</h1>
+        <h1 className="text-xl font-bold uppercase sm:text-2xl">Agenda académica</h1>
         <p className="mt-1 text-sm text-white/85">
-          Vista operacional diaria para administrar clases, responsables, alumnos y estado academico.
+          Vista operacional diaria para administrar clases, responsables, alumnos y estado académico.
         </p>
       </header>
 

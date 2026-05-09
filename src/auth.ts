@@ -246,7 +246,7 @@ const nextAuth = NextAuth({
   },
   session: {
     strategy: "jwt",
-    maxAge: 12 * 60 * 60, // 12 hours
+    maxAge: 30 * 24 * 60 * 60, // Staff stays signed in; alumnos are limited by client inactivity.
     updateAge: 15 * 60, // 15 mins
   },
   cookies: {

@@ -68,8 +68,8 @@ export default async function AlumnoEncuestaDocentePage({ searchParams }: Props)
   return (
     <SurveyShell
       icon={ClipboardList}
-      title="Evaluacion Docente y OTEC"
-      description="Evalua a tu docente y al servicio OTEC con escala del 1 al 7. Tus respuestas ayudan a mejorar la calidad academica."
+      title="Evaluación Docente y OTEC"
+      description="Evalúa a tu docente y al servicio OTEC con escala del 1 al 7. Tus respuestas ayudan a mejorar la calidad académica."
       stats={[
         { label: "Cursos con encuesta", value: encuestas.length, tone: "primary" },
         { label: "Pendientes", value: pendientes, tone: "amber" },

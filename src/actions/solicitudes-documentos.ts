@@ -402,7 +402,13 @@ export async function solicitarDocumentoAlumnoFormAction(formData: FormData): Pr
   revalidatePath("/alumno/solicitudes/tarjeta-beneficio");
   revalidatePath("/alumno/solicitudes/alumno-regular");
 
-  redirect(`/alumno/solicitudes?state=${result.ok ? result.code : result.code}`);
+  const redirectByTipo = {
+    credencial: "/alumno/solicitudes/credencial",
+    tarjeta_beneficio: "/alumno/solicitudes/tarjeta-beneficio",
+    alumno_regular: "/alumno/certificados",
+  } satisfies Record<typeof tipo, string>;
+
+  redirect(`${redirectByTipo[tipo]}?state=${result.code}`);
 }
 
 export async function countSolicitudesPendientesAdmin(): Promise<number> {

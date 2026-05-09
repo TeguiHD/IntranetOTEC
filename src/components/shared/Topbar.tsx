@@ -183,6 +183,17 @@ export function Topbar({
     router.push("/instalar");
   };
 
+  const handleSmartBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(`/${role}`);
+  };
+
+  const showBackButton = pathname !== `/${role}`;
+
   return (
     <header className="app-topbar fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:px-4">
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
@@ -195,6 +206,18 @@ export function Topbar({
         >
           <Menu className="h-5 w-5" />
         </button>
+
+        {showBackButton ? (
+          <button
+            type="button"
+            aria-label="Volver"
+            title="Volver"
+            onClick={handleSmartBack}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        ) : null}
 
         {/* Desktop sidebar toggle */}
         <button

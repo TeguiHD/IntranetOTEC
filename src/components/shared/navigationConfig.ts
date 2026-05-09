@@ -76,9 +76,9 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Oferta academica",
+    title: "Oferta académica",
     items: [
-      { href: "/admin/academico", label: "Vista academica", Icon: BookOpen, gradient: "grad-purple", capability: "cursos.admin" },
+      { href: "/admin/academico", label: "Vista académica", Icon: BookOpen, gradient: "grad-purple", capability: "cursos.admin" },
       { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.admin" },
       { href: "/admin/cursos", label: "Cursos", Icon: BookOpen, gradient: "grad-indigo", capability: "cursos.admin" },
       { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange, gradient: "grad-teal", capability: "horarios.admin" },
@@ -87,7 +87,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Registros academicos",
+    title: "Registros académicos",
     items: [
       { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.manage" },
       { href: "/admin/notas", label: "Notas", Icon: ClipboardList, gradient: "grad-gold", capability: "notas.admin" },
@@ -95,7 +95,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Personas y matriculas",
+    title: "Personas y matrículas",
     items: [
       { href: "/admin/docentes", label: "Docentes", Icon: UserCog, gradient: "grad-amber", capability: "personas.admin" },
       { href: "/admin/alumnos", label: "Alumnos", Icon: Users, gradient: "grad-emerald", capability: "personas.admin" },
@@ -104,7 +104,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Comunicacion y soporte",
+    title: "Comunicación y soporte",
     items: [
       { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell, gradient: "grad-amber", capability: "notificaciones.admin" },
       { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText, gradient: "grad-violet", capability: "solicitudes.admin" },
@@ -142,7 +142,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Academico",
+    title: "Académico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.docente" },
       { href: "/docente/historial", label: "Historial", Icon: FileText, gradient: "grad-violet", capability: "historial.docente" },
@@ -175,7 +175,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Academico",
+    title: "Académico",
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue", capability: "asignaturas.alumno" },
       { href: "/alumno/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.alumno" },
@@ -195,7 +195,6 @@ const ALUMNO_SECTIONS: NavSection[] = [
     items: [
       { href: "/alumno/certificados", label: "Mis Certificados", Icon: Award, gradient: "grad-purple", capability: "solicitudes.alumno" },
       { href: "/alumno/solicitudes/credencial", label: "Credencial", Icon: IdCard, gradient: "grad-violet", capability: "solicitudes.alumno" },
-      { href: "/alumno/solicitudes/alumno-regular", label: "Solicitud manual", Icon: FileCheck, gradient: "grad-blue", capability: "solicitudes.alumno" },
       { href: "/alumno/solicitudes/tarjeta-beneficio", label: "Tarjeta Beneficio", Icon: CreditCard, gradient: "grad-pink", capability: "solicitudes.alumno" },
     ],
   },

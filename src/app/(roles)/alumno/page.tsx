@@ -1,13 +1,15 @@
 import Link from "next/link";
 
 import {
+  Award,
   Bell,
   Brain,
   CalendarDays,
+  CalendarRange,
   ClipboardCheck,
   ClipboardList,
   CreditCard,
-  FileCheck,
+  FileText,
   GraduationCap,
   IdCard,
   type LucideIcon,
@@ -20,6 +22,7 @@ import { obtenerAccesoDocumentosAlumnoActual } from "@/actions/accesos-documento
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
 import { listarObservacionesAlumno } from "@/actions/docente";
 import { listarMisNotificaciones } from "@/actions/notificaciones";
+import { normalizarTextoVisible } from "@/lib/displayText";
 
 const GRADIENT_COLORS: Record<string, string> = {
   "grad-purple": "#8B3A9E",
@@ -37,18 +40,21 @@ type AlumnoNavItem = { href: string; title: string; gradient: string; Icon: Luci
 
 const ALUMNO_NAV_ACADEMICO: AlumnoNavItem[] = [
   { href: "/alumno/asignaturas",  title: "Mis Cursos",    gradient: "grad-blue",    Icon: GraduationCap },
+  { href: "/alumno/horario",      title: "Mi Horario",    gradient: "grad-teal",    Icon: CalendarRange },
+  { href: "/alumno/calendario",   title: "Calendario",    gradient: "grad-cyan",    Icon: CalendarDays },
   { href: "/alumno/clases",       title: "Clases",        gradient: "grad-cyan",    Icon: CalendarDays },
   { href: "/alumno/evaluaciones", title: "Evaluaciones",  gradient: "grad-violet",  Icon: ClipboardList },
+  { href: "/alumno/historial",    title: "Historial",     gradient: "grad-indigo",  Icon: FileText },
   { href: "/alumno/notas",        title: "Mis Notas",     gradient: "grad-gold",    Icon: ClipboardList },
   { href: "/alumno/asistencias",  title: "Mi Asistencia", gradient: "grad-emerald", Icon: ClipboardCheck },
-  { href: "/encuestas",           title: "Encuestas",     gradient: "grad-indigo",  Icon: MessageSquare },
   { href: "/alumno/encuesta-docente", title: "Evaluar Docente", gradient: "grad-amber", Icon: Star },
   { href: "/alumno/test-estilos", title: "Test Estilos",  gradient: "grad-violet",  Icon: Brain },
+  { href: "/encuestas",           title: "Mis Encuestas", gradient: "grad-indigo",  Icon: MessageSquare },
 ];
 
 const ALUMNO_NAV_GESTION: AlumnoNavItem[] = [
+  { href: "/alumno/certificados",                    title: "Mis Certificados", gradient: "grad-purple", Icon: Award },
   { href: "/alumno/solicitudes/credencial",        title: "Credencial",         gradient: "grad-violet", Icon: IdCard },
-  { href: "/alumno/solicitudes/alumno-regular",    title: "Cert. Alumno Reg.",  gradient: "grad-blue",   Icon: FileCheck },
   { href: "/alumno/solicitudes/tarjeta-beneficio", title: "Tarjeta Beneficio",  gradient: "grad-pink",   Icon: CreditCard },
   { href: "/alumno/notificaciones",                title: "Notificaciones",     gradient: "grad-amber",  Icon: Bell },
   { href: "/alumno/perfil",                        title: "Mi Perfil",          gradient: "grad-blue",   Icon: User },
@@ -269,10 +275,10 @@ export default async function AlumnoDashboardPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-text-primary dark:text-white">
-                        {act.titulo}
+                        {normalizarTextoVisible(act.titulo)}
                       </p>
                       <p className="text-xs text-text-secondary dark:text-gray-400">
-                        {act.asignaturaNombre} · {fechaLabel}
+                        {normalizarTextoVisible(act.asignaturaNombre)} · {fechaLabel}
                       </p>
                     </div>
                     {act.urgente && (
@@ -293,7 +299,7 @@ export default async function AlumnoDashboardPage() {
         <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted dark:text-gray-500">
           Académico
         </p>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {ALUMNO_NAV_ACADEMICO.map((item) => (
             <Link
               key={item.href}
@@ -352,10 +358,10 @@ export default async function AlumnoDashboardPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-text-primary dark:text-white">
-                    {clase.titulo}
+                    {normalizarTextoVisible(clase.titulo)}
                   </p>
                   <p className="text-xs text-text-secondary dark:text-gray-400">
-                    {clase.asignaturaNombre} · Sesión {clase.numeroSesion}
+                    {normalizarTextoVisible(clase.asignaturaNombre)} · Sesión {clase.numeroSesion}
                   </p>
                 </div>
                 <div className="ml-3 text-right">
@@ -400,11 +406,11 @@ export default async function AlumnoDashboardPage() {
                         {TIPO_EVAL_LABELS[ev.tipo] ?? ev.tipo}
                       </span>
                       <p className="truncate text-sm font-medium text-text-primary dark:text-white">
-                        {ev.titulo}
+                        {normalizarTextoVisible(ev.titulo)}
                       </p>
                     </div>
                     <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">
-                      {ev.asignaturaNombre}
+                      {normalizarTextoVisible(ev.asignaturaNombre)}
                     </p>
                   </div>
                   {restante && (
@@ -444,10 +450,10 @@ export default async function AlumnoDashboardPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-text-primary dark:text-white">
-                    {n.evaluacionTitulo}
+                    {normalizarTextoVisible(n.evaluacionTitulo)}
                   </p>
                   <p className="text-xs text-text-secondary dark:text-gray-400">
-                    {n.asignaturaNombre} · {TIPO_EVAL_LABELS[n.evaluacionTipo] ?? n.evaluacionTipo}
+                    {normalizarTextoVisible(n.asignaturaNombre)} · {TIPO_EVAL_LABELS[n.evaluacionTipo] ?? n.evaluacionTipo}
                   </p>
                 </div>
                 <div className="ml-3 text-right">
@@ -471,7 +477,7 @@ export default async function AlumnoDashboardPage() {
                     Nota Docente
                   </p>
                   <p className="text-xs text-text-secondary dark:text-gray-400">
-                    {n.asignaturaNombre}
+                    {normalizarTextoVisible(n.asignaturaNombre)}
                   </p>
                 </div>
                 <div className="ml-3 text-right">
@@ -510,7 +516,7 @@ export default async function AlumnoDashboardPage() {
                     <p className="text-xs font-medium text-primary dark:text-primary-light">
                       {formatFecha(obs.fechaRegistro)}
                     </p>
-                    <p className="text-[10px] text-text-muted dark:text-gray-500">{obs.asignaturaNombre}</p>
+                    <p className="text-[10px] text-text-muted dark:text-gray-500">{normalizarTextoVisible(obs.asignaturaNombre)}</p>
                   </div>
                 </div>
               </div>
@@ -519,8 +525,7 @@ export default async function AlumnoDashboardPage() {
         )}
       </article>
 
-      {/* Enrolled courses */}
-      {cursos.length > 0 && (
+      {false && cursos.length > 0 && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
             Mis Cursos Inscritos

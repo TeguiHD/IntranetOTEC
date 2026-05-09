@@ -11,6 +11,7 @@ import type { AppRole } from "@/lib/authz";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Footer } from "./Footer";
 import { MobileNavGrid } from "./MobileNavGrid";
+import { SessionActivityGuard } from "./SessionActivityGuard";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -80,6 +81,7 @@ export function RoleShell({ role, userName, children, pendingSolicitudes, unread
 
   return (
     <div className="min-h-screen bg-bg-light dark:bg-bg-dark">
+      <SessionActivityGuard role={role} />
       <Topbar
         role={role}
         userName={userName}

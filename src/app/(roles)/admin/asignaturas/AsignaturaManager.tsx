@@ -16,6 +16,7 @@ import { activarUsuarioAction } from "@/actions/usuarios";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Pagination } from "@/components/shared/Pagination";
+import { normalizarTextoVisible } from "@/lib/displayText";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -367,7 +368,7 @@ export function AsignaturaManager({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-text-primary dark:text-white">
-                      {a.nombre}
+                      {normalizarTextoVisible(a.nombre)}
                     </p>
                     {a.codigo && (
                       <span className="mt-0.5 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary dark:bg-primary/20 dark:text-primary-light">
@@ -500,7 +501,7 @@ export function AsignaturaManager({
                     {/* Nombre + código */}
                     <td className="px-3 py-3">
                       <p className="font-medium text-text-primary dark:text-gray-100">
-                        {a.nombre}
+                        {normalizarTextoVisible(a.nombre)}
                       </p>
                       {a.codigo && (
                         <span className="mt-0.5 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary dark:bg-primary/20 dark:text-primary-light">
@@ -648,7 +649,7 @@ export function AsignaturaManager({
             >
               <option value="">— Selecciona curso —</option>
               {cursos.map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
+                <option key={c.id} value={c.id}>{normalizarTextoVisible(c.nombre)} ({c.codigo})</option>
               ))}
             </select>
           </div>
@@ -829,7 +830,7 @@ export function AsignaturaManager({
       <Modal
         open={editingAsig !== null}
         onClose={() => setEditingAsig(null)}
-        title={editingAsig ? `Editar sección · ${editingAsig.nombre}` : "Editar sección"}
+        title={editingAsig ? `Editar sección · ${normalizarTextoVisible(editingAsig.nombre)}` : "Editar sección"}
         description={editingAsig?.codigo ? `Código: ${editingAsig.codigo}` : undefined}
         size="max-w-xl"
       >
@@ -933,7 +934,7 @@ export function AsignaturaManager({
         onClose={() => { setAssigningAsig(null); setConfirmDocente(null); }}
         title={
           assigningAsig
-            ? `Asignar docente · ${assigningAsig.nombre}`
+            ? `Asignar docente · ${normalizarTextoVisible(assigningAsig.nombre)}`
             : "Asignar docente"
         }
         description={
@@ -993,7 +994,7 @@ export function AsignaturaManager({
         title="Confirmar asignación de docente"
         description={
           confirmDocente && assigningAsig
-            ? `Vas a asignar a ${confirmDocente.nombre} ${confirmDocente.apellido} como docente responsable de la sección "${assigningAsig.nombre}". Se enviará una notificación por correo al docente.`
+            ? `Vas a asignar a ${confirmDocente.nombre} ${confirmDocente.apellido} como docente responsable de la sección "${normalizarTextoVisible(assigningAsig.nombre)}". Se enviará una notificación por correo al docente.`
             : ""
         }
         confirmLabel="Confirmar asignación"
@@ -1015,7 +1016,7 @@ export function AsignaturaManager({
         title="Archivar sección"
         description={
           archivingAsig
-            ? `¿Archivar "${archivingAsig.nombre}"? La sección quedará inactiva y no aparecerá en las vistas activas.`
+            ? `¿Archivar "${normalizarTextoVisible(archivingAsig.nombre)}"? La sección quedará inactiva y no aparecerá en las vistas activas.`
             : ""
         }
         confirmLabel="Sí, archivar"
@@ -1037,7 +1038,7 @@ export function AsignaturaManager({
         title="Desarchivar sección"
         description={
           unarchivingAsig
-            ? `¿Reactivar "${unarchivingAsig.nombre}"? La sección volverá a estado activo y aparecerá en las vistas operativas.`
+            ? `¿Reactivar "${normalizarTextoVisible(unarchivingAsig.nombre)}"? La sección volverá a estado activo y aparecerá en las vistas operativas.`
             : ""
         }
         confirmLabel="Sí, desarchivar"
@@ -1059,7 +1060,7 @@ export function AsignaturaManager({
         title="Eliminar sección"
         description={
           deletingAsig
-            ? `¿Eliminar permanentemente "${deletingAsig.nombre}"? Esta acción es irreversible y la sección dejará de aparecer en el sistema.`
+            ? `¿Eliminar permanentemente "${normalizarTextoVisible(deletingAsig.nombre)}"? Esta acción es irreversible y la sección dejará de aparecer en el sistema.`
             : ""
         }
         confirmLabel="Sí, eliminar"

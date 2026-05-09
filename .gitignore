@@ -89,3 +89,9 @@ next-env.d.ts
 /cert-preview*.png
 /public/cert-preview-temp.html
 /.playwright-mcp/
+
+# local deployment notes and request assets
+/instrucciones.md
+/docentes.txt
+/pnpm-lock.zip
+/cambios/

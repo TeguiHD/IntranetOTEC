@@ -6,11 +6,42 @@ Fuente revisada: `C:\Users\victo\Downloads\cambios cliente.docx`.
 
 El documento del cliente contiene una nueva tanda de ajustes visuales y de flujo para alumno, docente y administrador. La sesion ya desplegada del commit `3a4760d` resolvio el flujo de pruebas/calendario docente, pero no cubre la mayoria de los puntos nuevos del Word.
 
-Se deben priorizar tres frentes:
+Estado al cierre de implementacion:
 
-1. Limpieza de navegacion y duplicidades del alumno.
-2. Correccion de textos/acentos y nombres visibles.
-3. Reubicacion funcional de cursos, certificado automatizado, asistencia y recompensas.
+1. Limpieza de navegacion y duplicidades del alumno: implementada en `6e5bc04`.
+2. Correccion de textos/acentos y nombres visibles: implementada para las pantallas observadas y se agrego normalizacion visual para nombres con `S?bado`/`Mi?rcoles`.
+3. Reubicacion funcional de cursos, certificado automatizado, asistencia y recompensas: implementada en `6e5bc04`.
+
+## Implementado desde este plan
+
+### Ajustes cliente Word - 2026-05-09
+
+- Commit `6e5bc04`: `Implementa ajustes solicitados por cliente`.
+- Se elimino `Solicitud manual` del menu lateral alumno.
+- La ruta antigua `/alumno/solicitudes/alumno-regular` ahora redirige a `/alumno/certificados`.
+- El panel alumno reemplazo `Cert. Alumno Reg.` por `Mis Certificados`.
+- El panel alumno ahora incluye accesos centrales equivalentes a la barra lateral: `Mi Horario`, `Calendario`, `Historial` y `Mis Encuestas`.
+- Se retiro del panel principal el listado duplicado `Mis Cursos Inscritos`; los cursos quedan concentrados en `Mis Cursos`.
+- La pagina de asistencia ya no muestra el titulo `Tarjeta de asistencia`; usa `Asistencia`.
+- La pagina `Tarjeta de Beneficio` ahora muestra debajo una `Tarjeta de Recompensas` con la misma logica visual de 8 asistencias.
+- La solicitud de credencial vuelve a su propia pantalla de credencial despues del envio, en lugar de mandar a la vista general de solicitudes.
+- Se agrego `SessionActivityGuard`: alumnos cierran sesion tras 30 minutos de inactividad; staff queda con sesion extendida.
+- Se agrego boton `Volver` inteligente en la barra superior con fallback al panel del rol.
+- Se corrigieron textos visibles sin tilde en navegacion y pantallas admin/alumno/docente observadas.
+- Se agrego `normalizarTextoVisible` para mostrar nombres de secciones/clases con correcciones como `Sábado` y `Miércoles` cuando vienen guardadas con caracteres rotos desde datos existentes.
+
+### Validacion y despliegue de `6e5bc04`
+
+- Local: `npx tsc --noEmit` OK.
+- Local: `npm run lint` OK.
+- Local: `npx next build` compilo, pero se detuvo por variables `.env` faltantes locales.
+- VPS: pull fast-forward en `/root/IntranetOTEC`.
+- VPS: pull fast-forward en `/home/impulsate/intranet-otec`.
+- VPS: `pnpm run build` completo correctamente.
+- VPS: `pnpm run postbuild` OK.
+- VPS: `pm2 reload otec --update-env` OK.
+- VPS: `otec` online en 2 instancias.
+- VPS: `http://127.0.0.1:3000/login` respondio `200 OK`.
 
 ## Cambios ya realizados y desplegados
 
@@ -76,19 +107,19 @@ Se deben priorizar tres frentes:
 
 | Pedido del cliente | Estado actual | Evidencia / comentario | Accion recomendada |
 | --- | --- | --- | --- |
-| Corregir palabras con signos, acentos y caracteres especiales en alumno/docente/admin. | Pendiente parcial | Hay textos correctos en codigo, pero capturas muestran `S?bado`, `Mi?rcoles`. Tambien existen labels sin acento como `Academico`, `Gestion de Alumnos`, `Gestion de Docentes`. | Normalizar textos visibles, revisar origen de datos con mojibake y agregar sanitizacion/normalizacion en render cuando venga desde BD. |
-| Todos los cuadros de las 3 rayitas deben ir en el panel central. En alumno deben estar las mismas secciones que la barra lateral. | Parcial | Panel alumno ya tiene bloques centrales, pero no replica todo el menu lateral: falta horario/calendario/historial y sobran duplicidades segun nuevo criterio. | Sincronizar el panel central con `navigationConfig` o definir una matriz unica por rol. |
-| Mantener seccion indicada y eliminar solicitud manual. | Pendiente | `navigationConfig.ts` aun contiene `/alumno/solicitudes/alumno-regular` como `Solicitud manual`. | Retirar entrada de barra lateral y panel, manteniendo solo certificado automatizado. Evaluar redireccion 301/soft hacia `/alumno/certificados`. |
-| Borrar boton de alumno regular y dejar el automatizado. | Pendiente | Panel alumno aun muestra `Cert. Alumno Reg.` apuntando a solicitud manual; existe automatizado en `/alumno/certificados`. | Cambiar boton del panel a `Mis Certificados` o eliminarlo si queda en barra lateral. |
-| Mantener sesion abierta; permanente para administradores y docentes, 30 min de inactividad para alumnos. | Pendiente | `src/auth.ts` usa `maxAge: 12 horas` global para JWT. | Implementar expiracion por rol o estrategia de actividad: admin/docente larga, alumno 30 min inactivo. Revisar middleware y refresh de sesion. |
-| Cursos deben estar en boton Cursos, no listado en panel central ni en perfil/asignatura/panel principal. | Pendiente | Panel alumno muestra `Mis Cursos Inscritos`; tambien existen vistas de asignaturas/cursos. | Dejar cursos concentrados en `/alumno/asignaturas` y limpiar listados duplicados del panel/perfil si no son resumen necesario. |
-| Tarjeta de Recompensas debe copiar logica de asistencia y mostrarse en Tarjeta Beneficio. | Pendiente | La logica de 8 bloques existe en `/alumno/asistencias`; tarjeta beneficio solo muestra credencial visual. | Crear seccion `Tarjeta de Recompensas` debajo de beneficio, reutilizando datos de asistencia sin cambiar la pagina de asistencia. |
-| En asistencia no debe decir `Tarjeta de asistencia`; titulo solo `Asistencia`. | Pendiente | `/alumno/asistencias/page.tsx` muestra `Tarjeta de asistencia`. | Renombrar tarjetas a `Asistencia` y ajustar textos/aria/metadata relacionados. |
-| Tarjeta de recompensas va abajo de la de beneficios. | Pendiente | No existe aun en la pagina de beneficio. | Agregar bloque debajo de la tarjeta visual en `/alumno/solicitudes/tarjeta-beneficio`. |
-| Revisar por que lleva a otra parte cuando solicita la credencial. | Pendiente de QA | Existe flujo de credencial y control de acceso, pero falta reproducir navegacion exacta del cliente. | Probar con cuenta alumno, revisar redirects/state toast y corregir destino post-submit. |
-| Retroceder interactivo sin cerrar sesion ni mandar al panel sin coherencia. | Pendiente | Hay boton back global en `Topbar`; debe revisarse comportamiento con historial del navegador y rutas protegidas. | Implementar back inteligente: si hay historial interno volver; si no, fallback contextual por rol/seccion. Evitar logout por navegacion atras. |
+| Corregir palabras con signos, acentos y caracteres especiales en alumno/docente/admin. | Implementado parcial | Se corrigieron labels visibles y se agrego normalizacion para nombres de clases/secciones con `S?bado`/`Mi?rcoles`. | Revisar datos historicos de BD si se quiere corregir el origen, no solo la visualizacion. |
+| Todos los cuadros de las 3 rayitas deben ir en el panel central. En alumno deben estar las mismas secciones que la barra lateral. | Implementado | Panel alumno ahora incluye accesos centrales a horario, calendario, historial y encuestas, ademas de los ya existentes. | QA responsive en celular/tablet. |
+| Mantener seccion indicada y eliminar solicitud manual. | Implementado | `Solicitud manual` fue retirada del menu alumno. | Ninguna. |
+| Borrar boton de alumno regular y dejar el automatizado. | Implementado | El panel usa `Mis Certificados` y la ruta manual redirige al certificado automatico. | Ninguna. |
+| Mantener sesion abierta; permanente para administradores y docentes, 30 min de inactividad para alumnos. | Implementado | JWT extendido a 30 dias y guard cliente cierra alumnos tras 30 min de inactividad. | QA manual de inactividad real en navegador. |
+| Cursos deben estar en boton Cursos, no listado en panel central ni en perfil/asignatura/panel principal. | Implementado en panel | Se retiro el listado duplicado `Mis Cursos Inscritos` del panel alumno. | Revisar perfil si el cliente vuelve a reportar duplicidad ahi. |
+| Tarjeta de Recompensas debe copiar logica de asistencia y mostrarse en Tarjeta Beneficio. | Implementado | `Tarjeta de Beneficio` muestra `Tarjeta de Recompensas` con grilla de 8 asistencias. | Definir catalogo real de descuentos/beneficios si se requiere contenido comercial especifico. |
+| En asistencia no debe decir `Tarjeta de asistencia`; titulo solo `Asistencia`. | Implementado | Tarjetas de `/alumno/asistencias` muestran `Asistencia`. | Ninguna. |
+| Tarjeta de recompensas va abajo de la de beneficios. | Implementado | Recompensas aparece bajo la tarjeta visual del beneficio. | Ninguna. |
+| Revisar por que lleva a otra parte cuando solicita la credencial. | Implementado | El form redirige a `/alumno/solicitudes/credencial?state=...`. | QA con cuenta alumno habilitada/no habilitada. |
+| Retroceder interactivo sin que se cierre la sesion. | Implementado parcial | Se agrego boton `Volver` inteligente en topbar con fallback al panel del rol. | El boton nativo del navegador depende del historial del navegador; seguir observando si el cliente reporta un caso especifico. |
 
-## Plan de implementacion propuesto
+## Plan de implementacion ejecutado
 
 ### Fase 1 - Limpieza rapida de navegacion alumno
 

@@ -266,6 +266,12 @@ export type EvaluacionAdminResumenItem = {
   publicada: boolean | null;
   fechaInicio: Date | null;
   fechaLimite: Date | null;
+  ponderacion: string | null;
+  instrucciones: string | null;
+  intentosMax: number | null;
+  duracionMinutos: number | null;
+  modoSupervision: boolean | null;
+  mostrarResultados: boolean | null;
   totalPreguntas: number;
   totalRespuestas: number;
   asignaturaNombre: string;
@@ -589,6 +595,12 @@ export async function listarEvaluacionesAdminResumen(options?: {
       publicada: evaluaciones.publicada,
       fechaInicio: evaluaciones.fechaInicio,
       fechaLimite: evaluaciones.fechaLimite,
+      ponderacion: evaluaciones.ponderacion,
+      instrucciones: evaluaciones.instrucciones,
+      intentosMax: evaluaciones.intentosMax,
+      duracionMinutos: evaluaciones.duracionMinutos,
+      modoSupervision: evaluaciones.modoSupervision,
+      mostrarResultados: evaluaciones.mostrarResultados,
       asignaturaNombre: asignaturas.nombre,
       asignaturaCodigo: asignaturas.codigo,
       cursoNombre: cursos.nombre,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { BarChart2, CheckCircle2, ClipboardList, Eye, FileUp, ListChecks, Plus, Search, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 
@@ -273,13 +274,11 @@ export default async function AdminEvaluacionesPage({
   const evaluaciones = selectedAsignaturaId
     ? await listarEvaluacionesByAsignatura(selectedAsignaturaId)
     : [];
-  const evaluacionesAdminResumen = activeTab === "evaluaciones"
-    ? await listarEvaluacionesAdminResumen({
-        periodoId: selectedPeriodoId || undefined,
-        q: evalQ || undefined,
-        limit: 300,
-      })
-    : [];
+  const evaluacionesAdminResumen = await listarEvaluacionesAdminResumen({
+    periodoId: selectedPeriodoId || undefined,
+    q: evalQ || undefined,
+    limit: 300,
+  });
 
   // Carga diferida por tab: solo se consulta al servidor lo que la pestana
   // activa va a renderizar. Antes, cada render del Server Component pagaba
@@ -362,7 +361,9 @@ export default async function AdminEvaluacionesPage({
   const filteredEvaluacionesAdminResumen = evaluacionesAdminResumen.filter((evaluacion) => (
     evalEstado === "todos" ||
     (evalEstado === "borrador" && !evaluacion.publicada) ||
-    (evalEstado === "publicada" && Boolean(evaluacion.publicada))
+    (evalEstado === "publicada" && Boolean(evaluacion.publicada)) ||
+    (evalEstado === "supervisada" && Boolean(evaluacion.modoSupervision)) ||
+    (evalEstado === "resultados" && Boolean(evaluacion.mostrarResultados))
   ));
   const evalTotalPages = Math.max(1, Math.ceil(filteredEvaluaciones.length / EVALUACIONES_PAGE_SIZE));
   const safeEvalPage = Math.min(evalPage, evalTotalPages);
@@ -503,15 +504,14 @@ export default async function AdminEvaluacionesPage({
         </article>
       )}
 
-      {activeTab === "evaluaciones" && (
-        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
                 Pruebas cargadas por curso y docente
               </h2>
               <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-                Vista general del periodo seleccionado. Desde aqui puedes abrir la prueba para editarla, publicarla o revisar respuestas.
+                Vista general del periodo seleccionado. Puedes editar, habilitar, deshabilitar y revisar respuestas desde esta tabla.
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -547,7 +547,9 @@ export default async function AdminEvaluacionesPage({
                 >
                   <option value="todos">Todos</option>
                   <option value="borrador">Borrador</option>
-                  <option value="publicada">Publicada</option>
+                <option value="publicada">Publicada</option>
+                <option value="supervisada">Supervisadas</option>
+                <option value="resultados">Resultados visibles</option>
                 </select>
                 <button
                   type="submit"
@@ -594,58 +596,208 @@ export default async function AdminEvaluacionesPage({
                       evaluacionId: evaluacion.id,
                       tab: "resultados",
                     });
+                    const rowRedirect = buildEvaluacionesHref({
+                      periodoId: selectedPeriodoId,
+                      asignaturaId: evaluacion.asignaturaId,
+                      evaluacionId: evaluacion.id,
+                      tab: "evaluaciones",
+                      evalQ,
+                      evalEstado,
+                    });
 
                     return (
-                      <tr key={evaluacion.id} className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
-                        <td className="min-w-[260px] px-4 py-3">
-                          <p className="font-semibold text-text-primary dark:text-white">
-                            {normalizarTextoVisible(evaluacion.titulo)}
-                          </p>
-                          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                            {TIPO_LABELS[evaluacion.tipo] ?? evaluacion.tipo} - limite {formatDate(evaluacion.fechaLimite)}
-                          </p>
-                        </td>
-                        <td className="min-w-[240px] px-4 py-3">
-                          <p className="font-semibold text-text-primary dark:text-white">
-                            {normalizarTextoVisible(evaluacion.cursoNombre) || "Sin curso"}
-                          </p>
-                          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                            {normalizarTextoVisible(evaluacion.asignaturaNombre)}
-                            {evaluacion.asignaturaCodigo ? ` - ${normalizarTextoVisible(evaluacion.asignaturaCodigo)}` : ""}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
-                          {normalizarTextoVisible(docente) || "Sin docente"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            evaluacion.publicada
-                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                              : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                          }`}>
-                            {evaluacion.publicada ? "Publicada" : "Borrador"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
-                          {evaluacion.totalPreguntas} pregunta{evaluacion.totalPreguntas === 1 ? "" : "s"} - {evaluacion.totalRespuestas} respuesta{evaluacion.totalRespuestas === 1 ? "" : "s"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <Link
-                              href={manageHref}
-                              className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
-                            >
-                              Editar
-                            </Link>
-                            <Link
-                              href={resultadosHref}
-                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-text-primary transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
-                            >
-                              Respuestas
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
+                      <Fragment key={evaluacion.id}>
+                        <tr className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
+                          <td className="min-w-[260px] px-4 py-3">
+                            <p className="font-semibold text-text-primary dark:text-white">
+                              {normalizarTextoVisible(evaluacion.titulo)}
+                            </p>
+                            <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                              {TIPO_LABELS[evaluacion.tipo] ?? evaluacion.tipo} - limite {formatDate(evaluacion.fechaLimite)}
+                            </p>
+                          </td>
+                          <td className="min-w-[240px] px-4 py-3">
+                            <p className="font-semibold text-text-primary dark:text-white">
+                              {normalizarTextoVisible(evaluacion.cursoNombre) || "Sin curso"}
+                            </p>
+                            <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                              {normalizarTextoVisible(evaluacion.asignaturaNombre)}
+                              {evaluacion.asignaturaCodigo ? ` - ${normalizarTextoVisible(evaluacion.asignaturaCodigo)}` : ""}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                            {normalizarTextoVisible(docente) || "Sin docente"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              evaluacion.publicada
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                                : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                            }`}>
+                              {evaluacion.publicada ? "Publicada" : "Borrador"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                            {evaluacion.totalPreguntas} pregunta{evaluacion.totalPreguntas === 1 ? "" : "s"} - {evaluacion.totalRespuestas} respuesta{evaluacion.totalRespuestas === 1 ? "" : "s"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <details className="group">
+                                <summary className="cursor-pointer rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light">
+                                  Editar
+                                </summary>
+                              </details>
+                              <Link
+                                href={manageHref}
+                                className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                              >
+                                Preguntas
+                              </Link>
+                              <Link
+                                href={resultadosHref}
+                                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-text-primary transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
+                              >
+                                Respuestas
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colSpan={6} className="bg-gray-50 px-4 py-4 dark:bg-gray-800/40">
+                            <details>
+                              <summary className="cursor-pointer text-sm font-semibold text-text-primary dark:text-white">
+                                Editar prueba: {normalizarTextoVisible(evaluacion.titulo)}
+                              </summary>
+                              <form action={editarEvaluacionFormAction} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                                <input type="hidden" name="asignaturaId" value={evaluacion.asignaturaId} />
+                                <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                                <input type="hidden" name="redirectTo" value={rowRedirect} />
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400 lg:col-span-2">
+                                  Titulo
+                                  <input
+                                    name="titulo"
+                                    defaultValue={normalizarTextoVisible(evaluacion.titulo)}
+                                    required
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                                  Tipo
+                                  <select
+                                    name="tipo"
+                                    defaultValue={evaluacion.tipo}
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  >
+                                    <option value="formulario">Formulario</option>
+                                    <option value="tarea">Tarea</option>
+                                    <option value="examen">Examen</option>
+                                    <option value="proyecto">Proyecto</option>
+                                  </select>
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                                  Ponderacion
+                                  <input
+                                    name="ponderacion"
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    defaultValue={evaluacion.ponderacion ?? ""}
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                                  Inicio
+                                  <input
+                                    name="fechaInicio"
+                                    type="datetime-local"
+                                    defaultValue={toDateTimeLocalValue(evaluacion.fechaInicio)}
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                                  Limite
+                                  <input
+                                    name="fechaLimite"
+                                    type="datetime-local"
+                                    defaultValue={toDateTimeLocalValue(evaluacion.fechaLimite)}
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                                  Tiempo (min)
+                                  <input
+                                    name="tiempoMinutos"
+                                    type="number"
+                                    min="1"
+                                    max="600"
+                                    defaultValue={evaluacion.duracionMinutos ?? ""}
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                                  Intentos
+                                  <input
+                                    name="intentosMax"
+                                    type="number"
+                                    min="1"
+                                    max="5"
+                                    defaultValue={evaluacion.intentosMax ?? 1}
+                                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400 sm:col-span-2 lg:col-span-3">
+                                  Instrucciones
+                                  <textarea
+                                    name="instrucciones"
+                                    rows={3}
+                                    defaultValue={evaluacion.instrucciones ?? ""}
+                                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                  />
+                                </label>
+                                <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                                  >
+                                    Guardar cambios
+                                  </button>
+                                </div>
+                              </form>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {evaluacion.publicada ? (
+                                  <form action={despublicarEvaluacionFormAction}>
+                                    <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                                    <input type="hidden" name="asignaturaId" value={evaluacion.asignaturaId} />
+                                    <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                                    <input type="hidden" name="redirectTo" value={rowRedirect} />
+                                    <button
+                                      type="submit"
+                                      className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:border-amber-800/60 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                                    >
+                                      Deshabilitar para alumnos
+                                    </button>
+                                  </form>
+                                ) : (
+                                  <form action={publicarEvaluacionFormAction}>
+                                    <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                                    <input type="hidden" name="asignaturaId" value={evaluacion.asignaturaId} />
+                                    <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                                    <input type="hidden" name="redirectTo" value={rowRedirect} />
+                                    <button
+                                      type="submit"
+                                      className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                                    >
+                                      Habilitar para alumnos
+                                    </button>
+                                  </form>
+                                )}
+                              </div>
+                            </details>
+                          </td>
+                        </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -653,7 +805,6 @@ export default async function AdminEvaluacionesPage({
             </div>
           )}
         </article>
-      )}
 
       {asignaturas.length > 0 && !selectedAsignaturaId ? (
         <article className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-sm text-text-secondary shadow-sm dark:border-primary/30 dark:bg-primary/10 dark:text-gray-300">

@@ -36,9 +36,17 @@
 - Pruebas publicadas en produccion para que alumnos asignados puedan verlas.
 - Material PDF importado a cursos existentes y visible para alumnos matriculados.
 
-## Pendiente De Verificacion En Produccion
+## Verificacion En Produccion
 
-- Build de Next.js.
-- Recarga PM2.
-- HTTP `/login` 200.
-- Confirmar conteos de pruebas/materiales despues del despliegue final de estos botones.
+- Build de Next.js: OK.
+- Recarga PM2: `otec` online en 2 instancias.
+- HTTP `/login`: 200 OK.
+- Conteos produccion despues del despliegue:
+  - Evaluaciones total: 239.
+  - Evaluaciones publicadas: 153.
+  - Preguntas total: 7280.
+  - Materiales activos: 141.
+  - Respuestas guardadas: 3.
+- Alumna de referencia Javiera (`rut=293004560`):
+  - Materiales visibles: 66.
+  - Evaluaciones visibles publicadas: 16.

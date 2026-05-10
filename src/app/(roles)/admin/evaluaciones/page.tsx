@@ -11,7 +11,10 @@ import {
   crearPlantillaEncuestaFormAction,
   actualizarDestinatariosEvaluacionFormAction,
   despublicarEvaluacionFormAction,
+  editarEvaluacionFormAction,
+  editarPreguntaFormAction,
   eliminarEvaluacionFormAction,
+  eliminarPreguntaFormAction,
   importarPruebaLocalFormAction,
   listarAuditoriaEvaluacion,
   listarEvaluacionesByAsignatura,
@@ -56,7 +59,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   already_unpublished: { tone: "success", text: "La evaluación ya estaba deshabilitada." },
   evaluacion_deleted: { tone: "success", text: "Evaluación eliminada correctamente." },
   already_deleted: { tone: "success", text: "La evaluación ya había sido eliminada." },
+  evaluacion_updated: { tone: "success", text: "Evaluación editada correctamente." },
   pregunta_created: { tone: "success", text: "Pregunta agregada correctamente." },
+  pregunta_updated: { tone: "success", text: "Pregunta editada correctamente." },
+  pregunta_deleted: { tone: "success", text: "Pregunta eliminada correctamente." },
   destinatarios_updated: { tone: "success", text: "Destinatarios actualizados correctamente." },
   local_test_imported: { tone: "success", text: "Prueba importada en borrador. Revísala antes de publicar." },
   test_exists: { tone: "error", text: "Esa prueba ya existe en la asignatura seleccionada." },
@@ -178,6 +184,26 @@ const buildEvaluacionesHref = (input: {
 
 const formatDate = (date: Date | null): string =>
   date ? new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", year: "numeric" }).format(date) : "-";
+
+const toDateTimeLocalValue = (date: Date | null): string => {
+  if (!date) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const getPreguntaOpciones = (opciones: unknown): string[] => {
+  const payload = opciones as { opciones?: unknown } | null;
+  return Array.isArray(payload?.opciones)
+    ? payload.opciones.map((item) => String(item))
+    : [];
+};
+
+const getPreguntaCorrectaValue = (opciones: unknown): string => {
+  const payload = opciones as { correcta?: unknown } | null;
+  return payload?.correcta === undefined || payload.correcta === null
+    ? ""
+    : String(payload.correcta);
+};
 
 const getCorrectaLabel = (pregunta: Pick<PreguntaItem, "tipo" | "opciones">): string | null => {
   const opciones = pregunta.opciones as { correcta?: number | string } | null;
@@ -1225,6 +1251,108 @@ export default async function AdminEvaluacionesPage({
             </aside>
 
             <div className="min-w-0 space-y-5">
+          {selectedEvaluacion ? (
+            <details className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <summary className="cursor-pointer text-sm font-semibold text-text-primary dark:text-white">
+                Editar datos de la prueba
+              </summary>
+              <form action={editarEvaluacionFormAction} className="mt-4 grid gap-3 md:grid-cols-2">
+                <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
+                <input type="hidden" name="redirectTo" value={currentMaquetadorHref} />
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400 md:col-span-2">
+                  Título
+                  <input
+                    name="titulo"
+                    defaultValue={selectedEvaluacion.titulo}
+                    required
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Tipo
+                  <select
+                    name="tipo"
+                    defaultValue={selectedEvaluacion.tipo}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  >
+                    <option value="examen">Examen</option>
+                    <option value="formulario">Formulario</option>
+                    <option value="tarea">Tarea</option>
+                    <option value="proyecto">Proyecto</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Ponderación
+                  <input
+                    name="ponderacion"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    defaultValue={selectedEvaluacion.ponderacion ?? ""}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Inicio
+                  <input
+                    name="fechaInicio"
+                    type="datetime-local"
+                    defaultValue={toDateTimeLocalValue(selectedEvaluacion.fechaInicio)}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Límite
+                  <input
+                    name="fechaLimite"
+                    type="datetime-local"
+                    defaultValue={toDateTimeLocalValue(selectedEvaluacion.fechaLimite)}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Tiempo (min)
+                  <input
+                    name="tiempoMinutos"
+                    type="number"
+                    min="1"
+                    max="600"
+                    defaultValue={selectedEvaluacion.duracionMinutos ?? ""}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Intentos
+                  <input
+                    name="intentosMax"
+                    type="number"
+                    min="1"
+                    max="5"
+                    defaultValue={selectedEvaluacion.intentosMax ?? 1}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400 md:col-span-2">
+                  Instrucciones
+                  <textarea
+                    name="instrucciones"
+                    rows={3}
+                    defaultValue={selectedEvaluacion.instrucciones ?? ""}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                >
+                  Guardar cambios
+                </button>
+              </form>
+            </details>
+          ) : null}
           <form action={agregarPreguntaFormAction} className="mb-6 grid gap-4 rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] p-4 dark:border-primary/40 dark:bg-primary/10">
             <input type="hidden" name="evaluacionId" value={selectedEvaluacionId} />
             <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
@@ -1348,6 +1476,93 @@ export default async function AdminEvaluacionesPage({
                           ))}
                         </div>
                       )}
+                      <details className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                        <summary className="cursor-pointer text-xs font-semibold text-primary dark:text-primary-light">
+                          Editar pregunta
+                        </summary>
+                        <form action={editarPreguntaFormAction} className="mt-3 space-y-3">
+                          <input type="hidden" name="preguntaId" value={pregunta.id} />
+                          <input type="hidden" name="evaluacionId" value={selectedEvaluacionId ?? ""} />
+                          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                          <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
+                          <input type="hidden" name="redirectTo" value={currentMaquetadorHref} />
+                          <textarea
+                            name="enunciado"
+                            rows={2}
+                            defaultValue={pregunta.enunciado}
+                            required
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                          />
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <select
+                              name="tipo"
+                              defaultValue={pregunta.tipo}
+                              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                            >
+                              <option value="opcion_multiple">Opción múltiple</option>
+                              <option value="verdadero_falso">Verdadero/Falso</option>
+                              <option value="desarrollo">Desarrollo</option>
+                              <option value="respuesta_corta">Respuesta corta</option>
+                            </select>
+                            <input
+                              name="puntaje"
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              defaultValue={pregunta.puntaje ?? "1"}
+                              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                            />
+                            <input
+                              name="orden"
+                              type="number"
+                              min="1"
+                              defaultValue={pregunta.orden ?? index + 1}
+                              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                            />
+                          </div>
+                          <div className="grid gap-2 md:grid-cols-4">
+                            {Array.from({ length: 4 }, (_, optionIndex) => getPreguntaOpciones(pregunta.opciones)[optionIndex] ?? "").map((opcion, optionIndex) => (
+                              <input
+                                key={`${pregunta.id}-edit-${optionIndex}`}
+                                name="opcion"
+                                defaultValue={opcion}
+                                placeholder={`Alternativa ${String.fromCharCode(65 + optionIndex)}`}
+                                className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                              />
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap items-end gap-3">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                              Correcta
+                              <input
+                                name="correcta"
+                                defaultValue={getPreguntaCorrectaValue(pregunta.opciones)}
+                                placeholder="0, 1, 2, 3, true o false"
+                                className="mt-1 h-10 w-44 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                              />
+                            </label>
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                            >
+                              Guardar pregunta
+                            </button>
+                          </div>
+                        </form>
+                        <form action={eliminarPreguntaFormAction} className="mt-3">
+                          <input type="hidden" name="preguntaId" value={pregunta.id} />
+                          <input type="hidden" name="evaluacionId" value={selectedEvaluacionId ?? ""} />
+                          <input type="hidden" name="asignaturaId" value={selectedAsignaturaId ?? ""} />
+                          <input type="hidden" name="periodoId" value={selectedPeriodoId ?? ""} />
+                          <input type="hidden" name="redirectTo" value={currentMaquetadorHref} />
+                          <button
+                            type="submit"
+                            className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
+                          >
+                            Eliminar pregunta
+                          </button>
+                        </form>
+                      </details>
                     </div>
                   );
                 })}

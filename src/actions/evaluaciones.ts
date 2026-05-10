@@ -1636,6 +1636,120 @@ export async function crearEvaluacionFormAction(formData: FormData): Promise<voi
   });
 }
 
+export async function editarEvaluacionAction(input: {
+  evaluacionId: string;
+  titulo: string;
+  tipo: "formulario" | "tarea" | "examen" | "proyecto";
+  ponderacion?: string;
+  instrucciones?: string;
+  fechaInicio?: string;
+  fechaLimite?: string;
+  intentosMax?: number;
+  tiempoMinutos?: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability("evaluacion_update", [
+    "evaluaciones.create",
+    "evaluaciones.write_questions",
+  ]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const titulo = sanitizeText(input.titulo).trim();
+  const tiposValidos = ["formulario", "tarea", "examen", "proyecto"] as const;
+  if (!input.evaluacionId || !titulo || !tiposValidos.includes(input.tipo)) {
+    return { ok: false, code: "invalid_input", message: "Datos invalidos." };
+  }
+
+  const db = getDb();
+
+  try {
+    const evalAccess = await getEvaluacionAccessRow(input.evaluacionId);
+    if (!evalAccess) {
+      return { ok: false, code: "evaluacion_not_found", message: "Evaluacion no encontrada." };
+    }
+    if (!actorCanManageEvaluacion(actorResult.actor, evalAccess)) {
+      return forbiddenMutationResult("No tienes permiso para editar esta evaluacion.");
+    }
+
+    const intentosMax = Number.isFinite(input.intentosMax)
+      ? Math.max(1, Math.min(Math.trunc(input.intentosMax ?? 1), 5))
+      : 1;
+    const tiempoMinutos = Number.isFinite(input.tiempoMinutos)
+      ? Math.max(1, Math.min(Math.trunc(input.tiempoMinutos ?? 0), 600))
+      : null;
+
+    await db
+      .update(evaluaciones)
+      .set({
+        titulo,
+        tipo: input.tipo,
+        ponderacion: input.ponderacion || null,
+        instrucciones: sanitizeOptionalText(input.instrucciones) ?? null,
+        fechaInicio: input.fechaInicio ? new Date(input.fechaInicio) : null,
+        fechaLimite: input.fechaLimite ? new Date(input.fechaLimite) : null,
+        duracionMinutos: tiempoMinutos,
+        intentosMax,
+      })
+      .where(eq(evaluaciones.id, input.evaluacionId));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "evaluaciones",
+      entidadId: input.evaluacionId,
+      payload: { titulo, tipo: input.tipo },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "evaluacion_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "evaluacion_update_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "evaluacion_update_failed", message: "No fue posible editar la evaluacion." };
+  }
+}
+
+export async function editarEvaluacionFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+  const result = await editarEvaluacionAction({
+    evaluacionId,
+    titulo: getStringField(formData, "titulo"),
+    tipo: getStringField(formData, "tipo") as
+      | "formulario"
+      | "tarea"
+      | "examen"
+      | "proyecto",
+    ponderacion: getStringField(formData, "ponderacion") || undefined,
+    instrucciones: getStringField(formData, "instrucciones") || undefined,
+    fechaInicio: getStringField(formData, "fechaInicio") || undefined,
+    fechaLimite: getStringField(formData, "fechaLimite") || undefined,
+    intentosMax: Number.parseInt(getStringField(formData, "intentosMax"), 10) || undefined,
+    tiempoMinutos: Number.parseInt(getStringField(formData, "tiempoMinutos"), 10) || undefined,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath("/alumno/evaluaciones");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
+}
+
 export async function importarPruebaLocalAction(input: {
   asignaturaId: string;
   archivo: string;
@@ -2300,7 +2414,7 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
 
     await db
       .update(evaluaciones)
-      .set({ publicada: true, updatedAt: new Date() })
+      .set({ publicada: true })
       .where(eq(evaluaciones.id, id));
 
     await registrarAudit({
@@ -2449,7 +2563,7 @@ export async function despublicarEvaluacionAction(id: string): Promise<MutationR
 
     await db
       .update(evaluaciones)
-      .set({ publicada: false, updatedAt: new Date() })
+      .set({ publicada: false })
       .where(eq(evaluaciones.id, id));
 
     await registrarAudit({
@@ -2586,6 +2700,43 @@ export async function eliminarEvaluacionFormAction(formData: FormData): Promise<
   });
 }
 
+const buildPreguntaOpciones = (input: {
+  tipo: "opcion_multiple" | "verdadero_falso" | "respuesta_corta" | "desarrollo";
+  opciones?: string[];
+  correcta?: number;
+}): unknown => {
+  if (input.tipo === "opcion_multiple" && input.opciones && input.opciones.length > 0) {
+    const cleanOptions = input.opciones
+      .map((option) => sanitizeText(option).trim())
+      .filter(Boolean);
+
+    if (cleanOptions.length === 0) return null;
+
+    const optionPayload: {
+      opciones: string[];
+      correcta?: number;
+    } = {
+      opciones: cleanOptions,
+    };
+
+    if (
+      Number.isInteger(input.correcta) &&
+      Number(input.correcta) >= 0 &&
+      Number(input.correcta) < cleanOptions.length
+    ) {
+      optionPayload.correcta = Number(input.correcta);
+    }
+
+    return optionPayload;
+  }
+
+  if (input.tipo === "verdadero_falso" && Number.isInteger(input.correcta)) {
+    return { correcta: String(Boolean(input.correcta)) };
+  }
+
+  return null;
+};
+
 export async function agregarPreguntaAction(input: {
   evaluacionId: string;
   enunciado: string;
@@ -2626,33 +2777,7 @@ export async function agregarPreguntaAction(input: {
       return periodoCheck.result;
     }
 
-    let opcionesJson: unknown = null;
-    if (input.tipo === "opcion_multiple" && input.opciones && input.opciones.length > 0) {
-      const cleanOptions = input.opciones
-        .map((option) => sanitizeText(option).trim())
-        .filter(Boolean);
-
-      if (cleanOptions.length > 0) {
-        const optionPayload: {
-          opciones: string[];
-          correcta?: number;
-        } = {
-          opciones: cleanOptions,
-        };
-
-        if (
-          Number.isInteger(input.correcta) &&
-          Number(input.correcta) >= 0 &&
-          Number(input.correcta) < cleanOptions.length
-        ) {
-          optionPayload.correcta = Number(input.correcta);
-        }
-
-        opcionesJson = optionPayload;
-      }
-    } else if (input.tipo === "verdadero_falso" && Number.isInteger(input.correcta)) {
-      opcionesJson = { correcta: String(Boolean(input.correcta)) };
-    }
+    const opcionesJson = buildPreguntaOpciones(input);
 
     const [created] = await db
       .insert(preguntas)
@@ -2731,6 +2856,225 @@ export async function agregarPreguntaFormAction(formData: FormData): Promise<voi
   });
 
   revalidatePath("/admin/evaluaciones");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
+}
+
+export async function editarPreguntaAction(input: {
+  preguntaId: string;
+  evaluacionId: string;
+  enunciado: string;
+  tipo: "opcion_multiple" | "verdadero_falso" | "respuesta_corta" | "desarrollo";
+  opciones?: string[];
+  correcta?: number;
+  puntaje?: string;
+  orden?: number;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "pregunta_update",
+    "evaluaciones.write_questions",
+  );
+  if (!actorResult.ok) return actorResult.result;
+
+  const enunciado = sanitizeText(input.enunciado).trim();
+  if (!input.preguntaId || !input.evaluacionId || !enunciado) {
+    return { ok: false, code: "invalid_input", message: "Datos invalidos." };
+  }
+
+  const db = getDb();
+
+  try {
+    const ev = await getEvaluacionAccessRow(input.evaluacionId);
+    if (!ev) {
+      return { ok: false, code: "evaluacion_not_found", message: "Evaluacion no encontrada." };
+    }
+    if (!actorCanManageEvaluacion(actorResult.actor, ev)) {
+      return forbiddenMutationResult("No tienes permiso para editar preguntas de esta evaluacion.");
+    }
+
+    const [existing] = await db
+      .select({ id: preguntas.id })
+      .from(preguntas)
+      .where(
+        and(
+          eq(preguntas.id, input.preguntaId),
+          eq(preguntas.evaluacionId, input.evaluacionId),
+          isNull(preguntas.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, code: "pregunta_not_found", message: "Pregunta no encontrada." };
+    }
+
+    await db
+      .update(preguntas)
+      .set({
+        enunciado,
+        tipo: input.tipo,
+        opciones: buildPreguntaOpciones(input),
+        puntaje: input.puntaje ?? "1",
+        orden: input.orden ?? null,
+      })
+      .where(eq(preguntas.id, input.preguntaId));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "preguntas",
+      entidadId: input.preguntaId,
+      payload: { evaluacionId: input.evaluacionId, tipo: input.tipo },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "pregunta_updated" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "pregunta_update_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "pregunta_update_failed", message: "No fue posible editar la pregunta." };
+  }
+}
+
+export async function editarPreguntaFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+  const tipo = getStringField(formData, "tipo") as
+    | "opcion_multiple"
+    | "verdadero_falso"
+    | "respuesta_corta"
+    | "desarrollo";
+
+  const opciones = formData
+    .getAll("opcion")
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean);
+  const correctaValue = getStringField(formData, "correcta");
+  const correcta =
+    !correctaValue
+      ? undefined
+      : tipo === "verdadero_falso"
+        ? correctaValue === "true" || correctaValue === "0"
+          ? 1
+          : 0
+        : Number.parseInt(correctaValue, 10);
+
+  const result = await editarPreguntaAction({
+    preguntaId: getStringField(formData, "preguntaId"),
+    evaluacionId,
+    enunciado: getStringField(formData, "enunciado"),
+    tipo,
+    opciones: opciones.length > 0 ? opciones : undefined,
+    correcta: typeof correcta === "number" && Number.isFinite(correcta) ? correcta : undefined,
+    puntaje: getStringField(formData, "puntaje") || undefined,
+    orden: Number.parseInt(getStringField(formData, "orden"), 10) || undefined,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath("/alumno/evaluaciones");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+    evaluacionId: evaluacionId || undefined,
+  });
+}
+
+export async function eliminarPreguntaAction(input: {
+  preguntaId: string;
+  evaluacionId: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "pregunta_delete",
+    "evaluaciones.write_questions",
+  );
+  if (!actorResult.ok) return actorResult.result;
+  if (!input.preguntaId || !input.evaluacionId) {
+    return { ok: false, code: "invalid_input", message: "Datos invalidos." };
+  }
+
+  const db = getDb();
+
+  try {
+    const ev = await getEvaluacionAccessRow(input.evaluacionId);
+    if (!ev) {
+      return { ok: false, code: "evaluacion_not_found", message: "Evaluacion no encontrada." };
+    }
+    if (!actorCanManageEvaluacion(actorResult.actor, ev)) {
+      return forbiddenMutationResult("No tienes permiso para eliminar preguntas de esta evaluacion.");
+    }
+
+    await db
+      .update(preguntas)
+      .set({
+        eliminadoAt: new Date(),
+        eliminadoPor: actorResult.actor.userId,
+      })
+      .where(
+        and(
+          eq(preguntas.id, input.preguntaId),
+          eq(preguntas.evaluacionId, input.evaluacionId),
+          isNull(preguntas.eliminadoAt),
+        ),
+      );
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "desactivar",
+      entidad: "preguntas",
+      entidadId: input.preguntaId,
+      payload: { evaluacionId: input.evaluacionId },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "pregunta_deleted" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "pregunta_delete_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return { ok: false, code: "pregunta_delete_failed", message: "No fue posible eliminar la pregunta." };
+  }
+}
+
+export async function eliminarPreguntaFormAction(formData: FormData): Promise<void> {
+  const evaluacionId = getStringField(formData, "evaluacionId");
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+  const result = await eliminarPreguntaAction({
+    preguntaId: getStringField(formData, "preguntaId"),
+    evaluacionId,
+  });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath("/alumno/evaluaciones");
   revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
   redirectEvaluacionesForm({
     redirectTo,

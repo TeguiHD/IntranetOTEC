@@ -11,6 +11,9 @@ import {
   calificarRespuestaEvaluacionFormAction,
   crearEvaluacionFormAction,
   despublicarEvaluacionFormAction,
+  editarEvaluacionFormAction,
+  editarPreguntaFormAction,
+  eliminarPreguntaFormAction,
   listarEvaluacionesByAsignatura,
   listarEventosSupervisionByEvaluacion,
   listarIntentosRecuperablesEvaluacion,
@@ -27,6 +30,7 @@ import {
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
 import { RespuestasArchivo } from "@/components/evaluaciones/RespuestasArchivo";
+import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
 import {
@@ -36,7 +40,21 @@ import {
 
 type PageProps = {
   params: Promise<{ asigId: string }>;
-  searchParams: Promise<{ evaluacionId?: string }>;
+  searchParams: Promise<{ evaluacionId?: string; state?: string }>;
+};
+
+const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
+  evaluacion_created: { tone: "success", text: "Evaluación creada correctamente." },
+  evaluacion_updated: { tone: "success", text: "Evaluación editada correctamente." },
+  evaluacion_published: { tone: "success", text: "Prueba habilitada para alumnos." },
+  evaluacion_unpublished: { tone: "success", text: "Prueba deshabilitada para alumnos." },
+  already_published: { tone: "success", text: "La prueba ya estaba habilitada." },
+  already_unpublished: { tone: "success", text: "La prueba ya estaba deshabilitada." },
+  pregunta_created: { tone: "success", text: "Pregunta agregada correctamente." },
+  pregunta_updated: { tone: "success", text: "Pregunta editada correctamente." },
+  pregunta_deleted: { tone: "success", text: "Pregunta eliminada correctamente." },
+  destinatarios_updated: { tone: "success", text: "Destinatarios actualizados correctamente." },
+  error: { tone: "error", text: "No fue posible completar la acción." },
 };
 
 const TIPO_LABELS: Record<string, string> = {
@@ -65,12 +83,32 @@ function formatDateTime(value: Date | null): string {
   }).format(value);
 }
 
+function toDateTimeLocalValue(value: Date | null): string {
+  if (!value) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+}
+
+function getPreguntaOpciones(opciones: unknown): string[] {
+  const payload = opciones as { opciones?: unknown } | null;
+  return Array.isArray(payload?.opciones)
+    ? payload.opciones.map((item) => String(item))
+    : [];
+}
+
+function getPreguntaCorrecta(opciones: unknown): string {
+  const payload = opciones as { correcta?: unknown } | null;
+  return payload?.correcta === undefined || payload.correcta === null
+    ? ""
+    : String(payload.correcta);
+}
+
 export default async function DocenteEvaluacionesPage({
   params,
   searchParams,
 }: PageProps) {
   const { asigId } = await params;
-  const { evaluacionId: requestedEvaluacionId } = await searchParams;
+  const { evaluacionId: requestedEvaluacionId, state } = await searchParams;
   const db = getDb();
 
   const [asig] = await db
@@ -133,6 +171,7 @@ export default async function DocenteEvaluacionesPage({
 
   return (
     <section className="space-y-5">
+      <RouteStateToast state={state} map={STATUS_MAP} />
       <header>
         <p className="text-sm text-text-secondary dark:text-gray-400">
           {asig.nombre} · {asig.estado}
@@ -422,6 +461,110 @@ export default async function DocenteEvaluacionesPage({
               )}
             </div>
 
+            <details className="mt-5 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+              <summary className="cursor-pointer text-sm font-semibold text-text-primary dark:text-white">
+                Editar datos de la prueba
+              </summary>
+              <form action={editarEvaluacionFormAction} className="mt-4 grid gap-3 sm:grid-cols-2">
+                <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                <input type="hidden" name="asignaturaId" value={asigId} />
+                <input type="hidden" name="redirectTo" value={redirectBase} />
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                    Título
+                  </label>
+                  <input
+                    name="titulo"
+                    defaultValue={selectedEvaluacion.titulo}
+                    required
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Tipo
+                  <select
+                    name="tipo"
+                    defaultValue={selectedEvaluacion.tipo}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  >
+                    <option value="examen">Examen</option>
+                    <option value="formulario">Formulario</option>
+                    <option value="tarea">Tarea</option>
+                    <option value="proyecto">Proyecto</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Ponderación
+                  <input
+                    name="ponderacion"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    defaultValue={selectedEvaluacion.ponderacion ?? ""}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Inicio
+                  <input
+                    name="fechaInicio"
+                    type="datetime-local"
+                    defaultValue={toDateTimeLocalValue(selectedEvaluacion.fechaInicio)}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Límite
+                  <input
+                    name="fechaLimite"
+                    type="datetime-local"
+                    defaultValue={toDateTimeLocalValue(selectedEvaluacion.fechaLimite)}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Tiempo (min)
+                  <input
+                    name="tiempoMinutos"
+                    type="number"
+                    min="1"
+                    max="600"
+                    defaultValue={selectedEvaluacion.duracionMinutos ?? ""}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                  Intentos
+                  <input
+                    name="intentosMax"
+                    type="number"
+                    min="1"
+                    max="5"
+                    defaultValue={selectedEvaluacion.intentosMax ?? 1}
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </label>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                    Instrucciones
+                  </label>
+                  <textarea
+                    name="instrucciones"
+                    rows={3}
+                    defaultValue={selectedEvaluacion.instrucciones ?? ""}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                >
+                  Guardar cambios
+                </button>
+              </form>
+            </details>
+
             <form action={agregarPreguntaFormAction} className="mt-5 space-y-3">
               <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
               <input type="hidden" name="asignaturaId" value={asigId} />
@@ -533,6 +676,110 @@ export default async function DocenteEvaluacionesPage({
                 ))
               )}
             </div>
+
+            {preguntas.length > 0 ? (
+              <details className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 dark:border-primary/40 dark:bg-primary/10">
+                <summary className="cursor-pointer text-sm font-semibold text-text-primary dark:text-white">
+                  Editar preguntas cargadas
+                </summary>
+                <div className="mt-4 space-y-4">
+                  {preguntas.map((pregunta, index) => {
+                    const opciones = getPreguntaOpciones(pregunta.opciones);
+                    const opcionesInput = Array.from({ length: 4 }, (_, idx) => opciones[idx] ?? "");
+
+                    return (
+                      <div key={`edit-${pregunta.id}`} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-text-primary dark:text-white">
+                            Pregunta {index + 1}
+                          </p>
+                          <form action={eliminarPreguntaFormAction}>
+                            <input type="hidden" name="preguntaId" value={pregunta.id} />
+                            <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                            <input type="hidden" name="asignaturaId" value={asigId} />
+                            <input type="hidden" name="redirectTo" value={redirectBase} />
+                            <button
+                              type="submit"
+                              className="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
+                            >
+                              Eliminar
+                            </button>
+                          </form>
+                        </div>
+                        <form action={editarPreguntaFormAction} className="space-y-3">
+                          <input type="hidden" name="preguntaId" value={pregunta.id} />
+                          <input type="hidden" name="evaluacionId" value={selectedEvaluacion.id} />
+                          <input type="hidden" name="asignaturaId" value={asigId} />
+                          <input type="hidden" name="redirectTo" value={redirectBase} />
+                          <textarea
+                            name="enunciado"
+                            rows={2}
+                            defaultValue={pregunta.enunciado}
+                            required
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                          />
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            <select
+                              name="tipo"
+                              defaultValue={pregunta.tipo}
+                              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                            >
+                              <option value="opcion_multiple">Selección múltiple</option>
+                              <option value="verdadero_falso">Verdadero/Falso</option>
+                              <option value="respuesta_corta">Respuesta corta</option>
+                              <option value="desarrollo">Desarrollo</option>
+                            </select>
+                            <input
+                              name="puntaje"
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              defaultValue={pregunta.puntaje ?? "1"}
+                              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                            />
+                            <input
+                              name="orden"
+                              type="number"
+                              min="1"
+                              defaultValue={pregunta.orden ?? index + 1}
+                              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            {opcionesInput.map((opcion, idx) => (
+                              <input
+                                key={`${pregunta.id}-opcion-${idx}`}
+                                name="opcion"
+                                defaultValue={opcion}
+                                placeholder={`Alternativa ${String.fromCharCode(65 + idx)}`}
+                                className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                              />
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap items-end gap-3">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                              Correcta
+                              <input
+                                name="correcta"
+                                defaultValue={getPreguntaCorrecta(pregunta.opciones)}
+                                placeholder="0, 1, 2, 3, true o false"
+                                className="mt-1 h-10 w-44 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                              />
+                            </label>
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                            >
+                              Guardar pregunta
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            ) : null}
           </article>
 
           <div className="space-y-5">

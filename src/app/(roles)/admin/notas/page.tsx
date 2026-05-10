@@ -3,6 +3,7 @@ import { BookOpen, CheckCircle2, Search, TrendingUp } from "lucide-react";
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
+  actualizarNotaAdminFormAction,
   countNotasAdmin,
   listarNotasAdmin,
   resumenNotasAdmin,
@@ -79,6 +80,15 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
   const promedio = resumenGlobal.promedio ?? 0;
   const aprobados = resumenGlobal.aprobados;
   const pctAprobados = totalNotas > 0 ? Math.round((aprobados / totalNotas) * 100) : 0;
+  const currentHref = (() => {
+    const usp = new URLSearchParams();
+    if (selectedPeriodoId) usp.set("periodoId", selectedPeriodoId);
+    if (asignaturaId) usp.set("asignaturaId", asignaturaId);
+    if (q) usp.set("q", q);
+    if (currentPage > 1) usp.set("page", String(currentPage));
+    const qs = usp.toString();
+    return qs ? `/admin/notas?${qs}` : "/admin/notas";
+  })();
 
   // Group by asignatura
   const grouped = new Map<string, { nombre: string; items: typeof notas }>();
@@ -260,6 +270,22 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
                       <span className={`text-lg font-bold ${NOTA_COLOR(n.nota)}`}>{n.nota}</span>
                     </div>
                     <p className="mt-1 text-xs text-text-muted dark:text-gray-500">{formatFecha(n.fechaRegistro)}</p>
+                    <form action={actualizarNotaAdminFormAction} className="mt-3 flex items-center gap-2">
+                      <input type="hidden" name="notaId" value={n.id} />
+                      <input type="hidden" name="redirectTo" value={currentHref} />
+                      <input
+                        name="nota"
+                        type="number"
+                        min="1"
+                        max="7"
+                        step="0.1"
+                        defaultValue={n.nota}
+                        className="h-10 w-24 rounded-lg border border-gray-200 bg-white px-3 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      />
+                      <button type="submit" className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white">
+                        Guardar nota
+                      </button>
+                    </form>
                   </div>
                 ))}
               </div>
@@ -274,6 +300,7 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
                       <th className="px-3 py-2.5">Docente</th>
                       <th className="px-3 py-2.5 text-right">Nota</th>
                       <th className="px-3 py-2.5">Fecha</th>
+                      <th className="px-3 py-2.5">Ajuste admin</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -293,6 +320,24 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
                         </td>
                         <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
                           {formatFecha(n.fechaRegistro)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <form action={actualizarNotaAdminFormAction} className="flex items-center gap-2">
+                            <input type="hidden" name="notaId" value={n.id} />
+                            <input type="hidden" name="redirectTo" value={currentHref} />
+                            <input
+                              name="nota"
+                              type="number"
+                              min="1"
+                              max="7"
+                              step="0.1"
+                              defaultValue={n.nota}
+                              className="h-9 w-24 rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            />
+                            <button type="submit" className="h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-white">
+                              Guardar
+                            </button>
+                          </form>
                         </td>
                       </tr>
                     ))}

@@ -3,6 +3,7 @@ import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
+  actualizarAsistenciaAdminFormAction,
   countAsistenciasAdmin,
   listarAsistenciasAdmin,
   resumenAsistenciasAdmin,
@@ -92,6 +93,15 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
   const ausentes = resumenGlobal.ausentes;
   const tardanzas = resumenGlobal.tardanzas;
   const pctPresente = total > 0 ? Math.round((presentes / total) * 100) : 0;
+  const currentHref = (() => {
+    const usp = new URLSearchParams();
+    if (selectedPeriodoId) usp.set("periodoId", selectedPeriodoId);
+    if (asignaturaId) usp.set("asignaturaId", asignaturaId);
+    if (q) usp.set("q", q);
+    if (currentPage > 1) usp.set("page", String(currentPage));
+    const qs = usp.toString();
+    return qs ? `/admin/asistencias?${qs}` : "/admin/asistencias";
+  })();
 
   // Group by asignatura
   const grouped = new Map<string, { nombre: string; items: typeof asistencias }>();
@@ -271,6 +281,29 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
                     <p className="mt-1 text-xs text-text-muted dark:text-gray-500">
                       {row.claseTitulo} · {formatFecha(row.claseFecha)}
                     </p>
+                    <form action={actualizarAsistenciaAdminFormAction} className="mt-3 grid gap-2">
+                      <input type="hidden" name="asistenciaId" value={row.id} />
+                      <input type="hidden" name="redirectTo" value={currentHref} />
+                      <select
+                        name="estado"
+                        defaultValue={row.estado ?? "presente"}
+                        className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      >
+                        <option value="presente">Presente</option>
+                        <option value="ausente">Ausente</option>
+                        <option value="tardanza">Tardanza</option>
+                        <option value="justificado">Justificado</option>
+                      </select>
+                      <input
+                        name="observacion"
+                        defaultValue={row.observacion ?? ""}
+                        placeholder="Observación"
+                        className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      />
+                      <button type="submit" className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white">
+                        Guardar asistencia
+                      </button>
+                    </form>
                   </div>
                 ))}
               </div>
@@ -286,6 +319,7 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
                       <th className="px-3 py-2.5">Sesión</th>
                       <th className="px-3 py-2.5">Estado</th>
                       <th className="px-3 py-2.5">Fecha</th>
+                      <th className="px-3 py-2.5">Ajuste admin</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -310,6 +344,31 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
                         </td>
                         <td className="px-3 py-3 text-text-secondary dark:text-gray-400">
                           {formatFecha(row.claseFecha)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <form action={actualizarAsistenciaAdminFormAction} className="flex min-w-[340px] items-center gap-2">
+                            <input type="hidden" name="asistenciaId" value={row.id} />
+                            <input type="hidden" name="redirectTo" value={currentHref} />
+                            <select
+                              name="estado"
+                              defaultValue={row.estado ?? "presente"}
+                              className="h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            >
+                              <option value="presente">Presente</option>
+                              <option value="ausente">Ausente</option>
+                              <option value="tardanza">Tardanza</option>
+                              <option value="justificado">Justificado</option>
+                            </select>
+                            <input
+                              name="observacion"
+                              defaultValue={row.observacion ?? ""}
+                              placeholder="Observación"
+                              className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            />
+                            <button type="submit" className="h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-white">
+                              Guardar
+                            </button>
+                          </form>
                         </td>
                       </tr>
                     ))}

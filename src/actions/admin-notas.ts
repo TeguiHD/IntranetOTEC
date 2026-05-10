@@ -1,6 +1,8 @@
 "use server";
 
 import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
 import { asignaturas, matriculas, notasDocente, usuarios } from "@/db/schema";
@@ -56,6 +58,11 @@ export type NotaAdminRow = {
 };
 
 const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+const getStringField = (formData: FormData, field: string): string => {
+  const rawValue = formData.get(field);
+  return typeof rawValue === "string" ? rawValue : "";
+};
 
 export async function listarNotasAdmin(
   options?: NotasFilters & { limit?: number; offset?: number },
@@ -171,4 +178,54 @@ export async function resumenNotasAdmin(
     promedio:
       row?.promedio === null || row?.promedio === undefined ? null : Number(row.promedio),
   };
+}
+
+export async function actualizarNotaAdminAction(input: {
+  notaId: string;
+  nota: string;
+}) {
+  const actorResult = await requireActionActor("admin_nota_update", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const notaValue = Number.parseFloat(input.nota.replace(",", "."));
+  if (!input.notaId || !Number.isFinite(notaValue) || notaValue < 1 || notaValue > 7) {
+    return { ok: false, code: "invalid_input", message: "La nota debe estar entre 1.0 y 7.0." };
+  }
+
+  const db = getDb();
+  const [existing] = await db
+    .select({ id: notasDocente.id })
+    .from(notasDocente)
+    .where(eq(notasDocente.id, input.notaId))
+    .limit(1);
+
+  if (!existing) {
+    return { ok: false, code: "grade_not_found", message: "Nota no encontrada." };
+  }
+
+  await db
+    .update(notasDocente)
+    .set({ nota: notaValue.toFixed(1) })
+    .where(eq(notasDocente.id, input.notaId));
+
+  revalidatePath("/admin/notas");
+  revalidatePath("/alumno/notas");
+  revalidatePath("/alumno/asignaturas");
+
+  return { ok: true, code: "grade_updated" };
+}
+
+export async function actualizarNotaAdminFormAction(formData: FormData): Promise<void> {
+  const redirectTo = getStringField(formData, "redirectTo") || "/admin/notas";
+  const result = await actualizarNotaAdminAction({
+    notaId: getStringField(formData, "notaId"),
+    nota: getStringField(formData, "nota"),
+  });
+
+  const [pathname, search = ""] = redirectTo.startsWith("/admin/notas")
+    ? redirectTo.split("?")
+    : ["/admin/notas", ""];
+  const params = new URLSearchParams(search);
+  params.set("state", result.ok ? result.code : "error");
+  redirect(`${pathname}?${params.toString()}`);
 }

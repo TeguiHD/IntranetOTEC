@@ -16,6 +16,7 @@ import {
   listarIntentosRecuperablesEvaluacion,
   listarParticipacionEvaluacion,
   listarPreguntasByEvaluacion,
+  listarRespuestasArchivoEvaluacion,
   listarRespuestasParaCalificar,
   obtenerResultadosEvaluacion,
   publicarEvaluacionFormAction,
@@ -25,6 +26,7 @@ import {
 } from "@/actions/evaluaciones";
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
+import { RespuestasArchivo } from "@/components/evaluaciones/RespuestasArchivo";
 import { getDb } from "@/db";
 import { asignaturas } from "@/db/schema";
 import {
@@ -94,6 +96,7 @@ export default async function DocenteEvaluacionesPage({
     preguntas,
     resultados,
     eventosSupervision,
+    respuestasArchivo,
     respuestasPendientes,
     intentosRecuperables,
     participacionEvaluacion,
@@ -102,11 +105,13 @@ export default async function DocenteEvaluacionesPage({
         listarPreguntasByEvaluacion(selectedEvaluacionId),
         obtenerResultadosEvaluacion(selectedEvaluacionId),
         listarEventosSupervisionByEvaluacion(selectedEvaluacionId),
+        listarRespuestasArchivoEvaluacion(selectedEvaluacionId),
         listarRespuestasParaCalificar(selectedEvaluacionId),
         listarIntentosRecuperablesEvaluacion(selectedEvaluacionId),
         listarParticipacionEvaluacion(selectedEvaluacionId),
       ])
     : [
+        [],
         [],
         [],
         [],
@@ -624,6 +629,8 @@ export default async function DocenteEvaluacionesPage({
                 </div>
               )}
             </article>
+
+            <RespuestasArchivo respuestas={respuestasArchivo} />
 
             {respuestasPendientes.length > 0 && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-900/20">

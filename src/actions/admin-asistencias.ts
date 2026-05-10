@@ -1,6 +1,8 @@
 "use server";
 
 import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
 import { asignaturas, asistencia, clases, matriculas, usuarios } from "@/db/schema";
@@ -57,6 +59,13 @@ export type AsistenciaAdminRow = {
 };
 
 const escapeLike = (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+const ESTADOS_ASISTENCIA = new Set(["presente", "ausente", "tardanza", "justificado"]);
+
+const getStringField = (formData: FormData, field: string): string => {
+  const rawValue = formData.get(field);
+  return typeof rawValue === "string" ? rawValue : "";
+};
 
 export async function listarAsistenciasAdmin(
   options?: AsistenciasFilters & { limit?: number; offset?: number },
@@ -170,4 +179,61 @@ export async function resumenAsistenciasAdmin(
     tardanzas: Number(row?.tardanzas ?? 0),
     justificados: Number(row?.justificados ?? 0),
   };
+}
+
+export async function actualizarAsistenciaAdminAction(input: {
+  asistenciaId: string;
+  estado: "presente" | "ausente" | "tardanza" | "justificado";
+  observacion?: string;
+}) {
+  const actorResult = await requireActionActor("admin_asistencia_update", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  if (!input.asistenciaId || !ESTADOS_ASISTENCIA.has(input.estado)) {
+    return { ok: false, code: "invalid_input", message: "Datos de asistencia invalidos." };
+  }
+
+  const db = getDb();
+  const observacion = input.observacion?.trim() || null;
+
+  const [existing] = await db
+    .select({ id: asistencia.id })
+    .from(asistencia)
+    .where(eq(asistencia.id, input.asistenciaId))
+    .limit(1);
+
+  if (!existing) {
+    return { ok: false, code: "attendance_not_found", message: "Registro de asistencia no encontrado." };
+  }
+
+  await db
+    .update(asistencia)
+    .set({
+      estado: input.estado,
+      observacion,
+      fechaRegistro: new Date(),
+    })
+    .where(eq(asistencia.id, input.asistenciaId));
+
+  revalidatePath("/admin/asistencias");
+  revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/asistencias");
+
+  return { ok: true, code: "attendance_updated" };
+}
+
+export async function actualizarAsistenciaAdminFormAction(formData: FormData): Promise<void> {
+  const redirectTo = getStringField(formData, "redirectTo") || "/admin/asistencias";
+  const result = await actualizarAsistenciaAdminAction({
+    asistenciaId: getStringField(formData, "asistenciaId"),
+    estado: getStringField(formData, "estado") as "presente" | "ausente" | "tardanza" | "justificado",
+    observacion: getStringField(formData, "observacion"),
+  });
+
+  const [pathname, search = ""] = redirectTo.startsWith("/admin/asistencias")
+    ? redirectTo.split("?")
+    : ["/admin/asistencias", ""];
+  const params = new URLSearchParams(search);
+  params.set("state", result.ok ? result.code : "error");
+  redirect(`${pathname}?${params.toString()}`);
 }

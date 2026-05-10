@@ -257,6 +257,29 @@ export type EvaluacionParticipacionItem = {
   destinatarioAsignado: boolean;
 };
 
+export type RespuestaArchivoPregunta = {
+  respuestaId: string;
+  preguntaId: string;
+  enunciado: string;
+  tipo: string;
+  respuesta: string | null;
+  opciones: unknown;
+  esCorrecta: boolean | null;
+  intento: number | null;
+  createdAt: Date | null;
+};
+
+export type RespuestasArchivoAlumno = {
+  matriculaId: string;
+  alumnoNombre: string | null;
+  alumnoApellido: string | null;
+  alumnoRut: string | null;
+  nota: string | null;
+  observacion: string | null;
+  ultimaRespuestaAt: Date | null;
+  respuestas: RespuestaArchivoPregunta[];
+};
+
 export type PruebaLocalItem = Pick<
   LocalPruebaParsed,
   "id" | "titulo" | "archivo" | "puntajeTotal" | "resumen"
@@ -908,6 +931,90 @@ export async function obtenerResultadosEvaluacion(evaluacionId: string) {
       "es",
     ),
   );
+}
+
+export async function listarRespuestasArchivoEvaluacion(
+  evaluacionId: string,
+): Promise<RespuestasArchivoAlumno[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_respuestas_archivo",
+    "evaluaciones.read_results",
+  );
+  if (!actorResult.ok) return [];
+
+  const evaluacion = await getEvaluacionAccessRow(evaluacionId);
+  if (!evaluacion || !actorCanManageEvaluacion(actorResult.actor, evaluacion)) return [];
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      respuestaId: respuestasFormulario.id,
+      matriculaId: respuestasFormulario.matriculaId,
+      preguntaId: respuestasFormulario.preguntaId,
+      respuesta: respuestasFormulario.respuesta,
+      esCorrecta: respuestasFormulario.esCorrecta,
+      intento: respuestasFormulario.intento,
+      createdAt: respuestasFormulario.createdAt,
+      enunciado: preguntas.enunciado,
+      tipo: preguntas.tipo,
+      opciones: preguntas.opciones,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+      nota: notas.nota,
+      observacion: notas.observacion,
+    })
+    .from(respuestasFormulario)
+    .innerJoin(preguntas, eq(respuestasFormulario.preguntaId, preguntas.id))
+    .innerJoin(matriculas, eq(respuestasFormulario.matriculaId, matriculas.id))
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .leftJoin(
+      notas,
+      and(
+        eq(notas.evaluacionId, respuestasFormulario.evaluacionId),
+        eq(notas.matriculaId, respuestasFormulario.matriculaId),
+        isNull(notas.eliminadoAt),
+      ),
+    )
+    .where(and(eq(respuestasFormulario.evaluacionId, evaluacionId), isNull(preguntas.eliminadoAt)))
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre), asc(respuestasFormulario.intento), asc(preguntas.orden));
+
+  const byAlumno = new Map<string, RespuestasArchivoAlumno>();
+  for (const row of rows) {
+    const entry = byAlumno.get(row.matriculaId) ?? {
+      matriculaId: row.matriculaId,
+      alumnoNombre: row.alumnoNombre,
+      alumnoApellido: row.alumnoApellido,
+      alumnoRut: row.alumnoRut,
+      nota: row.nota,
+      observacion: row.observacion,
+      ultimaRespuestaAt: null,
+      respuestas: [],
+    };
+
+    const createdAt = row.createdAt ?? null;
+    if (
+      createdAt &&
+      (!entry.ultimaRespuestaAt || createdAt.getTime() > entry.ultimaRespuestaAt.getTime())
+    ) {
+      entry.ultimaRespuestaAt = createdAt;
+    }
+
+    entry.respuestas.push({
+      respuestaId: row.respuestaId,
+      preguntaId: row.preguntaId,
+      enunciado: row.enunciado,
+      tipo: row.tipo,
+      respuesta: row.respuesta,
+      opciones: row.opciones,
+      esCorrecta: row.esCorrecta,
+      intento: row.intento,
+      createdAt,
+    });
+    byAlumno.set(row.matriculaId, entry);
+  }
+
+  return Array.from(byAlumno.values());
 }
 
 export async function listarParticipacionEvaluacion(

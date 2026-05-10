@@ -20,6 +20,7 @@ import {
   listarParticipacionEvaluacion,
   listarPreguntasByEvaluacion,
   listarPruebasLocalesAction,
+  listarRespuestasArchivoEvaluacion,
   listarRespuestasParaCalificar,
   obtenerResultadosEvaluacion,
   publicarEvaluacionFormAction,
@@ -33,6 +34,7 @@ import {
 import { AuditTimeline } from "@/components/evaluaciones/AuditTimeline";
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
+import { RespuestasArchivo } from "@/components/evaluaciones/RespuestasArchivo";
 import { EntityFilterSelect } from "@/components/shared/EntityFilterSelect";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
 import { Pagination } from "@/components/shared/Pagination";
@@ -273,6 +275,7 @@ export default async function AdminEvaluacionesPage({
   const [
     preguntasSeleccionadas,
     resultados,
+    respuestasArchivo,
     respuestasPendientes,
     intentosRecuperables,
     participacionEvaluacion,
@@ -285,6 +288,9 @@ export default async function AdminEvaluacionesPage({
     isResultadosTab && selectedEvaluacionId
       ? obtenerResultadosEvaluacion(selectedEvaluacionId)
       : Promise.resolve([] as Awaited<ReturnType<typeof obtenerResultadosEvaluacion>>),
+    isResultadosTab && selectedEvaluacionId
+      ? listarRespuestasArchivoEvaluacion(selectedEvaluacionId)
+      : Promise.resolve([] as Awaited<ReturnType<typeof listarRespuestasArchivoEvaluacion>>),
     isResultadosTab && selectedEvaluacionId
       ? listarRespuestasParaCalificar(selectedEvaluacionId)
       : Promise.resolve([] as RespuestaPendienteItem[]),
@@ -1466,6 +1472,10 @@ export default async function AdminEvaluacionesPage({
               </table>
             </div>
           )}
+
+          <div className="mt-6">
+            <RespuestasArchivo respuestas={respuestasArchivo} />
+          </div>
 
           {respuestasPendientes.length > 0 && (
             <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-900/20">

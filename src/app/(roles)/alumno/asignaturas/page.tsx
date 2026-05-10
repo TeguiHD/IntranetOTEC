@@ -13,7 +13,6 @@ import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
 import { listarAnunciosAsignatura } from "@/actions/anuncios";
 import { listarMaterialPorAsignatura } from "@/actions/material";
 import { AnunciosBoard } from "@/components/shared/AnunciosBoard";
-import { ChatAsignatura } from "@/components/shared/ChatAsignatura";
 import { normalizarTextoVisible } from "@/lib/displayText";
 import { calcularNotaFinalPonderada } from "@/lib/notas-utils";
 
@@ -333,14 +332,6 @@ export default async function AlumnoAsignaturasPage() {
                     >
                       Ver notas
                     </Link>
-                  </div>
-
-                  {/* Chat */}
-                  <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
-                    <ChatAsignatura
-                      asignaturaId={curso.asignaturaId}
-                      asignaturaNombre={normalizarTextoVisible(curso.nombre)}
-                    />
                   </div>
 
                   {/* Anuncios */}

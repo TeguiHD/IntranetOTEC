@@ -17,6 +17,7 @@ import {
   eliminarPreguntaFormAction,
   importarPruebaLocalFormAction,
   listarAuditoriaEvaluacion,
+  listarEvaluacionesAdminResumen,
   listarEvaluacionesByAsignatura,
   listarEventosSupervisionByEvaluacion,
   listarIntentosRecuperablesEvaluacion,
@@ -43,6 +44,7 @@ import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSecci
 import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { describeEvaluationWriteLock } from "@/lib/academic-state";
+import { normalizarTextoVisible } from "@/lib/displayText";
 import { formatearRut } from "@/lib/rut";
 
 const EVALUACIONES_PAGE_SIZE = 12;
@@ -271,6 +273,13 @@ export default async function AdminEvaluacionesPage({
   const evaluaciones = selectedAsignaturaId
     ? await listarEvaluacionesByAsignatura(selectedAsignaturaId)
     : [];
+  const evaluacionesAdminResumen = activeTab === "evaluaciones"
+    ? await listarEvaluacionesAdminResumen({
+        periodoId: selectedPeriodoId || undefined,
+        q: evalQ || undefined,
+        limit: 300,
+      })
+    : [];
 
   // Carga diferida por tab: solo se consulta al servidor lo que la pestana
   // activa va a renderizar. Antes, cada render del Server Component pagaba
@@ -350,6 +359,11 @@ export default async function AdminEvaluacionesPage({
       (evalEstado === "resultados" && Boolean(evaluacion.mostrarResultados));
     return matchesQuery && matchesEstado;
   });
+  const filteredEvaluacionesAdminResumen = evaluacionesAdminResumen.filter((evaluacion) => (
+    evalEstado === "todos" ||
+    (evalEstado === "borrador" && !evaluacion.publicada) ||
+    (evalEstado === "publicada" && Boolean(evaluacion.publicada))
+  ));
   const evalTotalPages = Math.max(1, Math.ceil(filteredEvaluaciones.length / EVALUACIONES_PAGE_SIZE));
   const safeEvalPage = Math.min(evalPage, evalTotalPages);
   const paginatedEvaluaciones = filteredEvaluaciones.slice(
@@ -486,6 +500,144 @@ export default async function AdminEvaluacionesPage({
       {asignaturas.length === 0 && (
         <article className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-sm text-text-secondary shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           No hay secciones disponibles para el periodo seleccionado.
+        </article>
+      )}
+
+      {activeTab === "evaluaciones" && (
+        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+                Pruebas cargadas por curso y docente
+              </h2>
+              <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+                Vista general del periodo seleccionado. Desde aqui puedes abrir la prueba para editarla, publicarla o revisar respuestas.
+              </p>
+            </div>
+            <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_170px_auto]">
+              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+              <input type="hidden" name="tab" value="evaluaciones" />
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  name="evalQ"
+                  defaultValue={evalQ}
+                  placeholder="Buscar prueba, curso o docente"
+                  className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  inputMode="search"
+                />
+              </div>
+              <select
+                name="evalEstado"
+                defaultValue={evalEstado}
+                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="todos">Todos</option>
+                <option value="borrador">Borrador</option>
+                <option value="publicada">Publicada</option>
+              </select>
+              <button
+                type="submit"
+                className="h-10 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+              >
+                Buscar
+              </button>
+            </form>
+          </div>
+
+          {filteredEvaluacionesAdminResumen.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+              No hay pruebas cargadas para este periodo o filtro.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-text-secondary dark:bg-gray-800/70 dark:text-gray-400">
+                  <tr>
+                    <th className="px-4 py-3">Prueba</th>
+                    <th className="px-4 py-3">Curso / seccion</th>
+                    <th className="px-4 py-3">Docente</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Actividad</th>
+                    <th className="px-4 py-3">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {filteredEvaluacionesAdminResumen.map((evaluacion) => {
+                    const docente = [evaluacion.docenteNombre, evaluacion.docenteApellido]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim();
+                    const manageHref = buildEvaluacionesHref({
+                      periodoId: selectedPeriodoId,
+                      asignaturaId: evaluacion.asignaturaId,
+                      evaluacionId: evaluacion.id,
+                      tab: "maquetador",
+                    });
+                    const resultadosHref = buildEvaluacionesHref({
+                      periodoId: selectedPeriodoId,
+                      asignaturaId: evaluacion.asignaturaId,
+                      evaluacionId: evaluacion.id,
+                      tab: "resultados",
+                    });
+
+                    return (
+                      <tr key={evaluacion.id} className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
+                        <td className="min-w-[260px] px-4 py-3">
+                          <p className="font-semibold text-text-primary dark:text-white">
+                            {normalizarTextoVisible(evaluacion.titulo)}
+                          </p>
+                          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                            {TIPO_LABELS[evaluacion.tipo] ?? evaluacion.tipo} - limite {formatDate(evaluacion.fechaLimite)}
+                          </p>
+                        </td>
+                        <td className="min-w-[240px] px-4 py-3">
+                          <p className="font-semibold text-text-primary dark:text-white">
+                            {normalizarTextoVisible(evaluacion.cursoNombre) || "Sin curso"}
+                          </p>
+                          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                            {normalizarTextoVisible(evaluacion.asignaturaNombre)}
+                            {evaluacion.asignaturaCodigo ? ` - ${normalizarTextoVisible(evaluacion.asignaturaCodigo)}` : ""}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                          {normalizarTextoVisible(docente) || "Sin docente"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            evaluacion.publicada
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                              : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                          }`}>
+                            {evaluacion.publicada ? "Publicada" : "Borrador"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                          {evaluacion.totalPreguntas} pregunta{evaluacion.totalPreguntas === 1 ? "" : "s"} - {evaluacion.totalRespuestas} respuesta{evaluacion.totalRespuestas === 1 ? "" : "s"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Link
+                              href={manageHref}
+                              className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                            >
+                              Editar
+                            </Link>
+                            <Link
+                              href={resultadosHref}
+                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-text-primary transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
+                            >
+                              Respuestas
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </article>
       )}
 

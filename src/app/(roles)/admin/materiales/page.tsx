@@ -7,6 +7,7 @@ import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { listarClasesAdmin } from "@/actions/clases";
 import {
   eliminarMaterialAdminFormAction,
+  listarMaterialAdminResumen,
   listarMaterialPorAsignatura,
   subirMaterialAdminFormAction,
 } from "@/actions/material";
@@ -34,6 +35,7 @@ type AdminMaterialesPageProps = {
     state?: string;
     periodoId?: string;
     asignaturaId?: string;
+    materialQ?: string;
   }>;
 };
 
@@ -55,6 +57,7 @@ export default async function AdminMaterialesPage({
 
   const periodos = await listarPeriodosDashboard();
   const requestedPeriodoId = typeof params?.periodoId === "string" ? params.periodoId : "";
+  const materialQ = typeof params?.materialQ === "string" ? params.materialQ.trim() : "";
   const defaultPeriodoId = periodos.find((periodo) => periodo.estado === "activo")?.id ?? periodos[0]?.id ?? "";
   const selectedPeriodoId =
     requestedPeriodoId && periodos.some((periodo) => periodo.id === requestedPeriodoId)
@@ -82,6 +85,11 @@ export default async function AdminMaterialesPage({
   const materiales = selectedAsignaturaId
     ? await listarMaterialPorAsignatura(selectedAsignaturaId)
     : [];
+  const materialesResumen = await listarMaterialAdminResumen({
+    periodoId: selectedPeriodoId || undefined,
+    q: materialQ || undefined,
+    limit: 300,
+  });
 
   return (
     <section className="space-y-5">
@@ -124,6 +132,7 @@ export default async function AdminMaterialesPage({
               ))}
             </select>
           </label>
+          {materialQ ? <input type="hidden" name="materialQ" value={materialQ} /> : null}
           <label className="block text-sm font-medium text-text-secondary dark:text-gray-400">
             Curso / seccion
             <select
@@ -146,6 +155,112 @@ export default async function AdminMaterialesPage({
           </button>
         </div>
       </form>
+
+      <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-text-primary dark:text-white">
+              PDFs y materiales por curso y docente
+            </h2>
+            <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+              Vista general del periodo seleccionado con los archivos visibles para alumnos.
+            </p>
+          </div>
+          <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,260px)_auto]">
+            <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+            <input
+              name="materialQ"
+              defaultValue={materialQ}
+              placeholder="Buscar archivo, curso o docente"
+              className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              inputMode="search"
+            />
+            <button
+              type="submit"
+              className="h-10 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+            >
+              Buscar
+            </button>
+          </form>
+        </div>
+
+        {materialesResumen.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
+            <FileText className="mx-auto h-9 w-9 text-gray-300 dark:text-gray-600" />
+            <p className="mt-3 text-sm font-semibold text-text-primary dark:text-white">
+              No hay material cargado para este periodo o filtro.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+            <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
+              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-text-secondary dark:bg-gray-800/70 dark:text-gray-400">
+                <tr>
+                  <th className="px-4 py-3">Archivo</th>
+                  <th className="px-4 py-3">Curso / seccion</th>
+                  <th className="px-4 py-3">Docente</th>
+                  <th className="px-4 py-3">Clase</th>
+                  <th className="px-4 py-3">Tamano</th>
+                  <th className="px-4 py-3">Accion</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {materialesResumen.map((item) => {
+                  const docente = [item.docenteNombre, item.docenteApellido]
+                    .filter(Boolean)
+                    .join(" ")
+                    .trim();
+                  const sectionHref = `/admin/materiales?${new URLSearchParams({
+                    periodoId: selectedPeriodoId,
+                    asignaturaId: item.asignaturaId,
+                    ...(materialQ ? { materialQ } : {}),
+                  }).toString()}`;
+
+                  return (
+                    <tr key={item.id} className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
+                      <td className="min-w-[260px] px-4 py-3">
+                        <p className="font-semibold text-text-primary dark:text-white">
+                          {normalizarTextoVisible(item.nombre)}
+                        </p>
+                        <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                          Subido {item.createdAt ? item.createdAt.toLocaleDateString("es-CL") : "-"}
+                        </p>
+                      </td>
+                      <td className="min-w-[240px] px-4 py-3">
+                        <p className="font-semibold text-text-primary dark:text-white">
+                          {normalizarTextoVisible(item.cursoNombre) || "Sin curso"}
+                        </p>
+                        <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
+                          {normalizarTextoVisible(item.asignaturaNombre)}
+                          {item.asignaturaCodigo ? ` - ${normalizarTextoVisible(item.asignaturaCodigo)}` : ""}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                        {normalizarTextoVisible(docente) || "Sin docente"}
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                        Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)}
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
+                        {formatBytes(item.tamanioBytes)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={sectionHref}
+                          className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                        >
+                          Abrir seccion
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </article>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
         <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">

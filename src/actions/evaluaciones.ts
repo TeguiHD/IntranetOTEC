@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import { getDb } from "@/db";
 import {
   asignaturas,
   auditLogs,
+  cursos,
   evaluacionDestinatarios,
   evaluacionIntentos,
   evaluaciones,
@@ -255,6 +256,24 @@ export type EvaluacionParticipacionItem = {
   nota: string | null;
   ultimaActividadAt: Date | null;
   destinatarioAsignado: boolean;
+};
+
+export type EvaluacionAdminResumenItem = {
+  id: string;
+  asignaturaId: string;
+  titulo: string;
+  tipo: "formulario" | "tarea" | "examen" | "proyecto";
+  publicada: boolean | null;
+  fechaInicio: Date | null;
+  fechaLimite: Date | null;
+  totalPreguntas: number;
+  totalRespuestas: number;
+  asignaturaNombre: string;
+  asignaturaCodigo: string | null;
+  cursoNombre: string | null;
+  cursoCodigo: string | null;
+  docenteNombre: string | null;
+  docenteApellido: string | null;
 };
 
 export type RespuestaArchivoPregunta = {
@@ -516,6 +535,105 @@ export async function listarEvaluacionesByAsignatura(
     destinatariosPersonalizados: destinatariosMap.has(r.id),
     notaAlumno: null,
     respondidaPorAlumno: false,
+  }));
+}
+
+export async function listarEvaluacionesAdminResumen(options?: {
+  periodoId?: string;
+  q?: string;
+  limit?: number;
+}): Promise<EvaluacionAdminResumenItem[]> {
+  const actorResult = await requireActionCapability(
+    "evaluacion_admin_resumen",
+    "evaluaciones.read_admin",
+  );
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+  const conditions: (SQL | undefined)[] = [
+    isNull(evaluaciones.eliminadoAt),
+    isNull(asignaturas.eliminadoAt),
+    isNull(cursos.eliminadoAt),
+  ];
+
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
+  }
+
+  const query = options?.q?.trim();
+  if (query) {
+    const term = `%${query.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+    conditions.push(
+      or(
+        ilike(evaluaciones.titulo, term),
+        ilike(asignaturas.nombre, term),
+        ilike(asignaturas.codigo, term),
+        ilike(cursos.nombre, term),
+        ilike(cursos.codigo, term),
+        ilike(usuarios.nombre, term),
+        ilike(usuarios.apellido, term),
+      ),
+    );
+  }
+
+  const limit = Number.isFinite(options?.limit)
+    ? Math.max(1, Math.min(Math.trunc(options?.limit ?? 300), 500))
+    : 300;
+
+  const rows = await db
+    .select({
+      id: evaluaciones.id,
+      asignaturaId: evaluaciones.asignaturaId,
+      titulo: evaluaciones.titulo,
+      tipo: evaluaciones.tipo,
+      publicada: evaluaciones.publicada,
+      fechaInicio: evaluaciones.fechaInicio,
+      fechaLimite: evaluaciones.fechaLimite,
+      asignaturaNombre: asignaturas.nombre,
+      asignaturaCodigo: asignaturas.codigo,
+      cursoNombre: cursos.nombre,
+      cursoCodigo: cursos.codigo,
+      docenteNombre: usuarios.nombre,
+      docenteApellido: usuarios.apellido,
+    })
+    .from(evaluaciones)
+    .innerJoin(asignaturas, eq(evaluaciones.asignaturaId, asignaturas.id))
+    .innerJoin(cursos, eq(asignaturas.cursoId, cursos.id))
+    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id))
+    .where(and(...conditions))
+    .orderBy(desc(evaluaciones.createdAt), desc(evaluaciones.fechaInicio))
+    .limit(limit);
+
+  if (rows.length === 0) return [];
+
+  const evaluacionIds = rows.map((row) => row.id);
+  const counts = await db
+    .select({
+      evaluacionId: preguntas.evaluacionId,
+      total: count(),
+    })
+    .from(preguntas)
+    .where(and(inArray(preguntas.evaluacionId, evaluacionIds), isNull(preguntas.eliminadoAt)))
+    .groupBy(preguntas.evaluacionId);
+
+  const respuestasCounts = await db
+    .select({
+      evaluacionId: respuestasFormulario.evaluacionId,
+      total: sql<number>`count(distinct ${respuestasFormulario.matriculaId})`,
+    })
+    .from(respuestasFormulario)
+    .where(inArray(respuestasFormulario.evaluacionId, evaluacionIds))
+    .groupBy(respuestasFormulario.evaluacionId);
+
+  const countMap = new Map(counts.map((item) => [item.evaluacionId, Number(item.total)]));
+  const respuestaMap = new Map(
+    respuestasCounts.map((item) => [item.evaluacionId, Number(item.total)]),
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    totalPreguntas: countMap.get(row.id) ?? 0,
+    totalRespuestas: respuestaMap.get(row.id) ?? 0,
   }));
 }
 

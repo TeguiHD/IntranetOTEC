@@ -2,12 +2,12 @@
 
 import { createHash } from "node:crypto";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
-import { asignaturas, clases, material, matriculas, usuarios } from "@/db/schema";
+import { asignaturas, clases, cursos, material, matriculas, usuarios } from "@/db/schema";
 import { sendEmail, templateMaterialSubido } from "@/lib/email";
 import { deleteFile, uploadFile } from "@/lib/storage";
 
@@ -131,6 +131,16 @@ export type MaterialItem = {
   claseNumeroSesion: number;
 };
 
+export type MaterialAdminResumenItem = MaterialItem & {
+  asignaturaId: string;
+  asignaturaNombre: string;
+  asignaturaCodigo: string | null;
+  cursoNombre: string | null;
+  cursoCodigo: string | null;
+  docenteNombre: string | null;
+  docenteApellido: string | null;
+};
+
 export async function listarMaterialPorAsignatura(
   asignaturaId: string,
 ): Promise<MaterialItem[]> {
@@ -166,6 +176,75 @@ export async function listarMaterialPorAsignatura(
     .orderBy(clases.numeroSesion);
 
   return rows;
+}
+
+export async function listarMaterialAdminResumen(options?: {
+  periodoId?: string;
+  q?: string;
+  limit?: number;
+}): Promise<MaterialAdminResumenItem[]> {
+  const actorResult = await requireActionActor("material_admin_resumen", ["admin"]);
+
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+  const conditions: (SQL | undefined)[] = [
+    isNull(material.eliminadoAt),
+    isNull(clases.eliminadoAt),
+    isNull(asignaturas.eliminadoAt),
+    isNull(cursos.eliminadoAt),
+  ];
+
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
+  }
+
+  const query = options?.q?.trim();
+  if (query) {
+    const term = `%${query.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+    conditions.push(
+      or(
+        ilike(material.nombre, term),
+        ilike(clases.titulo, term),
+        ilike(asignaturas.nombre, term),
+        ilike(asignaturas.codigo, term),
+        ilike(cursos.nombre, term),
+        ilike(cursos.codigo, term),
+        ilike(usuarios.nombre, term),
+        ilike(usuarios.apellido, term),
+      ),
+    );
+  }
+
+  const limit = Number.isFinite(options?.limit)
+    ? Math.max(1, Math.min(Math.trunc(options?.limit ?? 300), 500))
+    : 300;
+
+  return db
+    .select({
+      id: material.id,
+      nombre: material.nombre,
+      tamanioBytes: material.tamanioBytes,
+      createdAt: material.createdAt,
+      claseId: material.claseId,
+      claseTitulo: clases.titulo,
+      claseNumeroSesion: clases.numeroSesion,
+      asignaturaId: asignaturas.id,
+      asignaturaNombre: asignaturas.nombre,
+      asignaturaCodigo: asignaturas.codigo,
+      cursoNombre: cursos.nombre,
+      cursoCodigo: cursos.codigo,
+      docenteNombre: usuarios.nombre,
+      docenteApellido: usuarios.apellido,
+    })
+    .from(material)
+    .innerJoin(clases, eq(material.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .innerJoin(cursos, eq(asignaturas.cursoId, cursos.id))
+    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id))
+    .where(and(...conditions))
+    .orderBy(desc(material.createdAt))
+    .limit(limit);
 }
 
 export async function subirMaterialAction(

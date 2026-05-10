@@ -40,6 +40,7 @@ type AlumnoNavItem = { href: string; title: string; gradient: string; Icon: Luci
 
 const ALUMNO_NAV_ACADEMICO: AlumnoNavItem[] = [
   { href: "/alumno/asignaturas",  title: "Mis Cursos",    gradient: "grad-blue",    Icon: GraduationCap },
+  { href: "/alumno/materiales",    title: "Materiales",    gradient: "grad-emerald", Icon: FileText },
   { href: "/alumno/horario",      title: "Mi Horario",    gradient: "grad-teal",    Icon: CalendarRange },
   { href: "/alumno/calendario",   title: "Calendario",    gradient: "grad-cyan",    Icon: CalendarDays },
   { href: "/alumno/clases",       title: "Clases",        gradient: "grad-cyan",    Icon: CalendarDays },

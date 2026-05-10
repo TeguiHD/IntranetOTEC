@@ -514,35 +514,49 @@ export default async function AdminEvaluacionesPage({
                 Vista general del periodo seleccionado. Desde aqui puedes abrir la prueba para editarla, publicarla o revisar respuestas.
               </p>
             </div>
-            <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_170px_auto]">
-              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-              <input type="hidden" name="tab" value="evaluaciones" />
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  name="evalQ"
-                  defaultValue={evalQ}
-                  placeholder="Buscar prueba, curso o docente"
-                  className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                  inputMode="search"
-                />
-              </div>
-              <select
-                name="evalEstado"
-                defaultValue={evalEstado}
-                className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="todos">Todos</option>
-                <option value="borrador">Borrador</option>
-                <option value="publicada">Publicada</option>
-              </select>
-              <button
-                type="submit"
-                className="h-10 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
-              >
-                Buscar
-              </button>
-            </form>
+            <div className="flex flex-col gap-2">
+              {asignaturas[0] ? (
+                <Link
+                  href={buildEvaluacionesHref({
+                    periodoId: selectedPeriodoId,
+                    asignaturaId: selectedAsignaturaId || asignaturas[0].id,
+                    tab: "evaluaciones",
+                  })}
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+                >
+                  Crear prueba
+                </Link>
+              ) : null}
+              <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_170px_auto]">
+                <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                <input type="hidden" name="tab" value="evaluaciones" />
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    name="evalQ"
+                    defaultValue={evalQ}
+                    placeholder="Buscar prueba, curso o docente"
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    inputMode="search"
+                  />
+                </div>
+                <select
+                  name="evalEstado"
+                  defaultValue={evalEstado}
+                  className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="borrador">Borrador</option>
+                  <option value="publicada">Publicada</option>
+                </select>
+                <button
+                  type="submit"
+                  className="h-10 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                >
+                  Buscar
+                </button>
+              </form>
+            </div>
           </div>
 
           {filteredEvaluacionesAdminResumen.length === 0 ? (

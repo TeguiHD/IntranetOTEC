@@ -92,6 +92,16 @@ const BLOCKED_EXTENSIONS = new Set([
 ]);
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const DEFAULT_DOCENTE_MATERIAL_REDIRECT = "/docente/asignaturas";
+
+const sanitizeDocenteMaterialRedirect = (value: string | null): string => {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed.startsWith("/")) return DEFAULT_DOCENTE_MATERIAL_REDIRECT;
+  if (trimmed.startsWith("/docente/asignaturas") || trimmed.startsWith("/docente/materiales")) {
+    return trimmed;
+  }
+  return DEFAULT_DOCENTE_MATERIAL_REDIRECT;
+};
 
 const getFileExtension = (fileName: string): string => {
   const normalized = fileName.trim().toLowerCase();
@@ -343,7 +353,9 @@ export async function subirMaterialAction(
   });
 
   revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/materiales");
   revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/materiales");
   revalidatePath("/admin/materiales");
 
   const enrolled = await db
@@ -438,7 +450,9 @@ export async function eliminarMaterialAction(
   }
 
   revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/materiales");
   revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/materiales");
   revalidatePath("/admin/materiales");
 
   return { ok: true, code: "material_deleted" };
@@ -475,13 +489,24 @@ export async function alumnoTieneAccesoAMaterial(
 
 export async function subirMaterialFormAction(formData: FormData): Promise<void> {
   const asignaturaId = formData.get("asignaturaId") as string | null;
+  const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
   const result = await subirMaterialAction(formData);
-  redirect(`/docente/asignaturas?state=${result.code}&asignaturaId=${encodeURIComponent(asignaturaId ?? "")}`);
+  const [pathname, search = ""] = redirectTo.split("?");
+  const query = new URLSearchParams(search);
+  query.set("state", result.code);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+  redirect(`${pathname}?${query.toString()}`);
 }
 
 export async function eliminarMaterialFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
   const result = await eliminarMaterialAction(formData);
-  redirect(`/docente/asignaturas?state=${result.code}`);
+  const [pathname, search = ""] = redirectTo.split("?");
+  const query = new URLSearchParams(search);
+  query.set("state", result.code);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+  redirect(`${pathname}?${query.toString()}`);
 }
 
 export async function subirMaterialAdminFormAction(formData: FormData): Promise<void> {

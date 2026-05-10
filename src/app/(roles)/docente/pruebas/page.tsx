@@ -41,6 +41,9 @@ export default async function DocentePruebasPage() {
       total + item.evaluaciones.reduce((subtotal, evaluacion) => subtotal + evaluacion.totalRespondidas, 0),
     0,
   );
+  const createHref = asignaturas[0]
+    ? `/docente/asignaturas/${asignaturas[0].id}/evaluaciones`
+    : "/docente/asignaturas";
 
   return (
     <section className="space-y-5">
@@ -54,7 +57,7 @@ export default async function DocentePruebasPage() {
           </p>
         </div>
         <Link
-          href="/docente/asignaturas"
+          href={createHref}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
         >
           <Plus className="h-4 w-4" />

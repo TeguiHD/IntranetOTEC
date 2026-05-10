@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { and, count, eq, gte, isNull, lte, sql } from "drizzle-orm";
-import { Bell, BookOpen, CalendarDays, CalendarRange, ClipboardCheck, ClipboardList, MessageSquare, User, type LucideIcon } from "lucide-react";
+import { Bell, BookOpen, CalendarDays, CalendarRange, ClipboardCheck, ClipboardList, FileText, MessageSquare, User, type LucideIcon } from "lucide-react";
 
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 
@@ -24,6 +24,7 @@ type NavItem = { href: string; title: string; gradient: string; Icon: LucideIcon
 
 const DOCENTE_NAV_ACADEMICO: NavItem[] = [
   { href: "/docente/asignaturas",  title: "Mis Asignaturas", gradient: "grad-blue",    Icon: BookOpen },
+  { href: "/docente/materiales",    title: "Materiales",      gradient: "grad-emerald", Icon: FileText },
   { href: "/docente/pruebas",      title: "Pruebas",         gradient: "grad-violet",  Icon: ClipboardList },
   { href: "/docente/asistencia",   title: "Asistencia",      gradient: "grad-emerald", Icon: ClipboardCheck },
   { href: "/docente/horario",      title: "Mi Horario",      gradient: "grad-teal",    Icon: CalendarRange },

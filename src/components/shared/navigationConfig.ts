@@ -146,6 +146,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.docente" },
+      { href: "/docente/materiales", label: "Materiales", Icon: Upload, gradient: "grad-emerald", capability: "asignaturas.docente" },
       { href: "/docente/pruebas", label: "Pruebas", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_assigned" },
       { href: "/docente/historial", label: "Historial", Icon: FileText, gradient: "grad-violet", capability: "historial.docente" },
       { href: "/docente/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.docente" },
@@ -180,6 +181,7 @@ const ALUMNO_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue", capability: "asignaturas.alumno" },
+      { href: "/alumno/materiales", label: "Materiales", Icon: FileText, gradient: "grad-emerald", capability: "clases.alumno" },
       { href: "/alumno/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.alumno" },
       { href: "/alumno/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan", capability: "calendario.alumno" },
       { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan", capability: "clases.alumno" },

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { and, count, eq, gte, isNull, lte, sql } from "drizzle-orm";
-import { Bell, BookOpen, CalendarDays, CalendarRange, ClipboardCheck, MessageSquare, User, type LucideIcon } from "lucide-react";
+import { Bell, BookOpen, CalendarDays, CalendarRange, ClipboardCheck, ClipboardList, MessageSquare, User, type LucideIcon } from "lucide-react";
 
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 
@@ -16,12 +16,14 @@ const GRADIENT_COLORS: Record<string, string> = {
   "grad-teal":    "#14B8A6",
   "grad-cyan":    "#06B6D4",
   "grad-amber":   "#F5A623",
+  "grad-violet":  "#8B5CF6",
 };
 
 type NavItem = { href: string; title: string; gradient: string; Icon: LucideIcon };
 
 const DOCENTE_NAV_ACADEMICO: NavItem[] = [
   { href: "/docente/asignaturas",  title: "Mis Asignaturas", gradient: "grad-blue",    Icon: BookOpen },
+  { href: "/docente/pruebas",      title: "Pruebas",         gradient: "grad-violet",  Icon: ClipboardList },
   { href: "/docente/asistencia",   title: "Asistencia",      gradient: "grad-emerald", Icon: ClipboardCheck },
   { href: "/docente/horario",      title: "Mi Horario",      gradient: "grad-teal",    Icon: CalendarRange },
   { href: "/docente/calendario",   title: "Calendario",      gradient: "grad-cyan",    Icon: CalendarDays },
@@ -163,7 +165,7 @@ export default async function DocenteDashboardPage() {
       </div>
 
       {/* Navigation — Académico */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {DOCENTE_NAV_ACADEMICO.map((item) => (
           <Link
             key={item.href}

@@ -265,6 +265,7 @@ export async function subirMaterialAction(
 
   revalidatePath("/docente/asignaturas");
   revalidatePath("/alumno/asignaturas");
+  revalidatePath("/admin/materiales");
 
   const enrolled = await db
     .select({
@@ -359,6 +360,7 @@ export async function eliminarMaterialAction(
 
   revalidatePath("/docente/asignaturas");
   revalidatePath("/alumno/asignaturas");
+  revalidatePath("/admin/materiales");
 
   return { ok: true, code: "material_deleted" };
 }
@@ -401,4 +403,32 @@ export async function subirMaterialFormAction(formData: FormData): Promise<void>
 export async function eliminarMaterialFormAction(formData: FormData): Promise<void> {
   const result = await eliminarMaterialAction(formData);
   redirect(`/docente/asignaturas?state=${result.code}`);
+}
+
+export async function subirMaterialAdminFormAction(formData: FormData): Promise<void> {
+  const periodoId = formData.get("periodoId") as string | null;
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const result = await subirMaterialAction(formData);
+  const query = new URLSearchParams({
+    state: result.code,
+  });
+
+  if (periodoId) query.set("periodoId", periodoId);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+
+  redirect(`/admin/materiales?${query.toString()}`);
+}
+
+export async function eliminarMaterialAdminFormAction(formData: FormData): Promise<void> {
+  const periodoId = formData.get("periodoId") as string | null;
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const result = await eliminarMaterialAction(formData);
+  const query = new URLSearchParams({
+    state: result.code,
+  });
+
+  if (periodoId) query.set("periodoId", periodoId);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+
+  redirect(`/admin/materiales?${query.toString()}`);
 }

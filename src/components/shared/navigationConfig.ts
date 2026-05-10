@@ -83,6 +83,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/admin/cursos", label: "Cursos", Icon: BookOpen, gradient: "grad-indigo", capability: "cursos.admin" },
       { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange, gradient: "grad-teal", capability: "horarios.admin" },
       { href: "/admin/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan", capability: "clases.admin" },
+      { href: "/admin/materiales", label: "Materiales", Icon: Upload, gradient: "grad-emerald", capability: "clases.admin" },
       { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_admin" },
     ],
   },
@@ -145,6 +146,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
     title: "Académico",
     items: [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.docente" },
+      { href: "/docente/pruebas", label: "Pruebas", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_assigned" },
       { href: "/docente/historial", label: "Historial", Icon: FileText, gradient: "grad-violet", capability: "historial.docente" },
       { href: "/docente/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.docente" },
       { href: "/docente/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.docente" },

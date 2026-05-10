@@ -11,6 +11,7 @@ import {
   subirMaterialAdminFormAction,
 } from "@/actions/material";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
+import { normalizarTextoVisible } from "@/lib/displayText";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string; description?: string }> = {
   material_uploaded: {
@@ -132,7 +133,7 @@ export default async function AdminMaterialesPage({
             >
               {asignaturas.map((asignatura) => (
                 <option key={asignatura.id} value={asignatura.id}>
-                  {asignatura.nombre} - {asignatura.docenteNombre ?? "Sin docente"} {asignatura.docenteApellido ?? ""}
+                  {normalizarTextoVisible(asignatura.nombre)} - {asignatura.docenteNombre ?? "Sin docente"} {asignatura.docenteApellido ?? ""}
                 </option>
               ))}
             </select>
@@ -171,7 +172,7 @@ export default async function AdminMaterialesPage({
               >
                 {clasesOrdenadas.map((clase) => (
                   <option key={clase.id} value={clase.id}>
-                    Sesion {clase.numeroSesion}: {clase.titulo}
+                    Sesion {clase.numeroSesion}: {normalizarTextoVisible(clase.titulo)}
                   </option>
                 ))}
               </select>
@@ -204,7 +205,7 @@ export default async function AdminMaterialesPage({
                 Material visible para alumnos
               </h2>
               <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                {selectedAsignatura?.nombre ?? "Selecciona una seccion"} - {materiales.length} archivo{materiales.length === 1 ? "" : "s"}
+                {normalizarTextoVisible(selectedAsignatura?.nombre) || "Selecciona una seccion"} - {materiales.length} archivo{materiales.length === 1 ? "" : "s"}
               </p>
             </div>
             <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:text-primary-light">
@@ -228,10 +229,10 @@ export default async function AdminMaterialesPage({
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
-                      {item.nombre}
+                      {normalizarTextoVisible(item.nombre)}
                     </p>
                     <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                      Sesion {item.claseNumeroSesion}: {item.claseTitulo} - {formatBytes(item.tamanioBytes)}
+                      Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)} - {formatBytes(item.tamanioBytes)}
                     </p>
                   </div>
                   <form action={eliminarMaterialAdminFormAction}>

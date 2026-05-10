@@ -8,6 +8,7 @@ import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { asignaturas, clases, matriculas } from "@/db/schema";
+import { normalizarTextoVisible } from "@/lib/displayText";
 
 const GRADIENT_COLORS: Record<string, string> = {
   "grad-blue":    "#3B82F6",
@@ -223,10 +224,10 @@ export default async function DocenteDashboardPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-text-primary dark:text-white">
-                      {clase.titulo}
+                      {normalizarTextoVisible(clase.titulo)}
                     </p>
                     <p className="text-xs text-text-secondary dark:text-gray-400">
-                      {clase.asignaturaNombre}
+                      {normalizarTextoVisible(clase.asignaturaNombre)}
                       {clase.numeroSesion ? ` · Sesión ${clase.numeroSesion}` : ""}
                       {clase.horaInicio ? ` · ${String(clase.horaInicio).slice(0, 5)}` : ""}
                     </p>
@@ -239,7 +240,7 @@ export default async function DocenteDashboardPage() {
                       <ClipboardCheck className="h-3.5 w-3.5" />
                       Asistencia
                     </Link>
-                    <QrAsistenciaButton claseId={clase.id} claseNombre={clase.titulo} />
+                    <QrAsistenciaButton claseId={clase.id} claseNombre={normalizarTextoVisible(clase.titulo)} />
                   </div>
                 </div>
               ))}
@@ -266,10 +267,10 @@ export default async function DocenteDashboardPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-text-primary dark:text-white">
-                    {clase.titulo}
+                    {normalizarTextoVisible(clase.titulo)}
                   </p>
                   <p className="text-xs text-text-secondary dark:text-gray-400">
-                    {clase.asignaturaNombre} · Sesión {clase.numeroSesion}
+                    {normalizarTextoVisible(clase.asignaturaNombre)} · Sesión {clase.numeroSesion}
                   </p>
                 </div>
                 <div className="ml-3 text-right">

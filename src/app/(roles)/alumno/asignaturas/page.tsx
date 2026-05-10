@@ -281,7 +281,7 @@ export default async function AlumnoAsignaturasPage() {
                         Próxima clase
                       </p>
                       <p className="text-xs font-medium text-text-primary dark:text-gray-100">
-                        {proximaClase.titulo}
+                        {normalizarTextoVisible(proximaClase.titulo)}
                       </p>
                       <p className="text-[11px] text-text-secondary dark:text-gray-400">
                         {formatFecha(proximaClase.fecha)}

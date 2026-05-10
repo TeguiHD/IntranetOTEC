@@ -4,6 +4,7 @@ import { ClipboardList, Eye, Plus, ShieldCheck } from "lucide-react";
 
 import { listarAsignaturasDocente } from "@/actions/docente";
 import { listarEvaluacionesByAsignatura } from "@/actions/evaluaciones";
+import { normalizarTextoVisible } from "@/lib/displayText";
 
 export const metadata = {
   title: "Pruebas",
@@ -93,7 +94,7 @@ export default async function DocentePruebasPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-text-primary dark:text-white">
-                    {asignatura.nombre}
+                    {normalizarTextoVisible(asignatura.nombre)}
                   </h2>
                   <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
                     {asignatura.codigo ?? "Sin codigo"} - {evaluaciones.length} prueba{evaluaciones.length === 1 ? "" : "s"}
@@ -121,7 +122,7 @@ export default async function DocentePruebasPage() {
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
-                          {evaluacion.titulo}
+                          {normalizarTextoVisible(evaluacion.titulo)}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary dark:text-gray-400">
                           <span>{evaluacion.totalPreguntas} preguntas</span>
@@ -143,7 +144,7 @@ export default async function DocentePruebasPage() {
                         <Link
                           href={`/docente/asignaturas/${asignatura.id}/evaluaciones?evaluacionId=${evaluacion.id}&tab=resultados`}
                           className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 text-text-secondary transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                          aria-label={`Ver respuestas de ${evaluacion.titulo}`}
+                          aria-label={`Ver respuestas de ${normalizarTextoVisible(evaluacion.titulo)}`}
                         >
                           <Eye className="h-4 w-4" />
                         </Link>

@@ -32,6 +32,7 @@ import {
 import { AnunciosBoard } from "@/components/shared/AnunciosBoard";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
+import { normalizarTextoVisible } from "@/lib/displayText";
 import { formatearRut } from "@/lib/rut";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
@@ -197,7 +198,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
           >
             {asignaturas.map((asignatura) => (
               <option key={asignatura.id} value={asignatura.id}>
-                {asignatura.nombre} ({asignatura.codigo ?? "SIN-CODIGO"})
+                {normalizarTextoVisible(asignatura.nombre)} ({asignatura.codigo ?? "SIN-CODIGO"})
               </option>
             ))}
           </select>
@@ -276,7 +277,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona clase</option>
                 {clases.map((clase) => (
                   <option key={clase.id} value={clase.id}>
-                    Sesión {clase.numeroSesion} - {clase.titulo}
+                    Sesión {clase.numeroSesion} - {normalizarTextoVisible(clase.titulo)}
                   </option>
                 ))}
               </select>
@@ -295,7 +296,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona clase a eliminar</option>
                 {clases.map((clase) => (
                   <option key={clase.id} value={clase.id}>
-                    Sesión {clase.numeroSesion} - {clase.titulo}
+                    Sesión {clase.numeroSesion} - {normalizarTextoVisible(clase.titulo)}
                   </option>
                 ))}
               </select>
@@ -316,7 +317,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona clase</option>
                 {clases.map((clase) => (
                   <option key={clase.id} value={clase.id}>
-                  Sesión {clase.numeroSesion} - {clase.titulo}
+                  Sesión {clase.numeroSesion} - {normalizarTextoVisible(clase.titulo)}
                   </option>
                 ))}
               </select>
@@ -359,7 +360,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                               {m.nombre}
                             </a>
                           </td>
-                          <td className="px-2 py-2">S{m.claseNumeroSesion} - {m.claseTitulo}</td>
+                          <td className="px-2 py-2">S{m.claseNumeroSesion} - {normalizarTextoVisible(m.claseTitulo)}</td>
                           <td className="px-2 py-2">{m.tamanioBytes ? `${(m.tamanioBytes / 1024).toFixed(0)} KB` : "-"}</td>
                           <td className="px-2 py-2">
                             <form action={eliminarMaterialFormAction} className="inline">
@@ -440,9 +441,9 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 {clases.map((clase) => (
                   <div key={clase.id} className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50">
                     <span className="text-xs font-medium text-text-secondary dark:text-gray-400">
-                      S{clase.numeroSesion} · {clase.titulo}
+                      S{clase.numeroSesion} · {normalizarTextoVisible(clase.titulo)}
                     </span>
-                    <QrAsistenciaButton claseId={clase.id} claseNombre={`Sesión ${clase.numeroSesion} – ${clase.titulo}`} />
+                    <QrAsistenciaButton claseId={clase.id} claseNombre={`Sesión ${clase.numeroSesion} – ${normalizarTextoVisible(clase.titulo)}`} />
                   </div>
                 ))}
               </div>
@@ -586,7 +587,7 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 <option value="">Selecciona clase</option>
                 {clases.map((clase) => (
                   <option key={clase.id} value={clase.id}>
-                    Sesión {clase.numeroSesion} - {clase.titulo}
+                    Sesión {clase.numeroSesion} - {normalizarTextoVisible(clase.titulo)}
                   </option>
                 ))}
               </select>

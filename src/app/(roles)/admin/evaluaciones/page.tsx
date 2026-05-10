@@ -602,7 +602,7 @@ export default async function AdminEvaluacionesPage({
                       evaluacionId: evaluacion.id,
                       tab: "evaluaciones",
                       evalQ,
-                      evalEstado,
+                      evalEstado: "todos",
                     });
 
                     return (
@@ -642,16 +642,38 @@ export default async function AdminEvaluacionesPage({
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-2">
-                              <details className="group">
-                                <summary className="cursor-pointer rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light">
-                                  Editar
-                                </summary>
-                              </details>
+                              {evaluacion.publicada ? (
+                                <form action={despublicarEvaluacionFormAction}>
+                                  <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                                  <input type="hidden" name="asignaturaId" value={evaluacion.asignaturaId} />
+                                  <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                                  <input type="hidden" name="redirectTo" value={rowRedirect} />
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                                  >
+                                    Deshabilitar
+                                  </button>
+                                </form>
+                              ) : (
+                                <form action={publicarEvaluacionFormAction}>
+                                  <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                                  <input type="hidden" name="asignaturaId" value={evaluacion.asignaturaId} />
+                                  <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                                  <input type="hidden" name="redirectTo" value={rowRedirect} />
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                                  >
+                                    Habilitar
+                                  </button>
+                                </form>
+                              )}
                               <Link
                                 href={manageHref}
                                 className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
                               >
-                                Preguntas
+                                Editar preguntas
                               </Link>
                               <Link
                                 href={resultadosHref}

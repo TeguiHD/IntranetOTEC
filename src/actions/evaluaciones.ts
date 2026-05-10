@@ -2298,12 +2298,10 @@ export async function publicarEvaluacionAction(id: string): Promise<MutationResu
       return { ok: true, code: "already_published" };
     }
 
-    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
-    if (!periodoCheck.ok) {
-      return periodoCheck.result;
-    }
-
-    await db.update(evaluaciones).set({ publicada: true }).where(eq(evaluaciones.id, id));
+    await db
+      .update(evaluaciones)
+      .set({ publicada: true, updatedAt: new Date() })
+      .where(eq(evaluaciones.id, id));
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -2404,6 +2402,8 @@ export async function publicarEvaluacionFormAction(formData: FormData): Promise<
   const result = await publicarEvaluacionAction(evaluacionId);
 
   revalidatePath("/admin/evaluaciones");
+  revalidatePath("/alumno/evaluaciones");
+  revalidatePath("/alumno/asignaturas");
   revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
   redirectEvaluacionesForm({
     redirectTo,
@@ -2425,6 +2425,14 @@ export async function despublicarEvaluacionAction(id: string): Promise<MutationR
   const db = getDb();
 
   try {
+    const evalAccess = await getEvaluacionAccessRow(id);
+    if (!evalAccess) {
+      return { ok: false, code: "evaluacion_not_found", message: "EvaluaciÃ³n no encontrada." };
+    }
+    if (!actorCanManageEvaluacion(actorResult.actor, evalAccess)) {
+      return forbiddenMutationResult("No tienes permiso para deshabilitar esta evaluaciÃ³n.");
+    }
+
     const [existing] = await db
       .select({ id: evaluaciones.id, publicada: evaluaciones.publicada })
       .from(evaluaciones)
@@ -2439,12 +2447,10 @@ export async function despublicarEvaluacionAction(id: string): Promise<MutationR
       return { ok: true, code: "already_unpublished" };
     }
 
-    const periodoCheck = await assertPeriodoAbiertoByEvaluacionId(id);
-    if (!periodoCheck.ok) {
-      return periodoCheck.result;
-    }
-
-    await db.update(evaluaciones).set({ publicada: false }).where(eq(evaluaciones.id, id));
+    await db
+      .update(evaluaciones)
+      .set({ publicada: false, updatedAt: new Date() })
+      .where(eq(evaluaciones.id, id));
 
     await registrarAudit({
       correlationId: actorResult.actor.correlationId,
@@ -2484,6 +2490,8 @@ export async function despublicarEvaluacionFormAction(formData: FormData): Promi
   const result = await despublicarEvaluacionAction(evaluacionId);
 
   revalidatePath("/admin/evaluaciones");
+  revalidatePath("/alumno/evaluaciones");
+  revalidatePath("/alumno/asignaturas");
   revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
   redirectEvaluacionesForm({
     redirectTo,

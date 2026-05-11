@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { asignaturas, clases, cursos, material, matriculas, usuarios } from "@/db/schema";
 import { sendEmail, templateMaterialSubido } from "@/lib/email";
+import { sanitizeText } from "@/lib/sanitize";
 import { deleteFile, uploadFile } from "@/lib/storage";
 
 import { type MutationResult, requireActionActor } from "./_security";
@@ -458,6 +459,62 @@ export async function eliminarMaterialAction(
   return { ok: true, code: "material_deleted" };
 }
 
+export async function editarMaterialAction(
+  formData: FormData,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("material_editar", [
+    "docente",
+    "admin",
+  ]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const materialId = formData.get("materialId") as string | null;
+  const nombreRaw = formData.get("nombre") as string | null;
+  const nombre = sanitizeText(nombreRaw ?? "").replace(/\s+/g, " ").trim().slice(0, 220);
+
+  if (!materialId || nombre.length < 3) {
+    return { ok: false, code: "invalid_input", message: "Falta el material o el titulo es muy corto." };
+  }
+
+  const db = getDb();
+
+  const [record] = await db
+    .select({
+      id: material.id,
+      docenteId: asignaturas.docenteId,
+    })
+    .from(material)
+    .innerJoin(clases, eq(material.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(and(eq(material.id, materialId), isNull(material.eliminadoAt)))
+    .limit(1);
+
+  if (!record) {
+    return { ok: false, code: "not_found", message: "Material no encontrado." };
+  }
+
+  if (
+    actorResult.actor.userRol === "docente" &&
+    record.docenteId !== actorResult.actor.userId
+  ) {
+    return { ok: false, code: "forbidden", message: "No eres docente de esta asignatura." };
+  }
+
+  await db
+    .update(material)
+    .set({ nombre })
+    .where(eq(material.id, materialId));
+
+  revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/materiales");
+  revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/materiales");
+  revalidatePath("/admin/materiales");
+
+  return { ok: true, code: "material_updated" };
+}
+
 /**
  * Verifica si un alumno puede acceder a un material
  * (está matriculado en la asignatura que contiene esa clase)
@@ -509,6 +566,17 @@ export async function eliminarMaterialFormAction(formData: FormData): Promise<vo
   redirect(`${pathname}?${query.toString()}`);
 }
 
+export async function editarMaterialFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
+  const result = await editarMaterialAction(formData);
+  const [pathname, search = ""] = redirectTo.split("?");
+  const query = new URLSearchParams(search);
+  query.set("state", result.code);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+  redirect(`${pathname}?${query.toString()}`);
+}
+
 export async function subirMaterialAdminFormAction(formData: FormData): Promise<void> {
   const periodoId = formData.get("periodoId") as string | null;
   const asignaturaId = formData.get("asignaturaId") as string | null;
@@ -527,6 +595,20 @@ export async function eliminarMaterialAdminFormAction(formData: FormData): Promi
   const periodoId = formData.get("periodoId") as string | null;
   const asignaturaId = formData.get("asignaturaId") as string | null;
   const result = await eliminarMaterialAction(formData);
+  const query = new URLSearchParams({
+    state: result.code,
+  });
+
+  if (periodoId) query.set("periodoId", periodoId);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+
+  redirect(`/admin/materiales?${query.toString()}`);
+}
+
+export async function editarMaterialAdminFormAction(formData: FormData): Promise<void> {
+  const periodoId = formData.get("periodoId") as string | null;
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const result = await editarMaterialAction(formData);
   const query = new URLSearchParams({
     state: result.code,
   });

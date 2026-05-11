@@ -6,6 +6,7 @@ import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { listarClasesAdmin } from "@/actions/clases";
 import {
+  editarMaterialAdminFormAction,
   eliminarMaterialAdminFormAction,
   listarMaterialAdminResumen,
   listarMaterialPorAsignatura,
@@ -20,6 +21,7 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string; desc
     text: "Material subido correctamente.",
     description: "El archivo queda visible para los alumnos matriculados en el curso.",
   },
+  material_updated: { tone: "success", text: "Material actualizado correctamente." },
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
   duplicate: { tone: "error", text: "Ese archivo ya fue subido a la clase seleccionada." },
   invalid_input: { tone: "error", text: "Faltan datos para subir el material." },
@@ -246,12 +248,20 @@ export default async function AdminMaterialesPage({
                         {formatBytes(item.tamanioBytes)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link
-                          href={sectionHref}
-                          className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
-                        >
-                          Abrir seccion
-                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href={`/api/files/download/${item.id}`}
+                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark"
+                          >
+                            Abrir PDF
+                          </a>
+                          <Link
+                            href={sectionHref}
+                            className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                          >
+                            Abrir seccion
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -347,21 +357,52 @@ export default async function AdminMaterialesPage({
                       {normalizarTextoVisible(item.nombre)}
                     </p>
                     <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                      Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)} - {formatBytes(item.tamanioBytes)}
+                      {normalizarTextoVisible(selectedAsignatura?.nombre)} - Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)} - {formatBytes(item.tamanioBytes)}
                     </p>
+                    <details className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                      <summary className="cursor-pointer text-xs font-semibold text-text-primary dark:text-white">
+                        Modificar titulo del material
+                      </summary>
+                      <form action={editarMaterialAdminFormAction} className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                        <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                        <input type="hidden" name="materialId" value={item.id} />
+                        <input
+                          name="nombre"
+                          defaultValue={normalizarTextoVisible(item.nombre)}
+                          minLength={3}
+                          required
+                          className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-dark"
+                        >
+                          Guardar
+                        </button>
+                      </form>
+                    </details>
                   </div>
-                  <form action={eliminarMaterialAdminFormAction}>
-                    <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-                    <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-                    <input type="hidden" name="materialId" value={item.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`/api/files/download/${item.id}`}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
                     >
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </button>
-                  </form>
+                      Abrir PDF
+                    </a>
+                    <form action={eliminarMaterialAdminFormAction}>
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                      <input type="hidden" name="materialId" value={item.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Eliminar
+                      </button>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>

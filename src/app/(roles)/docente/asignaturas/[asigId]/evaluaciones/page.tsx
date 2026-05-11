@@ -215,7 +215,7 @@ export default async function DocenteEvaluacionesPage({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <article className="order-2 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 xl:order-2">
           <h2 className="text-base font-semibold text-text-primary dark:text-white">
             Nueva evaluación
           </h2>
@@ -329,7 +329,7 @@ export default async function DocenteEvaluacionesPage({
           </form>
         </article>
 
-        <article className="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <article className="order-1 rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 xl:order-1">
           <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
             <h2 className="text-base font-semibold text-text-primary dark:text-white">
               Historial de la sección

@@ -136,7 +136,11 @@ const DEFAULT_EVALUACIONES_REDIRECT = "/admin/evaluaciones";
 const sanitizeEvaluacionesRedirect = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed.startsWith("/")) return DEFAULT_EVALUACIONES_REDIRECT;
-  if (trimmed.startsWith("/admin/evaluaciones") || trimmed.startsWith("/docente/asignaturas/")) {
+  if (
+    trimmed.startsWith("/admin/evaluaciones") ||
+    trimmed.startsWith("/docente/asignaturas/") ||
+    trimmed.startsWith("/docente/pruebas")
+  ) {
     return trimmed;
   }
 

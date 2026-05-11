@@ -3,7 +3,11 @@ import Link from "next/link";
 import { ClipboardList, Eye, Plus, ShieldCheck } from "lucide-react";
 
 import { listarAsignaturasDocente } from "@/actions/docente";
-import { listarEvaluacionesByAsignatura } from "@/actions/evaluaciones";
+import {
+  despublicarEvaluacionFormAction,
+  listarEvaluacionesByAsignatura,
+  publicarEvaluacionFormAction,
+} from "@/actions/evaluaciones";
 import { normalizarTextoVisible } from "@/lib/displayText";
 
 export const metadata = {
@@ -134,16 +138,33 @@ export default async function DocentePruebasPage() {
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                            evaluacion.publicada
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                              : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                          }`}
-                        >
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                          {evaluacion.publicada ? "Habilitada" : "Deshabilitada"}
-                        </span>
+                        {evaluacion.publicada ? (
+                          <form action={despublicarEvaluacionFormAction}>
+                            <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                            <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                            <input type="hidden" name="redirectTo" value="/docente/pruebas" />
+                            <button
+                              type="submit"
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Deshabilitar
+                            </button>
+                          </form>
+                        ) : (
+                          <form action={publicarEvaluacionFormAction}>
+                            <input type="hidden" name="evaluacionId" value={evaluacion.id} />
+                            <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                            <input type="hidden" name="redirectTo" value="/docente/pruebas" />
+                            <button
+                              type="submit"
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Habilitar
+                            </button>
+                          </form>
+                        )}
                         <Link
                           href={`/docente/asignaturas/${asignatura.id}/evaluaciones?evaluacionId=${evaluacion.id}&tab=resultados`}
                           className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 text-text-secondary transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"

@@ -1,7 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 import {
   BarChart3,
+  Eye,
   ShieldCheck,
+  ShieldOff,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -9,6 +11,7 @@ import {
   agregarPreguntaFormAction,
   actualizarDestinatariosEvaluacionFormAction,
   calificarRespuestaEvaluacionFormAction,
+  cambiarEstadoEvaluacionesAsignaturaFormAction,
   crearEvaluacionFormAction,
   despublicarEvaluacionFormAction,
   editarEvaluacionFormAction,
@@ -48,6 +51,8 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   evaluacion_updated: { tone: "success", text: "Evaluación editada correctamente." },
   evaluacion_published: { tone: "success", text: "Prueba habilitada para alumnos." },
   evaluacion_unpublished: { tone: "success", text: "Prueba deshabilitada para alumnos." },
+  evaluaciones_enabled_all: { tone: "success", text: "Todas las pruebas de la asignatura quedaron habilitadas." },
+  evaluaciones_disabled_all: { tone: "success", text: "Todas las pruebas de la asignatura quedaron deshabilitadas." },
   already_published: { tone: "success", text: "La prueba ya estaba habilitada." },
   already_unpublished: { tone: "success", text: "La prueba ya estaba deshabilitada." },
   pregunta_created: { tone: "success", text: "Pregunta agregada correctamente." },
@@ -172,7 +177,8 @@ export default async function DocenteEvaluacionesPage({
   return (
     <section className="space-y-5">
       <RouteStateToast state={state} map={STATUS_MAP} />
-      <header>
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
         <p className="text-sm text-text-secondary dark:text-gray-400">
           {asig.nombre} · {asig.estado}
         </p>
@@ -182,6 +188,35 @@ export default async function DocenteEvaluacionesPage({
         <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
           Diseña instrumentos, organiza preguntas y sigue respuestas de tu sección.
         </p>
+        </div>
+        {evals.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+              <input type="hidden" name="asignaturaId" value={asigId} />
+              <input type="hidden" name="publicada" value="true" />
+              <input type="hidden" name="redirectTo" value={redirectBase} />
+              <button
+                type="submit"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300"
+              >
+                <Eye className="h-4 w-4" />
+                Habilitar todo
+              </button>
+            </form>
+            <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+              <input type="hidden" name="asignaturaId" value={asigId} />
+              <input type="hidden" name="publicada" value="false" />
+              <input type="hidden" name="redirectTo" value={redirectBase} />
+              <button
+                type="submit"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+              >
+                <ShieldOff className="h-4 w-4" />
+                Deshabilitar todo
+              </button>
+            </form>
+          </div>
+        ) : null}
       </header>
 
       <div className="grid gap-3 md:grid-cols-3">

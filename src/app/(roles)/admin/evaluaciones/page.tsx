@@ -268,7 +268,7 @@ export default async function AdminEvaluacionesPage({
   const selectedAsignaturaId =
     selectedAsignaturaIdRaw && UUID_REGEX.test(selectedAsignaturaIdRaw) && asignaturas.some((a) => a.id === selectedAsignaturaIdRaw)
       ? selectedAsignaturaIdRaw
-      : "";
+      : asignaturas[0]?.id ?? "";
 
   const selectedAsignatura =
     asignaturas.find((a) => a.id === selectedAsignaturaId) ?? null;
@@ -562,6 +562,7 @@ export default async function AdminEvaluacionesPage({
               ) : null}
               <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_170px_auto]">
                 <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
                 <input type="hidden" name="tab" value="evaluaciones" />
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

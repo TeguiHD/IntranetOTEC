@@ -242,7 +242,7 @@ export default async function AlumnoDashboardPage() {
       )}
 
       {/* Esta semana */}
-      {estaSemanaPendiente.length > 0 && (
+      {false && estaSemanaPendiente.length > 0 && (
         <section className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 dark:border-primary/30 dark:from-primary/10 dark:to-primary/5">
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-primary dark:text-primary-light">
             Esta semana
@@ -342,7 +342,7 @@ export default async function AlumnoDashboardPage() {
       </div>
 
       {/* Upcoming classes */}
-      {proximasClases.length > 0 && (
+      {false && proximasClases.length > 0 && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
           <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
             Próximas Clases
@@ -564,7 +564,7 @@ export default async function AlumnoDashboardPage() {
       )}
 
       {/* Empty state */}
-      {cursos.length === 0 && proximasClases.length === 0 && (
+      {cursos.length === 0 && (
         <article className="rounded-2xl border border-gray-200/80 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.2" className="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600">
             <path strokeLinecap="round" strokeLinejoin="round" stroke="currentColor" d="M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" />

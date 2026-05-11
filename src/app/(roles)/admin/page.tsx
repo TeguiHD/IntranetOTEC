@@ -1,17 +1,26 @@
 import Link from "next/link";
 
 import {
+  BarChart3,
   Bell,
   BookOpen,
   CalendarDays,
-  CheckCircle2,
+  CalendarRange,
+  ClipboardCheck,
+  ClipboardList,
+  Download,
+  FileCheck,
   FileText,
   IdCard,
+  LayoutDashboard,
   type LucideIcon,
-  Send,
+  Shield,
+  TrendingUp,
+  Upload,
+  UserCog,
+  Users,
   Wallet,
 } from "lucide-react";
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
 
 import {
   listarPeriodosDashboard,
@@ -19,14 +28,6 @@ import {
 } from "@/actions/admin-metricas";
 import { listarNotificacionesAdmin } from "@/actions/notificaciones";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
-import { getDb } from "@/db";
-import {
-  asignaturas,
-  certificados,
-  clases,
-  matriculas,
-  notificaciones,
-} from "@/db/schema";
 
 type KpiTile = {
   label: string;
@@ -34,89 +35,17 @@ type KpiTile = {
   href: string;
   hint?: string;
   Icon: LucideIcon;
-  tone: "neutral" | "amber" | "emerald" | "primary" | "danger";
+  tone: "emerald" | "danger";
 };
 
 const TILE_TONE: Record<KpiTile["tone"], string> = {
-  neutral: "border-gray-200/80 bg-white text-text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-white",
-  amber: "border-amber-200/80 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100",
   emerald: "border-emerald-200/80 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100",
-  primary: "border-primary/30 bg-primary/5 text-primary dark:border-primary/40 dark:bg-primary/10",
   danger: "border-red-200/80 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100",
 };
 
 type AdminDashboardPageProps = {
   searchParams?: Promise<{ periodoId?: string }>;
 };
-
-type KpisOperativos = {
-  clasesHoy: number;
-  matriculasMora: number;
-  matriculasPendientes: number;
-  certificadosUltimaSemana: number;
-  notificacionesUltimaSemana: number;
-};
-
-const toIso = (d: Date) => d.toISOString().slice(0, 10);
-
-async function obtenerKpisOperativosAdmin(periodoId: string | null): Promise<KpisOperativos> {
-  const db = getDb();
-  const today = new Date();
-  const todayIso = toIso(today);
-  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const periodoFilter = periodoId
-    ? eq(asignaturas.periodoId, periodoId)
-    : undefined;
-
-  const matriculasBaseFilters = and(
-    eq(matriculas.activa, true),
-    isNull(matriculas.eliminadoAt),
-    isNull(asignaturas.eliminadoAt),
-    periodoFilter,
-  );
-
-  const [clasesHoyRow, matMoraRow, matPendRow, certRow, notifRow] = await Promise.all([
-    db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(clases)
-      .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
-      .where(
-        and(
-          eq(clases.fecha, todayIso),
-          isNull(clases.eliminadoAt),
-          isNull(asignaturas.eliminadoAt),
-          periodoFilter,
-        ),
-      ),
-    db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(matriculas)
-      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
-      .where(and(matriculasBaseFilters, eq(matriculas.estadoPago, "mora"))),
-    db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(matriculas)
-      .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
-      .where(and(matriculasBaseFilters, eq(matriculas.estadoPago, "pendiente"))),
-    db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(certificados)
-      .where(gte(certificados.fechaEmision, sevenDaysAgo)),
-    db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(notificaciones)
-      .where(gte(notificaciones.createdAt, sevenDaysAgo)),
-  ]);
-
-  return {
-    clasesHoy: Number(clasesHoyRow[0]?.total ?? 0),
-    matriculasMora: Number(matMoraRow[0]?.total ?? 0),
-    matriculasPendientes: Number(matPendRow[0]?.total ?? 0),
-    certificadosUltimaSemana: Number(certRow[0]?.total ?? 0),
-    notificacionesUltimaSemana: Number(notifRow[0]?.total ?? 0),
-  };
-}
 
 const ESTADO_PERIODO_LABELS: Record<"planificado" | "activo" | "cerrado", string> = {
   planificado: "Planificado",
@@ -141,17 +70,50 @@ export const metadata = {
   title: "Dashboard",
 };
 
+type AccessItem = {
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+};
+
+const ADMIN_PANEL_ACCESS: AccessItem[] = [
+  { href: "/admin", label: "Panel", Icon: LayoutDashboard },
+  { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
+  { href: "/admin/academico", label: "Vista academica", Icon: BookOpen },
+  { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen },
+  { href: "/admin/cursos", label: "Cursos", Icon: BookOpen },
+  { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange },
+  { href: "/admin/clases", label: "Clases", Icon: CalendarDays },
+  { href: "/admin/materiales", label: "Materiales", Icon: Upload },
+  { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList },
+  { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck },
+  { href: "/admin/notas", label: "Notas", Icon: ClipboardList },
+  { href: "/admin/encuestas-builder", label: "Encuestas", Icon: FileText },
+  { href: "/admin/docentes", label: "Docentes", Icon: UserCog },
+  { href: "/admin/alumnos", label: "Alumnos", Icon: Users },
+  { href: "/admin/matriculas", label: "Matriculas", Icon: Wallet },
+  { href: "/admin/administradores", label: "Administradores", Icon: Shield },
+  { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell },
+  { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText },
+  { href: "/admin/beneficios-credenciales", label: "Beneficios y Credenciales", Icon: IdCard },
+  { href: "/admin/certificados", label: "Certificados", Icon: FileCheck },
+  { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload },
+  { href: "/admin/reportes", label: "Analitica", Icon: BarChart3 },
+  { href: "/admin/historial", label: "Historial", Icon: FileText },
+  { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp },
+  { href: "/instalar", label: "Instalar App", Icon: Download },
+];
+
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
   const params = await (searchParams ?? Promise.resolve({} as { periodoId?: string }));
   const periodoIdRaw = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
   const periodoSeleccionadoId =
     periodoIdRaw && periodoIdRaw.toLowerCase() !== "all" ? periodoIdRaw : null;
 
-  const [periodos, metricas, notificacionesRecientes, kpisOperativos] = await Promise.all([
+  const [periodos, metricas, notificacionesRecientes] = await Promise.all([
     listarPeriodosDashboard(),
     obtenerMetricasGlobales({ periodoId: periodoSeleccionadoId }),
     listarNotificacionesAdmin(),
-    obtenerKpisOperativosAdmin(periodoSeleccionadoId),
   ]);
 
   const periodoSeleccionado =
@@ -169,54 +131,6 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
       hint: "Bandeja administrativa por resolver",
       Icon: FileText,
       tone: (metricas?.solicitudesPendientes ?? 0) > 0 ? "danger" : "emerald",
-    },
-    {
-      label: "Clases hoy",
-      value: kpisOperativos.clasesHoy,
-      href: `/admin/agenda${periodoQuery}`,
-      hint: "Sesiones programadas para la fecha actual",
-      Icon: CalendarDays,
-      tone: "primary",
-    },
-    {
-      label: "Matrículas en mora",
-      value: kpisOperativos.matriculasMora,
-      href: "/admin/matriculas",
-      hint: "Requieren revisión financiera antes de operar",
-      Icon: Wallet,
-      tone: kpisOperativos.matriculasMora > 0 ? "danger" : "emerald",
-    },
-    {
-      label: "Pagos pendientes",
-      value: kpisOperativos.matriculasPendientes,
-      href: "/admin/matriculas",
-      hint: "Matrículas activas sin pago confirmado",
-      Icon: IdCard,
-      tone: kpisOperativos.matriculasPendientes > 0 ? "amber" : "emerald",
-    },
-    {
-      label: "Secciones activas",
-      value: metricas?.asignaturasActivas ?? 0,
-      href: `/admin/academico${periodoQuery}`,
-      hint: "Oferta vigente del periodo seleccionado",
-      Icon: BookOpen,
-      tone: "neutral",
-    },
-    {
-      label: "Certificados 7 días",
-      value: kpisOperativos.certificadosUltimaSemana,
-      href: "/admin/certificados",
-      hint: "Documentos emitidos recientemente",
-      Icon: CheckCircle2,
-      tone: "emerald",
-    },
-    {
-      label: "Envíos 7 días",
-      value: kpisOperativos.notificacionesUltimaSemana,
-      href: "/admin/notificaciones",
-      hint: "Comunicaciones creadas esta semana",
-      Icon: Send,
-      tone: "amber",
     },
   ];
 
@@ -293,21 +207,21 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-              Operación del periodo
+              Solicitudes pendientes
             </h2>
             <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-              Prioridades accionables para administración académica, pagos y documentos.
+              Bandeja principal para revisar solicitudes administrativas pendientes.
             </p>
           </div>
           <Link
-            href={`/admin/reportes${periodoQuery}`}
+            href="/admin/solicitudes"
             className="mt-2 inline-flex h-10 items-center justify-center rounded-xl border border-primary/25 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 dark:border-primary/40 dark:text-primary-light sm:mt-0"
           >
-            Ver analítica
+            Ir a solicitudes
           </Link>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3">
           {kpiTiles.map((tile) => (
             <Link
               key={tile.label}
@@ -328,6 +242,34 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
                   {tile.hint}
                 </p>
               ) : null}
+            </Link>
+          ))}
+        </div>
+      </article>
+
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <div>
+          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+            Accesos del panel
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+            Los mismos puntos del menu lateral, disponibles en el panel principal para PC y PWA.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          {ADMIN_PANEL_ACCESS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href === "/admin/reportes" && periodoQuery ? `${item.href}${periodoQuery}` : item.href}
+              className="group flex min-h-16 items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-md dark:border-gray-800 dark:bg-gray-950/30 dark:text-white dark:hover:border-primary/50 dark:hover:bg-primary/10 dark:hover:text-primary-light"
+            >
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-white dark:bg-primary/20 dark:text-primary-light">
+                <item.Icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 text-sm font-semibold leading-tight">
+                {item.label}
+              </span>
             </Link>
           ))}
         </div>

@@ -10,7 +10,7 @@ type SessionActivityGuardProps = {
   role: AppRole;
 };
 
-const ALUMNO_INACTIVITY_MS = 30 * 60 * 1000;
+const ALUMNO_INACTIVITY_MS = 12 * 60 * 60 * 1000;
 
 export function SessionActivityGuard({ role }: SessionActivityGuardProps) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -239,6 +239,8 @@ const denyAndAudit = async (
   return null;
 };
 
+const SESSION_MAX_AGE_SECONDS = 90 * 24 * 60 * 60;
+
 const nextAuth = NextAuth({
   pages: {
     signIn: "/login",
@@ -246,8 +248,8 @@ const nextAuth = NextAuth({
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // Staff stays signed in; alumnos are limited by client inactivity.
-    updateAge: 15 * 60, // 15 mins
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    updateAge: 60 * 60,
   },
   cookies: {
     sessionToken: {
@@ -257,6 +259,7 @@ const nextAuth = NextAuth({
         sameSite: "strict",
         path: "/",
         secure: isProd,
+        maxAge: SESSION_MAX_AGE_SECONDS,
       },
     },
   },

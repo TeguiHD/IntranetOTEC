@@ -171,23 +171,32 @@ export default async function AdminMaterialesPage({
               Punto general para revisar, habilitar o deshabilitar material. El cambio se refleja en docente y alumno.
             </p>
           </div>
-          <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,260px)_auto]">
-            <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-            <input
-              name="materialQ"
-              defaultValue={materialQ}
-              placeholder="Buscar archivo, curso o docente"
-              className="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-              inputMode="search"
-            />
-            <button
-              type="submit"
-              className="h-10 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+          <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,360px)] lg:items-center">
+            <a
+              href="#subir-material"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
             >
-              Buscar
-            </button>
-          </form>
+              <Upload className="h-4 w-4" />
+              Crear material
+            </a>
+            <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input
+                name="materialQ"
+                defaultValue={materialQ}
+                placeholder="Buscar archivo, curso o docente"
+                className="h-11 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                inputMode="search"
+              />
+              <button
+                type="submit"
+                className="h-11 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+              >
+                Buscar
+              </button>
+            </form>
+          </div>
         </div>
 
         {materialesResumen.length === 0 ? (
@@ -198,7 +207,89 @@ export default async function AdminMaterialesPage({
             </p>
           </div>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          <>
+          <div className="mt-4 grid gap-3 lg:hidden">
+            {materialesResumen.map((item) => {
+              const docente = [item.docenteNombre, item.docenteApellido]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+              const sectionHref = `/admin/materiales?${new URLSearchParams({
+                periodoId: selectedPeriodoId,
+                asignaturaId: item.asignaturaId,
+                ...(materialQ ? { materialQ } : {}),
+              }).toString()}`;
+
+              return (
+                <article key={item.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-semibold text-text-primary dark:text-white">
+                      {normalizarTextoVisible(item.nombre)}
+                    </p>
+                    <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      item.habilitado
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    }`}>
+                      {item.habilitado ? "Visible para alumnos" : "Oculto para alumnos"}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid gap-2 text-xs text-text-secondary dark:text-gray-400">
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide">Curso / seccion</dt>
+                      <dd className="mt-1 text-sm text-text-primary dark:text-white">
+                        {normalizarTextoVisible(item.cursoNombre) || "Sin curso"} - {normalizarTextoVisible(item.asignaturaNombre)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide">Docente</dt>
+                      <dd className="mt-1">{normalizarTextoVisible(docente) || "Sin docente"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide">Clase</dt>
+                      <dd className="mt-1">Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Subido {item.createdAt ? item.createdAt.toLocaleDateString("es-CL") : "-"}</span>
+                      <span>{formatBytes(item.tamanioBytes)}</span>
+                    </div>
+                  </dl>
+                  <div className="mt-4 grid gap-2">
+                    <a
+                      href={`/api/files/download/${item.id}`}
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                    >
+                      Abrir PDF
+                    </a>
+                    <Link
+                      href={sectionHref}
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                    >
+                      Abrir seccion
+                    </Link>
+                    <form action={cambiarEstadoMaterialAdminFormAction}>
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="asignaturaId" value={item.asignaturaId} />
+                      <input type="hidden" name="materialId" value={item.id} />
+                      <input type="hidden" name="habilitado" value={item.habilitado ? "false" : "true"} />
+                      <button
+                        type="submit"
+                        className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                          item.habilitado
+                            ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                            : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                        }`}
+                      >
+                        {item.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {item.habilitado ? "Deshabilitar" : "Habilitar"}
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="mt-4 hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 lg:block">
             <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
               <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-text-secondary dark:bg-gray-800/70 dark:text-gray-400">
                 <tr>
@@ -296,11 +387,12 @@ export default async function AdminMaterialesPage({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </article>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
-        <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <article id="subir-material" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center gap-2">
             <Upload className="h-5 w-5 text-primary" />
             <h2 className="text-base font-semibold text-text-primary dark:text-white">

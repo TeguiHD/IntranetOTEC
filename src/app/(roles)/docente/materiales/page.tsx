@@ -139,9 +139,18 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                   Vista general igual al panel admin: curso, clase, archivo y acciones directas.
                 </p>
               </div>
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
-                {totalMateriales} archivo{totalMateriales === 1 ? "" : "s"}
-              </span>
+              <div className="flex flex-col gap-2 sm:items-end">
+                <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                  {totalMateriales} archivo{totalMateriales === 1 ? "" : "s"}
+                </span>
+                <a
+                  href="#subir-material-docente"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                >
+                  <Upload className="h-4 w-4" />
+                  Crear material
+                </a>
+              </div>
             </div>
 
             {materialesGlobal.length === 0 ? (
@@ -152,7 +161,107 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                 </p>
               </div>
             ) : (
-              <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <>
+              <div className="mt-4 grid gap-3 lg:hidden">
+                {materialesGlobal.map(({ asignatura, material }) => (
+                  <article key={material.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-semibold text-text-primary dark:text-white">
+                        {normalizarTextoVisible(material.nombre)}
+                      </p>
+                      <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        material.habilitado
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}>
+                        {material.habilitado ? "Visible para alumnos" : "Oculto para alumnos"}
+                      </span>
+                    </div>
+                    <dl className="mt-3 grid gap-2 text-xs text-text-secondary dark:text-gray-400">
+                      <div>
+                        <dt className="font-semibold uppercase tracking-wide">Curso</dt>
+                        <dd className="mt-1 text-sm text-text-primary dark:text-white">
+                          {normalizarTextoVisible(asignatura.nombre)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-semibold uppercase tracking-wide">Clase</dt>
+                        <dd className="mt-1">Sesion {material.claseNumeroSesion}: {normalizarTextoVisible(material.claseTitulo)}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{asignatura.codigo ?? "Sin codigo"}</span>
+                        <span>{formatBytes(material.tamanioBytes)}</span>
+                      </div>
+                    </dl>
+                    <details className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                      <summary className="cursor-pointer text-xs font-semibold text-text-primary dark:text-white">
+                        Modificar titulo
+                      </summary>
+                      <form action={editarMaterialFormAction} className="mt-3 grid gap-2">
+                        <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                        <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                        <input type="hidden" name="materialId" value={material.id} />
+                        <input
+                          name="nombre"
+                          defaultValue={normalizarTextoVisible(material.nombre)}
+                          minLength={3}
+                          required
+                          className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                        <button
+                          type="submit"
+                          className="min-h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                        >
+                          Guardar
+                        </button>
+                      </form>
+                    </details>
+                    <div className="mt-4 grid gap-2">
+                      <a
+                        href={`/api/files/download/${material.id}`}
+                        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
+                      >
+                        Abrir PDF
+                      </a>
+                      <Link
+                        href={`/docente/materiales?asignaturaId=${asignatura.id}`}
+                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                      >
+                        Abrir curso
+                      </Link>
+                      <form action={cambiarEstadoMaterialFormAction}>
+                        <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                        <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                        <input type="hidden" name="materialId" value={material.id} />
+                        <input type="hidden" name="habilitado" value={material.habilitado ? "false" : "true"} />
+                        <button
+                          type="submit"
+                          className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                            material.habilitado
+                              ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                              : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                          }`}
+                        >
+                          {material.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {material.habilitado ? "Deshabilitar" : "Habilitar"}
+                        </button>
+                      </form>
+                      <form action={eliminarMaterialFormAction}>
+                        <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                        <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                        <input type="hidden" name="materialId" value={material.id} />
+                        <button
+                          type="submit"
+                          className="min-h-11 w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
+                        >
+                          Eliminar
+                        </button>
+                      </form>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="mt-4 hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 lg:block">
                 <table className="min-w-full divide-y divide-gray-100 text-sm dark:divide-gray-800">
                   <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-text-secondary dark:bg-gray-800/70 dark:text-gray-400">
                     <tr>
@@ -264,6 +373,7 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </article>
 
@@ -296,7 +406,7 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
           </form>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-            <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <article id="subir-material-docente" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-text-primary dark:text-white">

@@ -3,16 +3,19 @@ import { IdCard } from "lucide-react";
 import { obtenerAccesoDocumentosAlumnoActual } from "@/actions/accesos-documentos";
 import {
   listarSolicitudesDocumentosAlumno,
+  obtenerPerfilAlumnoActual,
   solicitarDocumentoAlumnoFormAction,
 } from "@/actions/solicitudes-documentos";
+import { CredencialAlumno } from "@/components/solicitudes/CredencialAlumno";
 import { HistorialSolicitudes } from "@/components/solicitudes/HistorialSolicitudes";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
-  request_created: { tone: "success", text: "Solicitud de credencial enviada. Revisión en 48 horas hábiles." },
+  request_created: { tone: "success", text: "Solicitud de credencial enviada. Revision en 48 horas habiles." },
+  request_auto_approved: { tone: "success", text: "Credencial aprobada correctamente." },
   already_pending: { tone: "error", text: "Ya tienes una solicitud de credencial pendiente." },
-  invalid_input: { tone: "error", text: "Datos inválidos." },
-  access_disabled: { tone: "error", text: "La credencial no está habilitada para tu usuario o curso." },
+  invalid_input: { tone: "error", text: "Datos invalidos." },
+  access_disabled: { tone: "error", text: "La credencial no esta habilitada para tu usuario o curso." },
   forbidden: { tone: "error", text: "No autorizado." },
   error: { tone: "error", text: "No fue posible registrar la solicitud." },
 };
@@ -23,11 +26,18 @@ export const metadata = { title: "Solicitud de Credencial" };
 
 export default async function SolicitudCredencialPage({ searchParams }: Props) {
   const params = await (searchParams ?? Promise.resolve({} as { state?: string }));
-  const [solicitudes, accesos] = await Promise.all([
+  const [solicitudes, accesos, perfil] = await Promise.all([
     listarSolicitudesDocumentosAlumno(),
     obtenerAccesoDocumentosAlumnoActual(),
+    obtenerPerfilAlumnoActual(),
   ]);
   const credencialHabilitada = accesos?.credencialHabilitada ?? true;
+  const credencialAprobada = solicitudes.find(
+    (solicitud) => solicitud.tipo === "credencial" && solicitud.estado === "aprobada",
+  );
+  const credencialPendiente = solicitudes.some(
+    (solicitud) => solicitud.tipo === "credencial" && solicitud.estado === "pendiente",
+  );
 
   return (
     <section className="space-y-5">
@@ -42,27 +52,55 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
             Credencial de Alumno
           </h1>
           <p className="text-sm text-text-secondary dark:text-gray-400">
-            Solicita tu credencial de identificación institucional.
+            Solicita y visualiza tu credencial de identificacion institucional.
           </p>
         </div>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
+          {credencialAprobada && perfil ? (
+            <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-text-primary dark:text-white">
+                  Credencial Aprobada
+                </h2>
+                <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+                  Tu credencial ya esta disponible. Puedes imprimirla o guardarla como PDF.
+                </p>
+              </div>
+              <CredencialAlumno
+                nombre={perfil.nombre}
+                apellido={perfil.apellido}
+                rut={perfil.rut}
+                solicitudId={credencialAprobada.id}
+                aprobadaAt={credencialAprobada.resueltoAt ?? credencialAprobada.createdAt}
+              />
+            </article>
+          ) : null}
+
           <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <h2 className="text-base font-semibold text-text-primary dark:text-white">
               Nueva Solicitud
             </h2>
-            {credencialHabilitada ? (
+            {credencialAprobada ? (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-900/20 dark:text-emerald-200">
+                Ya tienes una credencial aprobada. Si necesitas una actualizacion, contacta a administracion.
+              </div>
+            ) : credencialPendiente ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/70 dark:bg-amber-900/20 dark:text-amber-200">
+                Tienes una solicitud pendiente. Cuando administracion la apruebe, la credencial aparecera en esta misma pantalla.
+              </div>
+            ) : credencialHabilitada ? (
               <>
                 <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-                  Solo puedes tener una solicitud pendiente por tipo. El administrador la revisará en 48 horas hábiles.
+                  Solo puedes tener una solicitud pendiente por tipo. El administrador la revisara en 48 horas habiles.
                 </p>
                 <form action={solicitarDocumentoAlumnoFormAction} className="mt-4 space-y-4">
                   <input type="hidden" name="tipo" value="credencial" />
                   <div className="space-y-1.5">
                     <label htmlFor="obs-credencial" className="text-sm font-medium text-text-primary dark:text-gray-200">
-                      Observación <span className="text-text-muted dark:text-gray-500">(opcional)</span>
+                      Observacion <span className="text-text-muted dark:text-gray-500">(opcional)</span>
                     </label>
                     <textarea
                       id="obs-credencial"
@@ -83,7 +121,7 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
               </>
             ) : (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/70 dark:bg-amber-900/20 dark:text-amber-200">
-                La solicitud de credencial no está habilitada para tu usuario o curso. Contacta a administración si necesitas activarla.
+                La solicitud de credencial no esta habilitada para tu usuario o curso. Contacta a administracion si necesitas activarla.
               </div>
             )}
           </article>

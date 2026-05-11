@@ -679,6 +679,9 @@ export async function resolverSolicitudAdminFormAction(formData: FormData): Prom
 
   revalidatePath("/admin/solicitudes");
   revalidatePath("/alumno/solicitudes", "layout");
+  revalidatePath("/alumno/solicitudes/credencial");
+  revalidatePath("/alumno/solicitudes/tarjeta-beneficio");
+  revalidatePath("/alumno");
   redirect(`/admin/solicitudes?state=${result.code}`);
 }
 

@@ -66,7 +66,7 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
                   Credencial Aprobada
                 </h2>
                 <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-                  Tu credencial ya esta disponible. Puedes imprimirla o guardarla como PDF.
+                  Tu credencial ya esta disponible para visualizarla en pantalla.
                 </p>
               </div>
               <CredencialAlumno

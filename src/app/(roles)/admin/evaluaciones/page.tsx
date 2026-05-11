@@ -533,7 +533,7 @@ export default async function AdminEvaluacionesPage({
               {selectedAsignaturaId ? (
                 <div className="grid gap-2 sm:grid-cols-2">
                   <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
-                    <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                    <input type="hidden" name="scope" value="periodo" />
                     <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                     <input type="hidden" name="publicada" value="true" />
                     <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
@@ -546,7 +546,7 @@ export default async function AdminEvaluacionesPage({
                     </button>
                   </form>
                   <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
-                    <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                    <input type="hidden" name="scope" value="periodo" />
                     <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                     <input type="hidden" name="publicada" value="false" />
                     <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />

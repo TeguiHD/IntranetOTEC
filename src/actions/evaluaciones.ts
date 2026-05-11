@@ -2752,7 +2752,8 @@ export async function despublicarEvaluacionFormAction(formData: FormData): Promi
 }
 
 export async function cambiarEstadoEvaluacionesAsignaturaAction(input: {
-  asignaturaId: string;
+  asignaturaId?: string;
+  periodoId?: string;
   publicada: boolean;
 }): Promise<MutationResult> {
   const actorResult = await requireActionCapability(
@@ -2760,23 +2761,46 @@ export async function cambiarEstadoEvaluacionesAsignaturaAction(input: {
     "evaluaciones.publish",
   );
   if (!actorResult.ok) return actorResult.result;
-  if (!input.asignaturaId) return { ok: false, code: "invalid_input", message: "Asignatura requerida." };
+  if (!input.asignaturaId && !input.periodoId) {
+    return { ok: false, code: "invalid_input", message: "Asignatura o periodo requerido." };
+  }
 
   const db = getDb();
 
   try {
-    const asignatura = await getAsignaturaAccessRow(input.asignaturaId);
-    if (!asignatura) {
-      return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
+    let asignaturaIds: string[] = [];
+
+    if (input.periodoId && actorResult.actor.userRol === "admin" && !input.asignaturaId) {
+      const periodoAsignaturas = await db
+        .select({ id: asignaturas.id })
+        .from(asignaturas)
+        .where(and(eq(asignaturas.periodoId, input.periodoId), isNull(asignaturas.eliminadoAt)));
+
+      asignaturaIds = periodoAsignaturas.map((asignatura) => asignatura.id);
+    } else if (input.asignaturaId) {
+      const asignatura = await getAsignaturaAccessRow(input.asignaturaId);
+      if (!asignatura) {
+        return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
+      }
+      if (!actorCanManageAsignatura(actorResult.actor, asignatura)) {
+        return forbiddenMutationResult("No tienes permiso para cambiar las pruebas de esta asignatura.");
+      }
+      asignaturaIds = [input.asignaturaId];
+    } else {
+      return forbiddenMutationResult("No tienes permiso para cambiar las pruebas de este periodo.");
     }
-    if (!actorCanManageAsignatura(actorResult.actor, asignatura)) {
-      return forbiddenMutationResult("No tienes permiso para cambiar las pruebas de esta asignatura.");
+
+    if (asignaturaIds.length === 0) {
+      return {
+        ok: true,
+        code: input.publicada ? "evaluaciones_enabled_all" : "evaluaciones_disabled_all",
+      };
     }
 
     const affectedRows = await db
       .update(evaluaciones)
       .set({ publicada: input.publicada })
-      .where(and(eq(evaluaciones.asignaturaId, input.asignaturaId), isNull(evaluaciones.eliminadoAt)))
+      .where(and(inArray(evaluaciones.asignaturaId, asignaturaIds), isNull(evaluaciones.eliminadoAt)))
       .returning({ id: evaluaciones.id });
 
     await registrarAudit({
@@ -2785,10 +2809,14 @@ export async function cambiarEstadoEvaluacionesAsignaturaAction(input: {
       userRol: actorResult.actor.userRol,
       accion: "editar",
       entidad: "evaluaciones",
-      entidadId: input.asignaturaId,
+      entidadId: input.asignaturaId ?? input.periodoId ?? "sin_scope",
       payload: {
         modo: "publicacion_masiva",
+        scope: input.asignaturaId ? "asignatura" : "periodo",
+        periodoId: input.periodoId ?? null,
+        asignaturaId: input.asignaturaId ?? null,
         publicada: input.publicada,
+        totalAsignaturas: asignaturaIds.length,
         totalEvaluaciones: affectedRows.length,
       },
       exitoso: true,
@@ -2817,11 +2845,16 @@ export async function cambiarEstadoEvaluacionesAsignaturaAction(input: {
 }
 
 export async function cambiarEstadoEvaluacionesAsignaturaFormAction(formData: FormData): Promise<void> {
-  const asignaturaId = getStringField(formData, "asignaturaId");
+  const asignaturaId = getStringField(formData, "asignaturaId").trim();
   const periodoId = getStringField(formData, "periodoId").trim();
   const redirectTo = getStringField(formData, "redirectTo");
   const publicada = getStringField(formData, "publicada") === "true";
-  const result = await cambiarEstadoEvaluacionesAsignaturaAction({ asignaturaId, publicada });
+  const scope = getStringField(formData, "scope");
+  const result = await cambiarEstadoEvaluacionesAsignaturaAction({
+    asignaturaId: scope === "periodo" ? undefined : asignaturaId,
+    periodoId: periodoId || undefined,
+    publicada,
+  });
 
   revalidatePath("/admin/evaluaciones");
   revalidatePath("/docente/pruebas");
@@ -2832,7 +2865,7 @@ export async function cambiarEstadoEvaluacionesAsignaturaFormAction(formData: Fo
     redirectTo,
     state: result.ok ? result.code : "error",
     periodoId: periodoId || undefined,
-    asignaturaId: asignaturaId || undefined,
+    asignaturaId: scope === "periodo" ? undefined : asignaturaId || undefined,
   });
 }
 

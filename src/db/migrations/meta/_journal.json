@@ -190,6 +190,13 @@
       "when": 1778348400000,
       "tag": "0026_pruebas_destinatarios_calendario_docente",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1778434800000,
+      "tag": "0027_material_habilitado",
+      "breakpoints": true
     }
   ]
 }

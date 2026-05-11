@@ -98,6 +98,7 @@ export async function GET(
       storagePath: material.storagePath,
       tamanioBytes: material.tamanioBytes,
       subidoPor: material.subidoPor,
+      habilitado: material.habilitado,
       docenteId: asignaturas.docenteId,
       asignaturaId: clases.asignaturaId,
     })
@@ -126,6 +127,17 @@ export async function GET(
   } else if (authContext.userRol === "docente") {
     allowed = record.docenteId === authContext.userId;
   } else if (authContext.userRol === "alumno") {
+    if (!record.habilitado) {
+      return finalize(
+        NextResponse.json({ error: "material_disabled" }, { status: 404 }),
+        "denied",
+        "files_material_disabled",
+        { materialId },
+        authContext.userRol,
+        authContext.userId,
+      );
+    }
+
     // Check enrollment
     const [enrollment] = await db
       .select({ id: matriculas.id })

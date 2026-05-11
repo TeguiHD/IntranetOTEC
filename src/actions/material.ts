@@ -140,6 +140,7 @@ export type MaterialItem = {
   claseId: string;
   claseTitulo: string;
   claseNumeroSesion: number;
+  habilitado: boolean;
 };
 
 export type MaterialAdminResumenItem = MaterialItem & {
@@ -174,6 +175,7 @@ export async function listarMaterialPorAsignatura(
       claseId: material.claseId,
       claseTitulo: clases.titulo,
       claseNumeroSesion: clases.numeroSesion,
+      habilitado: material.habilitado,
     })
     .from(material)
     .innerJoin(clases, eq(material.claseId, clases.id))
@@ -181,6 +183,7 @@ export async function listarMaterialPorAsignatura(
       and(
         eq(clases.asignaturaId, asignaturaId),
         isNull(material.eliminadoAt),
+        actorResult.actor.userRol === "alumno" ? eq(material.habilitado, true) : undefined,
         isNull(clases.eliminadoAt),
       ),
     )
@@ -240,6 +243,7 @@ export async function listarMaterialAdminResumen(options?: {
       claseId: material.claseId,
       claseTitulo: clases.titulo,
       claseNumeroSesion: clases.numeroSesion,
+      habilitado: material.habilitado,
       asignaturaId: asignaturas.id,
       asignaturaNombre: asignaturas.nombre,
       asignaturaCodigo: asignaturas.codigo,
@@ -515,6 +519,65 @@ export async function editarMaterialAction(
   return { ok: true, code: "material_updated" };
 }
 
+export async function cambiarEstadoMaterialAction(
+  formData: FormData,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("material_cambiar_estado", [
+    "docente",
+    "admin",
+  ]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const materialId = formData.get("materialId") as string | null;
+  const habilitadoRaw = formData.get("habilitado") as string | null;
+  const habilitado = habilitadoRaw === "true";
+
+  if (!materialId || (habilitadoRaw !== "true" && habilitadoRaw !== "false")) {
+    return { ok: false, code: "invalid_input", message: "Falta ID del material o estado." };
+  }
+
+  const db = getDb();
+
+  const [record] = await db
+    .select({
+      id: material.id,
+      docenteId: asignaturas.docenteId,
+    })
+    .from(material)
+    .innerJoin(clases, eq(material.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(and(eq(material.id, materialId), isNull(material.eliminadoAt)))
+    .limit(1);
+
+  if (!record) {
+    return { ok: false, code: "not_found", message: "Material no encontrado." };
+  }
+
+  if (
+    actorResult.actor.userRol === "docente" &&
+    record.docenteId !== actorResult.actor.userId
+  ) {
+    return { ok: false, code: "forbidden", message: "No eres docente de esta asignatura." };
+  }
+
+  await db
+    .update(material)
+    .set({ habilitado })
+    .where(eq(material.id, materialId));
+
+  revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/materiales");
+  revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/materiales");
+  revalidatePath("/admin/materiales");
+
+  return {
+    ok: true,
+    code: habilitado ? "material_enabled" : "material_disabled",
+  };
+}
+
 /**
  * Verifica si un alumno puede acceder a un material
  * (está matriculado en la asignatura que contiene esa clase)
@@ -538,7 +601,7 @@ export async function alumnoTieneAccesoAMaterial(
         isNull(matriculas.eliminadoAt),
       ),
     )
-    .where(and(eq(material.id, materialId), isNull(material.eliminadoAt)))
+    .where(and(eq(material.id, materialId), eq(material.habilitado, true), isNull(material.eliminadoAt)))
     .limit(1);
 
   return Boolean(row);
@@ -570,6 +633,17 @@ export async function editarMaterialFormAction(formData: FormData): Promise<void
   const asignaturaId = formData.get("asignaturaId") as string | null;
   const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
   const result = await editarMaterialAction(formData);
+  const [pathname, search = ""] = redirectTo.split("?");
+  const query = new URLSearchParams(search);
+  query.set("state", result.code);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+  redirect(`${pathname}?${query.toString()}`);
+}
+
+export async function cambiarEstadoMaterialFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
+  const result = await cambiarEstadoMaterialAction(formData);
   const [pathname, search = ""] = redirectTo.split("?");
   const query = new URLSearchParams(search);
   query.set("state", result.code);
@@ -609,6 +683,20 @@ export async function editarMaterialAdminFormAction(formData: FormData): Promise
   const periodoId = formData.get("periodoId") as string | null;
   const asignaturaId = formData.get("asignaturaId") as string | null;
   const result = await editarMaterialAction(formData);
+  const query = new URLSearchParams({
+    state: result.code,
+  });
+
+  if (periodoId) query.set("periodoId", periodoId);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+
+  redirect(`/admin/materiales?${query.toString()}`);
+}
+
+export async function cambiarEstadoMaterialAdminFormAction(formData: FormData): Promise<void> {
+  const periodoId = formData.get("periodoId") as string | null;
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const result = await cambiarEstadoMaterialAction(formData);
   const query = new URLSearchParams({
     state: result.code,
   });

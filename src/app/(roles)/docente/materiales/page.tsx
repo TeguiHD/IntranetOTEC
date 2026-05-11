@@ -1,9 +1,10 @@
 import Link from "next/link";
 
-import { BookOpen, ClipboardList, FileText, Trash2, Upload } from "lucide-react";
+import { BookOpen, ClipboardList, Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
 
 import { listarAsignaturasDocente, listarClasesDocente } from "@/actions/docente";
 import {
+  cambiarEstadoMaterialFormAction,
   editarMaterialFormAction,
   eliminarMaterialFormAction,
   listarMaterialPorAsignatura,
@@ -20,6 +21,8 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   material_uploaded: { tone: "success", text: "Material subido correctamente y visible para alumnos." },
   material_updated: { tone: "success", text: "Material actualizado correctamente." },
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
+  material_enabled: { tone: "success", text: "Material habilitado y visible para alumnos." },
+  material_disabled: { tone: "success", text: "Material deshabilitado y oculto para alumnos." },
   duplicate: { tone: "error", text: "Ese archivo ya fue subido a esta clase." },
   invalid_input: { tone: "error", text: "Faltan datos para subir el material." },
   file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
@@ -167,6 +170,13 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                           <p className="font-semibold text-text-primary dark:text-white">
                             {normalizarTextoVisible(material.nombre)}
                           </p>
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            material.habilitado
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                              : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}>
+                            {material.habilitado ? "Visible para alumnos" : "Oculto para alumnos"}
+                          </span>
                           <details className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
                             <summary className="cursor-pointer text-xs font-semibold text-text-primary dark:text-white">
                               Modificar titulo
@@ -219,6 +229,23 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                             >
                               Abrir curso
                             </Link>
+                            <form action={cambiarEstadoMaterialFormAction}>
+                              <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                              <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                              <input type="hidden" name="materialId" value={material.id} />
+                              <input type="hidden" name="habilitado" value={material.habilitado ? "false" : "true"} />
+                              <button
+                                type="submit"
+                                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                                  material.habilitado
+                                    ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                                    : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                                }`}
+                              >
+                                {material.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                {material.habilitado ? "Deshabilitar" : "Habilitar"}
+                              </button>
+                            </form>
                             <form action={eliminarMaterialFormAction}>
                               <input type="hidden" name="asignaturaId" value={asignatura.id} />
                               <input type="hidden" name="redirectTo" value="/docente/materiales" />
@@ -304,6 +331,13 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                           <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
                             {normalizarTextoVisible(item.nombre)}
                           </p>
+                          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            item.habilitado
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                              : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                          }`}>
+                            {item.habilitado ? "Visible para alumnos" : "Oculto para alumnos"}
+                          </span>
                           <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
                             {normalizarTextoVisible(selectedAsignatura?.nombre)} - Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)} - {formatBytes(item.tamanioBytes)}
                           </p>
@@ -325,6 +359,23 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                             >
                               <Trash2 className="h-4 w-4" />
                               Eliminar
+                            </button>
+                          </form>
+                          <form action={cambiarEstadoMaterialFormAction}>
+                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                            <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                            <input type="hidden" name="materialId" value={item.id} />
+                            <input type="hidden" name="habilitado" value={item.habilitado ? "false" : "true"} />
+                            <button
+                              type="submit"
+                              className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                                item.habilitado
+                                  ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                                  : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                              }`}
+                            >
+                              {item.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              {item.habilitado ? "Deshabilitar" : "Habilitar"}
                             </button>
                           </form>
                         </div>

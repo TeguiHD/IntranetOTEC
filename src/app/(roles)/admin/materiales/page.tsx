@@ -1,11 +1,12 @@
 import Link from "next/link";
 
-import { FileText, Trash2, Upload } from "lucide-react";
+import { Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { listarClasesAdmin } from "@/actions/clases";
 import {
+  cambiarEstadoMaterialAdminFormAction,
   editarMaterialAdminFormAction,
   eliminarMaterialAdminFormAction,
   listarMaterialAdminResumen,
@@ -23,6 +24,8 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string; desc
   },
   material_updated: { tone: "success", text: "Material actualizado correctamente." },
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
+  material_enabled: { tone: "success", text: "Material habilitado y visible para alumnos." },
+  material_disabled: { tone: "success", text: "Material deshabilitado y oculto para alumnos." },
   duplicate: { tone: "error", text: "Ese archivo ya fue subido a la clase seleccionada." },
   invalid_input: { tone: "error", text: "Faltan datos para subir el material." },
   file_too_large: { tone: "error", text: "El archivo excede el maximo permitido de 50 MB." },
@@ -225,6 +228,13 @@ export default async function AdminMaterialesPage({
                         <p className="font-semibold text-text-primary dark:text-white">
                           {normalizarTextoVisible(item.nombre)}
                         </p>
+                        <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          item.habilitado
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        }`}>
+                          {item.habilitado ? "Visible para alumnos" : "Oculto para alumnos"}
+                        </span>
                         <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
                           Subido {item.createdAt ? item.createdAt.toLocaleDateString("es-CL") : "-"}
                         </p>
@@ -261,6 +271,23 @@ export default async function AdminMaterialesPage({
                           >
                             Abrir seccion
                           </Link>
+                          <form action={cambiarEstadoMaterialAdminFormAction}>
+                            <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                            <input type="hidden" name="asignaturaId" value={item.asignaturaId} />
+                            <input type="hidden" name="materialId" value={item.id} />
+                            <input type="hidden" name="habilitado" value={item.habilitado ? "false" : "true"} />
+                            <button
+                              type="submit"
+                              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                                item.habilitado
+                                  ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                                  : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                              }`}
+                            >
+                              {item.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              {item.habilitado ? "Deshabilitar" : "Habilitar"}
+                            </button>
+                          </form>
                         </div>
                       </td>
                     </tr>
@@ -356,6 +383,13 @@ export default async function AdminMaterialesPage({
                     <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
                       {normalizarTextoVisible(item.nombre)}
                     </p>
+                    <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      item.habilitado
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    }`}>
+                      {item.habilitado ? "Visible para alumnos" : "Oculto para alumnos"}
+                    </span>
                     <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
                       {normalizarTextoVisible(selectedAsignatura?.nombre)} - Sesion {item.claseNumeroSesion}: {normalizarTextoVisible(item.claseTitulo)} - {formatBytes(item.tamanioBytes)}
                     </p>
@@ -400,6 +434,23 @@ export default async function AdminMaterialesPage({
                       >
                         <Trash2 className="h-4 w-4" />
                         Eliminar
+                      </button>
+                    </form>
+                    <form action={cambiarEstadoMaterialAdminFormAction}>
+                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                      <input type="hidden" name="materialId" value={item.id} />
+                      <input type="hidden" name="habilitado" value={item.habilitado ? "false" : "true"} />
+                      <button
+                        type="submit"
+                        className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                          item.habilitado
+                            ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                            : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                        }`}
+                      >
+                        {item.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {item.habilitado ? "Deshabilitar" : "Habilitar"}
                       </button>
                     </form>
                   </div>

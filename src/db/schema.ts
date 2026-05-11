@@ -284,6 +284,7 @@ export const material = pgTable(
     hashMd5: text("hash_md5").notNull(),
     tamanioBytes: integer("tamanio_bytes"),
     subidoPor: uuid("subido_por").references(() => usuarios.id),
+    habilitado: boolean("habilitado").default(true).notNull(),
     eliminadoAt: tstz("eliminado_at"),
     eliminadoPor: uuid("eliminado_por"),
     createdAt: tstz("created_at").defaultNow(),
@@ -292,7 +293,7 @@ export const material = pgTable(
     storagePathIdx: index("material_storage_path_idx").on(t.storagePath),
     activoIdx: index("material_activo_idx")
       .on(t.claseId)
-      .where(sql`${t.eliminadoAt} IS NULL`),
+      .where(sql`${t.eliminadoAt} IS NULL AND ${t.habilitado} = true`),
     hashIdx: index("material_hash_idx").on(t.hashMd5),
   }),
 );

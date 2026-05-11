@@ -7,6 +7,7 @@ import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import { listarClasesAdmin } from "@/actions/clases";
 import {
   cambiarEstadoMaterialAdminFormAction,
+  cambiarEstadoMaterialesAdminFormAction,
   editarMaterialAdminFormAction,
   eliminarMaterialAdminFormAction,
   listarMaterialAdminResumen,
@@ -26,6 +27,8 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string; desc
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
   material_enabled: { tone: "success", text: "Material habilitado y visible para alumnos." },
   material_disabled: { tone: "success", text: "Material deshabilitado y oculto para alumnos." },
+  materials_enabled_all: { tone: "success", text: "Todos los materiales del periodo quedaron habilitados." },
+  materials_disabled_all: { tone: "success", text: "Todos los materiales del periodo quedaron deshabilitados." },
   duplicate: { tone: "error", text: "Ese archivo ya fue subido a la clase seleccionada." },
   invalid_input: { tone: "error", text: "Faltan datos para subir el material." },
   file_too_large: { tone: "error", text: "El archivo excede el maximo permitido de 50 MB." },
@@ -171,7 +174,7 @@ export default async function AdminMaterialesPage({
               Punto general para revisar, habilitar o deshabilitar material. El cambio se refleja en docente y alumno.
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,360px)] lg:items-center">
+          <div className="grid gap-2 sm:grid-cols-3 lg:items-center">
             <a
               href="#subir-material"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
@@ -179,21 +182,28 @@ export default async function AdminMaterialesPage({
               <Upload className="h-4 w-4" />
               Crear material
             </a>
-            <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <form action={cambiarEstadoMaterialesAdminFormAction}>
               <input type="hidden" name="periodoId" value={selectedPeriodoId} />
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-              <input
-                name="materialQ"
-                defaultValue={materialQ}
-                placeholder="Buscar archivo, curso o docente"
-                className="h-11 rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                inputMode="search"
-              />
+              <input type="hidden" name="habilitado" value="true" />
               <button
                 type="submit"
-                className="h-11 rounded-xl border border-primary/40 bg-primary/5 px-4 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
               >
-                Buscar
+                <Eye className="h-4 w-4" />
+                Habilitar todo
+              </button>
+            </form>
+            <form action={cambiarEstadoMaterialesAdminFormAction}>
+              <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+              <input type="hidden" name="habilitado" value="false" />
+              <button
+                type="submit"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+              >
+                <EyeOff className="h-4 w-4" />
+                Deshabilitar todo
               </button>
             </form>
           </div>

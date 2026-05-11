@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 
-import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -595,6 +595,60 @@ export async function cambiarEstadoMaterialAction(
   };
 }
 
+export async function cambiarEstadoMaterialesAdminAction(
+  formData: FormData,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("material_cambiar_estado_masivo", ["admin"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const periodoId = formData.get("periodoId") as string | null;
+  const habilitadoRaw = formData.get("habilitado") as string | null;
+  const habilitado = habilitadoRaw === "true";
+
+  if (!periodoId || (habilitadoRaw !== "true" && habilitadoRaw !== "false")) {
+    return { ok: false, code: "invalid_input", message: "Falta periodo o estado." };
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select({ id: material.id })
+    .from(material)
+    .innerJoin(clases, eq(material.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .innerJoin(cursos, eq(asignaturas.cursoId, cursos.id))
+    .where(
+      and(
+        eq(asignaturas.periodoId, periodoId),
+        isNull(material.eliminadoAt),
+        isNull(clases.eliminadoAt),
+        isNull(asignaturas.eliminadoAt),
+        isNull(cursos.eliminadoAt),
+      ),
+    )
+    .limit(1000);
+
+  const ids = rows.map((row) => row.id);
+
+  if (ids.length > 0) {
+    await db
+      .update(material)
+      .set({ habilitado })
+      .where(inArray(material.id, ids));
+  }
+
+  revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/materiales");
+  revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/materiales");
+  revalidatePath("/admin/materiales");
+
+  return {
+    ok: true,
+    code: habilitado ? "materials_enabled_all" : "materials_disabled_all",
+  };
+}
+
 /**
  * Verifica si un alumno puede acceder a un material
  * (está matriculado en la asignatura que contiene esa clase)
@@ -714,6 +768,20 @@ export async function cambiarEstadoMaterialAdminFormAction(formData: FormData): 
   const periodoId = formData.get("periodoId") as string | null;
   const asignaturaId = formData.get("asignaturaId") as string | null;
   const result = await cambiarEstadoMaterialAction(formData);
+  const query = new URLSearchParams({
+    state: result.code,
+  });
+
+  if (periodoId) query.set("periodoId", periodoId);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+
+  redirect(`/admin/materiales?${query.toString()}`);
+}
+
+export async function cambiarEstadoMaterialesAdminFormAction(formData: FormData): Promise<void> {
+  const periodoId = formData.get("periodoId") as string | null;
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const result = await cambiarEstadoMaterialesAdminAction(formData);
   const query = new URLSearchParams({
     state: result.code,
   });

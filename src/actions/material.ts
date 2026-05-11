@@ -166,6 +166,23 @@ export async function listarMaterialPorAsignatura(
 
   const db = getDb();
 
+  if (actorResult.actor.userRol === "alumno") {
+    const [matricula] = await db
+      .select({ id: matriculas.id })
+      .from(matriculas)
+      .where(
+        and(
+          eq(matriculas.asignaturaId, asignaturaId),
+          eq(matriculas.alumnoId, actorResult.actor.userId),
+          eq(matriculas.activa, true),
+          isNull(matriculas.eliminadoAt),
+        ),
+      )
+      .limit(1);
+
+    if (!matricula) return [];
+  }
+
   const rows = await db
     .select({
       id: material.id,

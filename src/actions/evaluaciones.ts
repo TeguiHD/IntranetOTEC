@@ -688,6 +688,7 @@ export async function listarEvaluacionesAlumno(): Promise<EvaluacionItem[]> {
       and(
         eq(usuarios.id, actorResult.actor.userId),
         eq(evaluaciones.publicada, true),
+        eq(matriculas.activa, true),
         isNull(evaluaciones.eliminadoAt),
         isNull(matriculas.eliminadoAt),
       ),

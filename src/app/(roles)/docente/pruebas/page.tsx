@@ -1,13 +1,15 @@
 import Link from "next/link";
 
-import { ClipboardList, Eye, Plus, ShieldCheck } from "lucide-react";
+import { ClipboardList, Eye, Plus, ShieldCheck, ShieldOff } from "lucide-react";
 
 import { listarAsignaturasDocente } from "@/actions/docente";
 import {
+  cambiarEstadoEvaluacionesAsignaturaFormAction,
   despublicarEvaluacionFormAction,
   listarEvaluacionesByAsignatura,
   publicarEvaluacionFormAction,
 } from "@/actions/evaluaciones";
+import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { normalizarTextoVisible } from "@/lib/displayText";
 
 export const metadata = {
@@ -23,7 +25,20 @@ const formatDate = (date: Date | null): string =>
       }).format(date)
     : "Sin fecha";
 
-export default async function DocentePruebasPage() {
+const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
+  evaluacion_published: { tone: "success", text: "Prueba habilitada para alumnos." },
+  evaluacion_unpublished: { tone: "success", text: "Prueba deshabilitada para alumnos." },
+  evaluaciones_enabled_all: { tone: "success", text: "Todas las pruebas de la asignatura quedaron habilitadas." },
+  evaluaciones_disabled_all: { tone: "success", text: "Todas las pruebas de la asignatura quedaron deshabilitadas." },
+  error: { tone: "error", text: "No fue posible completar la accion." },
+};
+
+export default async function DocentePruebasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ state?: string }>;
+}) {
+  const params = await searchParams;
   const asignaturas = await listarAsignaturasDocente();
   const evaluacionesPorAsignatura = await Promise.all(
     asignaturas.map(async (asignatura) => ({
@@ -51,6 +66,8 @@ export default async function DocentePruebasPage() {
 
   return (
     <section className="space-y-5">
+      <RouteStateToast state={params?.state} map={STATUS_MAP} />
+
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
@@ -107,13 +124,43 @@ export default async function DocentePruebasPage() {
                     {asignatura.codigo ?? "Sin codigo"} - {evaluaciones.length} prueba{evaluaciones.length === 1 ? "" : "s"}
                   </p>
                 </div>
-                <Link
-                  href={`/docente/asignaturas/${asignatura.id}/evaluaciones`}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
-                >
-                  <Plus className="h-4 w-4" />
-                  Crear/editar pruebas
-                </Link>
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <Link
+                    href={`/docente/asignaturas/${asignatura.id}/evaluaciones`}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Crear/editar pruebas
+                  </Link>
+                  {evaluaciones.length > 0 ? (
+                    <div className="grid w-full gap-2 sm:grid-cols-2">
+                      <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+                        <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                        <input type="hidden" name="publicada" value="true" />
+                        <input type="hidden" name="redirectTo" value="/docente/pruebas" />
+                        <button
+                          type="submit"
+                          className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Habilitar todo
+                        </button>
+                      </form>
+                      <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+                        <input type="hidden" name="asignaturaId" value={asignatura.id} />
+                        <input type="hidden" name="publicada" value="false" />
+                        <input type="hidden" name="redirectTo" value="/docente/pruebas" />
+                        <button
+                          type="submit"
+                          className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+                        >
+                          <ShieldOff className="h-3.5 w-3.5" />
+                          Deshabilitar todo
+                        </button>
+                      </form>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               {evaluaciones.length === 0 ? (

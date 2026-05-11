@@ -8,6 +8,7 @@ import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
   agregarPreguntaFormAction,
   calificarRespuestaEvaluacionFormAction,
+  cambiarEstadoEvaluacionesAsignaturaFormAction,
   crearEvaluacionFormAction,
   crearPlantillaEncuestaFormAction,
   actualizarDestinatariosEvaluacionFormAction,
@@ -55,6 +56,8 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
+  evaluaciones_enabled_all: { tone: "success", text: "Todas las pruebas de la seccion quedaron habilitadas." },
+  evaluaciones_disabled_all: { tone: "success", text: "Todas las pruebas de la seccion quedaron deshabilitadas." },
   evaluacion_created: { tone: "success", text: "Evaluación creada correctamente." },
   evaluacion_published: { tone: "success", text: "Evaluación publicada correctamente." },
   evaluacion_unpublished: { tone: "success", text: "Evaluación deshabilitada correctamente." },
@@ -526,6 +529,36 @@ export default async function AdminEvaluacionesPage({
                 >
                   Crear prueba
                 </Link>
+              ) : null}
+              {selectedAsignaturaId ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+                    <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                    <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                    <input type="hidden" name="publicada" value="true" />
+                    <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
+                    <button
+                      type="submit"
+                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Habilitar todo
+                    </button>
+                  </form>
+                  <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+                    <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                    <input type="hidden" name="periodoId" value={selectedPeriodoId} />
+                    <input type="hidden" name="publicada" value="false" />
+                    <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
+                    <button
+                      type="submit"
+                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+                    >
+                      <ShieldOff className="h-4 w-4" />
+                      Deshabilitar todo
+                    </button>
+                  </form>
+                </div>
               ) : null}
               <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_170px_auto]">
                 <input type="hidden" name="periodoId" value={selectedPeriodoId} />

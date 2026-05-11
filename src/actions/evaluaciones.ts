@@ -2751,6 +2751,91 @@ export async function despublicarEvaluacionFormAction(formData: FormData): Promi
   });
 }
 
+export async function cambiarEstadoEvaluacionesAsignaturaAction(input: {
+  asignaturaId: string;
+  publicada: boolean;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionCapability(
+    "evaluaciones_publicacion_masiva",
+    "evaluaciones.publish",
+  );
+  if (!actorResult.ok) return actorResult.result;
+  if (!input.asignaturaId) return { ok: false, code: "invalid_input", message: "Asignatura requerida." };
+
+  const db = getDb();
+
+  try {
+    const asignatura = await getAsignaturaAccessRow(input.asignaturaId);
+    if (!asignatura) {
+      return { ok: false, code: "asignatura_not_found", message: "Asignatura no encontrada." };
+    }
+    if (!actorCanManageAsignatura(actorResult.actor, asignatura)) {
+      return forbiddenMutationResult("No tienes permiso para cambiar las pruebas de esta asignatura.");
+    }
+
+    const affectedRows = await db
+      .update(evaluaciones)
+      .set({ publicada: input.publicada })
+      .where(and(eq(evaluaciones.asignaturaId, input.asignaturaId), isNull(evaluaciones.eliminadoAt)))
+      .returning({ id: evaluaciones.id });
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "editar",
+      entidad: "evaluaciones",
+      entidadId: input.asignaturaId,
+      payload: {
+        modo: "publicacion_masiva",
+        publicada: input.publicada,
+        totalEvaluaciones: affectedRows.length,
+      },
+      exitoso: true,
+    });
+
+    return {
+      ok: true,
+      code: input.publicada ? "evaluaciones_enabled_all" : "evaluaciones_disabled_all",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "evaluaciones_publicacion_masiva_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+    return {
+      ok: false,
+      code: "evaluaciones_bulk_publish_failed",
+      message: "No fue posible cambiar el estado de las pruebas.",
+    };
+  }
+}
+
+export async function cambiarEstadoEvaluacionesAsignaturaFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = getStringField(formData, "asignaturaId");
+  const periodoId = getStringField(formData, "periodoId").trim();
+  const redirectTo = getStringField(formData, "redirectTo");
+  const publicada = getStringField(formData, "publicada") === "true";
+  const result = await cambiarEstadoEvaluacionesAsignaturaAction({ asignaturaId, publicada });
+
+  revalidatePath("/admin/evaluaciones");
+  revalidatePath("/docente/pruebas");
+  revalidatePath("/alumno/evaluaciones");
+  revalidatePath("/alumno/asignaturas");
+  revalidatePath(sanitizeEvaluacionesRedirect(redirectTo).split("?")[0]);
+  redirectEvaluacionesForm({
+    redirectTo,
+    state: result.ok ? result.code : "error",
+    periodoId: periodoId || undefined,
+    asignaturaId: asignaturaId || undefined,
+  });
+}
+
 export async function eliminarEvaluacionAction(id: string): Promise<MutationResult> {
   const actorResult = await requireActionCapability(
     "evaluacion_delete",

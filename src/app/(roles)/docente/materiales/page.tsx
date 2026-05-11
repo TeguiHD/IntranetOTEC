@@ -410,28 +410,6 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
             </article>
 
           </div>
-
-          <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <h2 className="text-base font-semibold text-text-primary dark:text-white">
-              Resumen por asignatura
-            </h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {materialesPorAsignatura.map(({ asignatura, materiales }) => (
-                <Link
-                  key={asignatura.id}
-                  href={`/docente/materiales?asignaturaId=${asignatura.id}`}
-                  className="rounded-xl border border-gray-200 p-4 transition hover:border-primary/40 hover:bg-primary/5 dark:border-gray-700 dark:hover:bg-primary/10"
-                >
-                  <p className="font-semibold text-text-primary dark:text-white">
-                    {normalizarTextoVisible(asignatura.nombre)}
-                  </p>
-                  <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                    {asignatura.codigo ?? "Sin codigo"} - {materiales.length} archivo{materiales.length === 1 ? "" : "s"}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </article>
         </>
       )}
     </section>

@@ -24,19 +24,20 @@ const geistMono = localFont({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#7c3aed",
+  themeColor: "#5a1f68",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
+  applicationName: "Mi OTEC",
   title: {
     default: "Mi OTEC Intranet",
     template: "%s | Mi OTEC",
   },
   description: "Intranet educativa OTEC - Impulsate & Emprende",
-  manifest: "/manifest.json?v=20260403",
+  manifest: "/manifest.json?v=20260511",
   icons: {
     icon: [
       { url: "/icon-192-v2.png", sizes: "192x192", type: "image/png" },
@@ -48,11 +49,17 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Mi OTEC",
+  },
+  formatDetection: {
+    telephone: false,
   },
   other: {
     "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "msapplication-TileColor": "#5a1f68",
+    "msapplication-tap-highlight": "no",
   },
 };
 

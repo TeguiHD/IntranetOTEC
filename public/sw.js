@@ -1,4 +1,4 @@
-const CACHE_VERSION = "otec-v5-icons-20260403";
+const CACHE_VERSION = "otec-v6-pwa-20260511";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("message", (event) => {

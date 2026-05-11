@@ -95,6 +95,7 @@ export default async function AdminMaterialesPage({
     : [];
   const materialesResumen = await listarMaterialAdminResumen({
     periodoId: selectedPeriodoId || undefined,
+    asignaturaId: selectedAsignaturaId || undefined,
     q: materialQ || undefined,
     limit: 300,
   });

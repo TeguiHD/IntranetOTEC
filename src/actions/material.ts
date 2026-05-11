@@ -211,6 +211,7 @@ export async function listarMaterialPorAsignatura(
 
 export async function listarMaterialAdminResumen(options?: {
   periodoId?: string;
+  asignaturaId?: string;
   q?: string;
   limit?: number;
 }): Promise<MaterialAdminResumenItem[]> {
@@ -228,6 +229,10 @@ export async function listarMaterialAdminResumen(options?: {
 
   if (options?.periodoId) {
     conditions.push(eq(asignaturas.periodoId, options.periodoId));
+  }
+
+  if (options?.asignaturaId) {
+    conditions.push(eq(asignaturas.id, options.asignaturaId));
   }
 
   const query = options?.q?.trim();
@@ -603,6 +608,7 @@ export async function cambiarEstadoMaterialesAdminAction(
   if (!actorResult.ok) return actorResult.result;
 
   const periodoId = formData.get("periodoId") as string | null;
+  const asignaturaId = formData.get("asignaturaId") as string | null;
   const habilitadoRaw = formData.get("habilitado") as string | null;
   const habilitado = habilitadoRaw === "true";
 
@@ -620,6 +626,7 @@ export async function cambiarEstadoMaterialesAdminAction(
     .where(
       and(
         eq(asignaturas.periodoId, periodoId),
+        asignaturaId ? eq(asignaturas.id, asignaturaId) : undefined,
         isNull(material.eliminadoAt),
         isNull(clases.eliminadoAt),
         isNull(asignaturas.eliminadoAt),

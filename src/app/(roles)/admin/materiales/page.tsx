@@ -168,7 +168,7 @@ export default async function AdminMaterialesPage({
               PDFs y materiales por curso y docente
             </h2>
             <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-              Vista general del periodo seleccionado con los archivos visibles para alumnos.
+              Punto general para revisar, habilitar o deshabilitar material. El cambio se refleja en docente y alumno.
             </p>
           </div>
           <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,260px)_auto]">
@@ -354,10 +354,10 @@ export default async function AdminMaterialesPage({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-text-primary dark:text-white">
-                Material visible para alumnos
+                Material de la seccion seleccionada
               </h2>
               <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-                {normalizarTextoVisible(selectedAsignatura?.nombre) || "Selecciona una seccion"} - {materiales.length} archivo{materiales.length === 1 ? "" : "s"}
+                {normalizarTextoVisible(selectedAsignatura?.nombre) || "Selecciona una seccion"} - edita titulo, abre o elimina archivos. La visibilidad se controla en la lista general.
               </p>
             </div>
             <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:text-primary-light">
@@ -434,23 +434,6 @@ export default async function AdminMaterialesPage({
                       >
                         <Trash2 className="h-4 w-4" />
                         Eliminar
-                      </button>
-                    </form>
-                    <form action={cambiarEstadoMaterialAdminFormAction}>
-                      <input type="hidden" name="periodoId" value={selectedPeriodoId} />
-                      <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-                      <input type="hidden" name="materialId" value={item.id} />
-                      <input type="hidden" name="habilitado" value={item.habilitado ? "false" : "true"} />
-                      <button
-                        type="submit"
-                        className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                          item.habilitado
-                            ? "border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
-                            : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                        }`}
-                      >
-                        {item.habilitado ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        {item.habilitado ? "Deshabilitar" : "Habilitar"}
                       </button>
                     </form>
                   </div>

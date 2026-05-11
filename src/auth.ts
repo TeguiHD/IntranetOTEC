@@ -256,7 +256,7 @@ const nextAuth = NextAuth({
       name: isProd ? "__Secure-authjs.session-token" : "authjs.session-token",
       options: {
         httpOnly: true,
-        sameSite: "strict",
+        sameSite: "lax",
         path: "/",
         secure: isProd,
         maxAge: SESSION_MAX_AGE_SECONDS,

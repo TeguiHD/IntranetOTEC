@@ -36,7 +36,7 @@ export function CredencialAlumno({
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
             Mi OTEC
           </p>
-          <h2 className="mt-1 text-lg font-bold">Credencial de Alumno</h2>
+          <h2 className="mt-1 text-lg font-bold uppercase">CREDENCIAL DE CAPACITACION</h2>
         </div>
         <span className="rounded-xl bg-white/12 p-2">
           <IdCard className="h-6 w-6" />

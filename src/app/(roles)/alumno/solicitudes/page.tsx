@@ -21,7 +21,7 @@ const SOLICITUD_CARDS = [
     href: "/alumno/solicitudes/credencial",
     accessKey: "credencialHabilitada",
     Icon: IdCard,
-    title: "Credencial de Alumno",
+    title: "Credencial de Capacitacion",
     description: "Solicita tu credencial de identificación institucional.",
     iconBg: "bg-primary/10 text-primary",
   },

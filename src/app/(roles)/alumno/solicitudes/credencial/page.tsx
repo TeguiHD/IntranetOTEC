@@ -22,7 +22,7 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 
 type Props = { searchParams?: Promise<{ state?: string }> };
 
-export const metadata = { title: "Solicitud de Credencial" };
+export const metadata = { title: "Credencial de Capacitacion" };
 
 export default async function SolicitudCredencialPage({ searchParams }: Props) {
   const params = await (searchParams ?? Promise.resolve({} as { state?: string }));
@@ -49,7 +49,7 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
         </span>
         <div>
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
-            Credencial de Alumno
+            CREDENCIAL DE CAPACITACION
           </h1>
           <p className="text-sm text-text-secondary dark:text-gray-400">
             Solicita y visualiza tu credencial de identificacion institucional.
@@ -63,7 +63,7 @@ export default async function SolicitudCredencialPage({ searchParams }: Props) {
             <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <div className="mb-4">
                 <h2 className="text-base font-semibold text-text-primary dark:text-white">
-                  Credencial Aprobada
+                  Credencial de Capacitacion Aprobada
                 </h2>
                 <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
                   Tu credencial ya esta disponible para visualizarla en pantalla.

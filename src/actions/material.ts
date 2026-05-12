@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 
-import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -152,6 +152,133 @@ export type MaterialAdminResumenItem = MaterialItem & {
   docenteNombre: string | null;
   docenteApellido: string | null;
 };
+
+// ---- Biblioteca de material para la vista docente ----
+
+export type ArchivoItem = {
+  id: string;
+  nombre: string;
+  tamanioBytes: number | null;
+  habilitado: boolean;
+  claseId: string;
+};
+
+export type SesionConArchivos = {
+  claseId: string;
+  titulo: string;
+  numeroSesion: number;
+  fecha: string;
+  archivos: ArchivoItem[];
+};
+
+export type ClaseParaUpload = {
+  id: string;
+  titulo: string;
+  numeroSesion: number;
+  fecha: string;
+};
+
+export type AsignaturaConMaterial = {
+  asignaturaId: string;
+  asignaturaNombre: string;
+  totalArchivos: number;
+  totalVisibles: number;
+  sesiones: SesionConArchivos[];
+  todasLasClases: ClaseParaUpload[];
+};
+
+export async function listarMaterialBibliotecaDocente(): Promise<AsignaturaConMaterial[]> {
+  const actorResult = await requireActionActor("material_listar", ["docente"]);
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  const asigs = await db
+    .select({ id: asignaturas.id, nombre: asignaturas.nombre })
+    .from(asignaturas)
+    .where(and(eq(asignaturas.docenteId, actorResult.actor.userId), isNull(asignaturas.eliminadoAt)))
+    .orderBy(asc(asignaturas.nombre));
+
+  if (asigs.length === 0) return [];
+
+  const asigIds = asigs.map((a) => a.id);
+
+  const clasesRows = await db
+    .select({
+      id: clases.id,
+      asignaturaId: clases.asignaturaId,
+      titulo: clases.titulo,
+      numeroSesion: clases.numeroSesion,
+      fecha: clases.fecha,
+    })
+    .from(clases)
+    .where(and(inArray(clases.asignaturaId, asigIds), isNull(clases.eliminadoAt)))
+    .orderBy(asc(clases.asignaturaId), asc(clases.numeroSesion));
+
+  const claseIds = clasesRows.map((c) => c.id);
+
+  const materialRows = claseIds.length > 0
+    ? await db
+        .select({
+          id: material.id,
+          nombre: material.nombre,
+          tamanioBytes: material.tamanioBytes,
+          habilitado: material.habilitado,
+          claseId: material.claseId,
+        })
+        .from(material)
+        .where(and(inArray(material.claseId, claseIds), isNull(material.eliminadoAt)))
+        .orderBy(asc(material.claseId), desc(material.createdAt))
+    : [];
+
+  // Build lookup maps
+  const materialPorClase = new Map<string, ArchivoItem[]>();
+  for (const m of materialRows) {
+    const arr = materialPorClase.get(m.claseId) ?? [];
+    arr.push(m);
+    materialPorClase.set(m.claseId, arr);
+  }
+
+  const clasesPorAsig = new Map<string, typeof clasesRows>();
+  for (const c of clasesRows) {
+    const arr = clasesPorAsig.get(c.asignaturaId) ?? [];
+    arr.push(c);
+    clasesPorAsig.set(c.asignaturaId, arr);
+  }
+
+  return asigs.map((asig) => {
+    const asigClases = clasesPorAsig.get(asig.id) ?? [];
+    const sesiones: SesionConArchivos[] = asigClases
+      .map((c) => ({
+        claseId: c.id,
+        titulo: c.titulo,
+        numeroSesion: c.numeroSesion,
+        fecha: c.fecha,
+        archivos: materialPorClase.get(c.id) ?? [],
+      }))
+      .filter((s) => s.archivos.length > 0);
+
+    const totalArchivos = sesiones.reduce((n, s) => n + s.archivos.length, 0);
+    const totalVisibles = sesiones.reduce(
+      (n, s) => n + s.archivos.filter((a) => a.habilitado).length,
+      0,
+    );
+
+    return {
+      asignaturaId: asig.id,
+      asignaturaNombre: asig.nombre,
+      totalArchivos,
+      totalVisibles,
+      sesiones,
+      todasLasClases: asigClases.map((c) => ({
+        id: c.id,
+        titulo: c.titulo,
+        numeroSesion: c.numeroSesion,
+        fecha: c.fecha,
+      })),
+    };
+  });
+}
 
 export async function listarMaterialPorAsignatura(
   asignaturaId: string,

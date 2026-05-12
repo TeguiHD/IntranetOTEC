@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, min, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -73,13 +73,29 @@ export async function obtenerHorarioAlumno() {
 }
 
 /** Horario semanal de un docente (todas sus secciones activas) */
+// Mapeo de día en español → índice 0=Lun … 5=Sáb
+const DIAS_ES: Record<string, number> = {
+  lunes: 0, martes: 1, miercoles: 2, jueves: 3, viernes: 4, sabado: 5, domingo: 6,
+};
+
+function parseDiaHoraDesdeNombre(nombre: string): { diaSemana: number; horaInicio: string } | null {
+  // Patrón: "... - Día HH:MM" al final (acepta dash normal o em-dash)
+  const m = nombre.match(/[-–]\s*([A-Za-záéíóúüñÁÉÍÓÚÜÑ]+)\s+(\d{1,2}:\d{2})\s*$/);
+  if (!m) return null;
+  const diaKey = m[1].toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const diaSemana = DIAS_ES[diaKey];
+  if (diaSemana === undefined) return null;
+  const hora = m[2].padStart(5, "0"); // "9:30" → "09:30"
+  return { diaSemana, horaInicio: hora };
+}
+
 export async function obtenerHorarioDocente() {
   const actorResult = await requireActionActor("horario_docente", ["docente"]);
   if (!actorResult.ok) return [] as BloqueHorario[];
 
   const db = getDb();
 
-  return db
+  const bloques = await db
     .select({
       id: bloquesHorario.id,
       asignaturaId: bloquesHorario.asignaturaId,
@@ -104,6 +120,72 @@ export async function obtenerHorarioDocente() {
       ),
     )
     .orderBy(asc(bloquesHorario.diaSemana), asc(bloquesHorario.horaInicio));
+
+  if (bloques.length > 0) return bloques;
+
+  // Fallback: sintetizar bloques desde el nombre de la asignatura
+  // (p.ej. "Barbería Avanzada - Sábado 09:30")
+  const asigs = await db
+    .select({
+      id: asignaturas.id,
+      nombre: asignaturas.nombre,
+      docenteNombre: usuarios.nombre,
+      docenteApellido: usuarios.apellido,
+      periodoNombre: periodosAcademicos.nombre,
+    })
+    .from(asignaturas)
+    .leftJoin(usuarios, eq(asignaturas.docenteId, usuarios.id))
+    .leftJoin(periodosAcademicos, eq(asignaturas.periodoId, periodosAcademicos.id))
+    .where(
+      and(
+        eq(asignaturas.docenteId, actorResult.actor.userId),
+        isNull(asignaturas.eliminadoAt),
+      ),
+    )
+    .orderBy(asc(asignaturas.nombre));
+
+  if (asigs.length === 0) return [];
+
+  // Obtener hora_fin representativa de clases ya creadas
+  const horasFin = await db
+    .select({
+      asignaturaId: clases.asignaturaId,
+      horaFin: sql<string>`MIN(${clases.horaFin})`.as("hora_fin"),
+    })
+    .from(clases)
+    .where(
+      and(
+        inArray(clases.asignaturaId, asigs.map((a) => a.id)),
+        isNull(clases.eliminadoAt),
+        isNotNull(clases.horaFin),
+      ),
+    )
+    .groupBy(clases.asignaturaId);
+
+  const horaFinMap = new Map(horasFin.map((h) => [h.asignaturaId, h.horaFin]));
+
+  const sinteticos: BloqueHorario[] = [];
+  for (const asig of asigs) {
+    const parsed = parseDiaHoraDesdeNombre(asig.nombre);
+    if (!parsed) continue;
+    const rawHoraFin = horaFinMap.get(asig.id);
+    const horaFin = rawHoraFin ? String(rawHoraFin).slice(0, 5) : parsed.horaInicio;
+    sinteticos.push({
+      id: `synth-${asig.id}`,
+      asignaturaId: asig.id,
+      asignaturaNombre: asig.nombre,
+      docenteNombre: asig.docenteNombre,
+      docenteApellido: asig.docenteApellido,
+      periodoNombre: asig.periodoNombre,
+      diaSemana: parsed.diaSemana,
+      horaInicio: parsed.horaInicio,
+      horaFin,
+      sala: null,
+    });
+  }
+
+  sinteticos.sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio));
+  return sinteticos;
 }
 
 /** Horario de una sección específica (admin) */

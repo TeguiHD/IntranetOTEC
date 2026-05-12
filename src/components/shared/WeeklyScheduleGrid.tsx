@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 export type HorarioBloque = {
   id: string;
+  asignaturaId?: string;
   asignaturaNombre: string;
   docenteNombre?: string | null;
   docenteApellido?: string | null;

@@ -4,26 +4,14 @@ import {
   crearClaseDocenteFormAction,
   editarClaseDocenteFormAction,
   eliminarClaseDocenteFormAction,
-  eliminarNotaDocenteFormAction,
-  eliminarObservacionDocenteFormAction,
-  importarNotasDocenteFormAction,
   listarAlumnosEnRiesgo,
   listarAsignaturasDocente,
   listarClasesDocente,
   listarMatriculasDocente,
-  listarNotasDocente,
-  listarObservacionesDocente,
   listarResumenAlumnosDocente,
   registrarAsistenciaLoteDocenteFormAction,
-  registrarNotaDocenteFormAction,
-  registrarObservacionDocenteFormAction,
   type AlumnoEnRiesgo,
 } from "@/actions/docente";
-import {
-  eliminarMaterialFormAction,
-  listarMaterialPorAsignatura,
-  subirMaterialFormAction,
-} from "@/actions/material";
 import {
   eliminarAnuncioFormAction,
   listarAnunciosAsignatura,
@@ -43,25 +31,10 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   clase_deleted: { tone: "success", text: "Clase eliminada correctamente." },
   asistencia_created: { tone: "success", text: "Asistencia registrada correctamente." },
   asistencia_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
-  nota_created: { tone: "success", text: "Nota registrada correctamente." },
-  nota_deleted: { tone: "success", text: "Nota eliminada correctamente." },
-  nota_not_found: { tone: "error", text: "La nota ya no existe o fue eliminada." },
-  notas_imported: { tone: "success", text: "Notas importadas correctamente desde archivo." },
-  observacion_created: { tone: "success", text: "Observación registrada correctamente." },
-  observacion_deleted: { tone: "success", text: "Observación eliminada correctamente." },
-  observacion_not_found: { tone: "error", text: "La observación ya no existe o fue eliminada." },
-  material_uploaded: { tone: "success", text: "Material subido correctamente." },
-  material_deleted: { tone: "success", text: "Material eliminado correctamente." },
   anuncio_publicado: { tone: "success", text: "Anuncio publicado correctamente." },
   anuncio_eliminado: { tone: "success", text: "Anuncio eliminado correctamente." },
   anuncio_not_found: { tone: "error", text: "El anuncio no fue encontrado." },
   anuncio_invalid: { tone: "error", text: "El anuncio requiere título y contenido válidos (mínimo 3 caracteres, título máximo 200)." },
-  file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
-  invalid_type: { tone: "error", text: "Tipo de archivo no permitido." },
-  import_empty: { tone: "error", text: "El archivo no contiene filas para importar." },
-  import_no_valid_rows: { tone: "error", text: "No se encontraron filas válidas. Usa columnas rut y nota." },
-  import_failed: { tone: "error", text: "No fue posible importar el archivo de notas." },
-  duplicate: { tone: "error", text: "Este archivo ya fue subido a esta clase." },
   invalid_input: { tone: "error", text: "Datos inválidos. Revisa los campos requeridos." },
   forbidden: { tone: "error", text: "No autorizado para operar sobre esta asignatura." },
   error: { tone: "error", text: "No fue posible completar la acción solicitada." },
@@ -71,19 +44,7 @@ type DocenteAsignaturasPageProps = {
   searchParams?: Promise<{
     state?: string;
     asignaturaId?: string;
-    anio?: string;
   }>;
-};
-
-const escapeCsvValue = (value: string): string => {
-  const normalized = value.replace(/"/g, '""');
-  return /[",\n]/.test(normalized) ? `"${normalized}"` : normalized;
-};
-
-const toCsvDataUri = (headers: string[], rows: string[][]): string => {
-  const lines = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(","));
-  const csv = `\uFEFF${lines.join("\n")}`;
-  return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
 };
 
 const formatRutValue = (rut: string | null): string =>
@@ -94,72 +55,28 @@ export const metadata = {
 };
 
 export default async function DocenteAsignaturasPage({ searchParams }: DocenteAsignaturasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string; anio?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { state?: string; asignaturaId?: string }));
   const asignaturas = await listarAsignaturasDocente();
   const selectedAsignaturaId =
     typeof params.asignaturaId === "string" && params.asignaturaId.length > 0
       ? params.asignaturaId
       : asignaturas[0]?.id;
 
-  const [clases, matriculas, notas, observaciones, materiales, resumenAlumnos, alumnosEnRiesgo, anunciosAsignatura] = selectedAsignaturaId
+  const [clases, matriculas, resumenAlumnos, alumnosEnRiesgo, anunciosAsignatura] = selectedAsignaturaId
     ? await Promise.all([
         listarClasesDocente(selectedAsignaturaId),
         listarMatriculasDocente(selectedAsignaturaId),
-        listarNotasDocente(selectedAsignaturaId),
-        listarObservacionesDocente(selectedAsignaturaId),
-        listarMaterialPorAsignatura(selectedAsignaturaId),
         listarResumenAlumnosDocente(selectedAsignaturaId),
         listarAlumnosEnRiesgo(selectedAsignaturaId),
         listarAnunciosAsignatura(selectedAsignaturaId),
       ])
-    : [[], [], [], [], [], [], [], []] as [
+    : [[], [], [], [], []] as [
         Awaited<ReturnType<typeof listarClasesDocente>>,
         Awaited<ReturnType<typeof listarMatriculasDocente>>,
-        Awaited<ReturnType<typeof listarNotasDocente>>,
-        Awaited<ReturnType<typeof listarObservacionesDocente>>,
-        Awaited<ReturnType<typeof listarMaterialPorAsignatura>>,
         Awaited<ReturnType<typeof listarResumenAlumnosDocente>>,
         AlumnoEnRiesgo[],
         Awaited<ReturnType<typeof listarAnunciosAsignatura>>,
       ];
-
-  const anioParam =
-    typeof params.anio === "string" && /^\d{4}$/.test(params.anio)
-      ? Number.parseInt(params.anio, 10)
-      : null;
-  const aniosDisponibles = Array.from(
-    new Set([
-      ...notas.map((item) => item.anioRegistro),
-      ...observaciones.map((item) => item.anioRegistro),
-    ]),
-  ).sort((a, b) => b - a);
-
-  const notasFiltradas = anioParam ? notas.filter((item) => item.anioRegistro === anioParam) : notas;
-  const observacionesFiltradas = anioParam
-    ? observaciones.filter((item) => item.anioRegistro === anioParam)
-    : observaciones;
-
-  const notasCsvHref = toCsvDataUri(
-    ["Alumno", "RUT", "Nota", "Fecha", "Año"],
-    notasFiltradas.map((n) => [
-      `${n.alumnoNombre} ${n.alumnoApellido}`,
-      formatRutValue(n.alumnoRut),
-      String(n.nota),
-      n.fechaRegistro,
-      String(n.anioRegistro),
-    ]),
-  );
-
-  const observacionesCsvHref = toCsvDataUri(
-    ["Alumno", "RUT", "Fecha", "Año", "Observación"],
-    observacionesFiltradas.map((o) => [
-      `${o.alumnoNombre} ${o.alumnoApellido}`,
-      formatRutValue(o.alumnoRut),
-      o.fechaRegistro,
-      String(o.anioRegistro),
-      o.observacion,
-    ]),
-  );
 
   return (
     <section className="space-y-6">
@@ -168,16 +85,16 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
       <header>
         <h1 className="text-2xl font-bold text-text-primary dark:text-white">Gestión docente</h1>
         <p className="text-sm text-text-secondary dark:text-gray-300">
-          Crea clases del curso, registra asistencia, notas por fecha/año y observaciones de alumnos.
+          Crea clases del curso, registra asistencia y revisa el estado de tus alumnos.
         </p>
       </header>
 
       <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-5">
         <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Selecciona asignatura</h2>
         <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-          Elige el curso que vas a revisar y aplica el filtro de año para notas y observaciones.
+          Elige el curso que vas a revisar.
         </p>
-        <form className="mt-4 grid gap-3 lg:grid-cols-[minmax(240px,1fr)_220px_auto]" method="get">
+        <form className="mt-4 grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto]" method="get">
           <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
             Curso
             <select
@@ -189,22 +106,6 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
             {asignaturas.map((asignatura) => (
               <option key={asignatura.id} value={asignatura.id}>
                 {normalizarTextoVisible(asignatura.nombre)} ({asignatura.codigo ?? "SIN-CODIGO"})
-              </option>
-            ))}
-            </select>
-          </label>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-            Año
-            <select
-            name="anio"
-            defaultValue={anioParam ? String(anioParam) : ""}
-            title="Filtrar por año"
-            className="mt-1 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-          >
-            <option value="">Todos los años</option>
-            {aniosDisponibles.map((anio) => (
-              <option key={anio} value={anio}>
-                {anio}
               </option>
             ))}
             </select>
@@ -226,9 +127,6 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
               ["#alumnos", "Alumnos"],
               ["#clases", "Clases"],
               ["#asistencia", "Asistencia"],
-              ["#notas", "Notas"],
-              ["#material", "Material"],
-              ["#observaciones", "Observaciones"],
             ].map(([href, label]) => (
               <a
                 key={href}
@@ -238,6 +136,12 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 {label}
               </a>
             ))}
+            <Link
+              href="/docente/materiales"
+              className="rounded-lg border border-gray-100 px-3 py-2 text-center font-medium text-text-secondary hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:text-gray-300"
+            >
+              Materiales
+            </Link>
             <Link
               href={`/docente/asignaturas/${selectedAsignaturaId}/evaluaciones`}
               className="rounded-lg bg-primary px-3 py-2 text-center font-semibold text-white hover:bg-primary-dark"
@@ -301,76 +205,6 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 Eliminar clase
               </button>
             </form>
-          </article>
-
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Subir material</h2>
-            <form action={subirMaterialFormAction} encType="multipart/form-data" className="mt-4 grid gap-4 md:grid-cols-2">
-              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-              <select name="claseId" required title="Seleccionar clase" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                <option value="">Selecciona clase</option>
-                {clases.map((clase) => (
-                  <option key={clase.id} value={clase.id}>
-                  Sesión {clase.numeroSesion} - {normalizarTextoVisible(clase.titulo)}
-                  </option>
-                ))}
-              </select>
-              <input
-                name="archivo"
-                type="file"
-                required
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.mp4,.webm,.zip"
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
-              />
-              <div className="md:col-span-2">
-                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
-                  Subir archivo
-                </button>
-                 <span className="ml-3 text-xs text-text-secondary dark:text-gray-400">Máx 50 MB. PDF, DOC, PPT, XLS, imágenes, video, ZIP.</span>
-              </div>
-            </form>
-
-            {materiales.length > 0 && (
-              <div className="mt-5">
-                <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Material subido</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
-                    <thead>
-                      <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                        <th className="px-2 py-2">Archivo</th>
-                        <th className="px-2 py-2">Clase</th>
-                        <th className="px-2 py-2">Tamaño</th>
-                        <th className="px-2 py-2">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {materiales.map((m) => (
-                        <tr key={m.id}>
-                          <td className="px-2 py-2">
-                            <a
-                              href={`/api/files/download/${m.id}`}
-                              className="text-primary underline hover:opacity-80 dark:text-primary-light"
-                            >
-                              {m.nombre}
-                            </a>
-                          </td>
-                          <td className="px-2 py-2">S{m.claseNumeroSesion} - {normalizarTextoVisible(m.claseTitulo)}</td>
-                          <td className="px-2 py-2">{m.tamanioBytes ? `${(m.tamanioBytes / 1024).toFixed(0)} KB` : "-"}</td>
-                          <td className="px-2 py-2">
-                            <form action={eliminarMaterialFormAction} className="inline">
-                              <input type="hidden" name="materialId" value={m.id} />
-                              <button type="submit" className="text-xs text-red-600 underline hover:opacity-80 dark:text-red-400">
-                                Eliminar
-                              </button>
-                            </form>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </article>
 
           {/* Tablero de anuncios */}
@@ -627,191 +461,6 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 </button>
               </div>
             </form>
-          </article>
-
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar nota</h2>
-            <form action={registrarNotaDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-              <select name="matriculaId" required title="Seleccionar alumno para nota" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                <option value="">Selecciona alumno</option>
-                {matriculas.map((m) => (
-                  <option key={m.matriculaId} value={m.matriculaId}>
-                    {m.alumnoNombre} {m.alumnoApellido} ({formatRutValue(m.alumnoRut)})
-                  </option>
-                ))}
-              </select>
-                <input name="nota" type="number" inputMode="decimal" min={1} max={7} step="0.1" required placeholder="Nota 1.0 a 7.0" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-                <input name="fechaRegistro" type="date" inputMode="numeric" required title="Fecha de nota" placeholder="Fecha de nota" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <div className="md:col-span-2">
-                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
-                  Registrar nota
-                </button>
-              </div>
-            </form>
-          </article>
-
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Importar notas por archivo</h2>
-            <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-              Sube un archivo <code>.xlsx</code> o <code>.csv</code> con columnas <code>rut</code> y <code>nota</code>.
-            </p>
-            <form action={importarNotasDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2" encType="multipart/form-data">
-              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-              <input
-                name="archivo"
-                type="file"
-                required
-                accept=".xlsx,.csv"
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
-              />
-              <input
-                name="fechaRegistro"
-                type="date"
-                required
-                title="Fecha general de registro"
-                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" inputMode="text"
-              />
-              <div className="md:col-span-2">
-                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
-                  Importar notas
-                </button>
-                <span className="ml-3 text-xs text-text-secondary dark:text-gray-400">
-                  Ejemplo: <code>rut,nota</code> o <code>rut,nota,fechaRegistro</code>.
-                </span>
-              </div>
-            </form>
-          </article>
-
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Registrar observación</h2>
-            <form action={registrarObservacionDocenteFormAction} className="mt-4 grid gap-4 md:grid-cols-2">
-              <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
-              <select name="matriculaId" required title="Seleccionar alumno para observacion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
-                <option value="">Selecciona alumno</option>
-                {matriculas.map((m) => (
-                  <option key={m.matriculaId} value={m.matriculaId}>
-                    {m.alumnoNombre} {m.alumnoApellido} ({formatRutValue(m.alumnoRut)})
-                  </option>
-                ))}
-              </select>
-                <input name="fechaRegistro" type="date" inputMode="numeric" required title="Fecha de observacion" placeholder="Fecha de observacion" className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <textarea name="observacion" rows={3} required minLength={3} maxLength={500} placeholder="Detalle de la observación" className="md:col-span-2 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100" />
-              <div className="md:col-span-2">
-                <button type="submit" className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
-                  Guardar observación
-                </button>
-              </div>
-            </form>
-          </article>
-
-          <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Histórico de notas y observaciones</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <a
-                href={notasCsvHref}
-                download={`notas${anioParam ? `-${anioParam}` : ""}.csv`}
-                className="inline-flex h-9 items-center rounded border border-primary px-3 text-xs font-semibold text-primary hover:bg-primary/10"
-              >
-                Exportar notas CSV
-              </a>
-              <a
-                href={observacionesCsvHref}
-                download={`observaciones${anioParam ? `-${anioParam}` : ""}.csv`}
-                className="inline-flex h-9 items-center rounded border border-primary px-3 text-xs font-semibold text-primary hover:bg-primary/10"
-              >
-                Exportar observaciones CSV
-              </a>
-            </div>
-            <div className="mt-4 grid gap-5 lg:grid-cols-2">
-              <div className="overflow-x-auto">
-                <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Notas</h3>
-                <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
-                  <thead>
-                    <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                      <th className="px-2 py-2">Alumno</th>
-                      <th className="px-2 py-2">RUT</th>
-                      <th className="px-2 py-2">Nota</th>
-                      <th className="px-2 py-2">Fecha</th>
-                      <th className="px-2 py-2">Año</th>
-                      <th className="px-2 py-2">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {notasFiltradas.map((n) => (
-                      <tr key={n.id}>
-                        <td className="px-2 py-2">{n.alumnoNombre} {n.alumnoApellido}</td>
-                        <td className="px-2 py-2">{formatRutValue(n.alumnoRut)}</td>
-                        <td className="px-2 py-2">{n.nota}</td>
-                        <td className="px-2 py-2">{n.fechaRegistro}</td>
-                        <td className="px-2 py-2">{n.anioRegistro}</td>
-                        <td className="px-2 py-2">
-                          <form action={eliminarNotaDocenteFormAction} className="inline">
-                            <input type="hidden" name="notaId" value={n.id} />
-                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
-                            <button
-                              type="submit"
-                              className="rounded px-2 py-1 text-xs text-danger hover:bg-danger/10"
-                              onClick={(event) => {
-                                if (!confirm("¿Eliminar esta nota?")) {
-                                  event.preventDefault();
-                                }
-                              }}
-                            >
-                              Eliminar
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="overflow-x-auto">
-                <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-gray-100">Observaciones</h3>
-                <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
-                  <thead>
-                    <tr className="text-left uppercase tracking-wide text-text-secondary dark:text-gray-300">
-                      <th className="px-2 py-2">Alumno</th>
-                      <th className="px-2 py-2">RUT</th>
-                      <th className="px-2 py-2">Fecha</th>
-                      <th className="px-2 py-2">Año</th>
-                      <th className="px-2 py-2">Observación</th>
-                      <th className="px-2 py-2">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {observacionesFiltradas.map((o) => (
-                      <tr key={o.id}>
-                        <td className="px-2 py-2">{o.alumnoNombre} {o.alumnoApellido}</td>
-                        <td className="px-2 py-2">{formatRutValue(o.alumnoRut)}</td>
-                        <td className="px-2 py-2">{o.fechaRegistro}</td>
-                        <td className="px-2 py-2">{o.anioRegistro}</td>
-                        <td className="px-2 py-2">{o.observacion}</td>
-                        <td className="px-2 py-2">
-                          <form action={eliminarObservacionDocenteFormAction} className="inline">
-                            <input type="hidden" name="observacionId" value={o.id} />
-                            <input type="hidden" name="asignaturaId" value={selectedAsignaturaId!} />
-                            <button
-                              type="submit"
-                              className="rounded px-2 py-1 text-xs text-danger hover:bg-danger/10"
-                              onClick={(event) => {
-                                if (!confirm("¿Eliminar esta observación?")) {
-                                  event.preventDefault();
-                                }
-                              }}
-                            >
-                              Eliminar
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </article>
 
         </>

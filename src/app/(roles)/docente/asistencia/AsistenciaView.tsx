@@ -75,11 +75,13 @@ function CalendarTab({
   mes,
   anio,
   onMesChange,
+  onUpdateEstado,
 }: {
   clasesMes: ClaseMes[];
   mes: number;
   anio: number;
   onMesChange: (m: number, a: number) => void;
+  onUpdateEstado: (claseId: string, matriculaId: string, estado: NonNullable<EstadoAsist>) => void;
 }) {
   const todayIso = (() => {
     const today = new Date();
@@ -130,15 +132,18 @@ function CalendarTab({
                 },
           ),
         );
-        await registrarAsistenciaDocenteAction({
+        const result = await registrarAsistenciaDocenteAction({
           claseId,
           matriculaId,
           estado,
           fechaRegistro: fecha,
         });
+        if (result.ok) {
+          onUpdateEstado(claseId, matriculaId, estado);
+        }
       });
     },
-    [setLocalClases],
+    [setLocalClases, onUpdateEstado],
   );
 
   const irMes = (delta: number) => {
@@ -694,6 +699,24 @@ export function AsistenciaView({ clasesMesInicial, asignaturas, mesInicial, anio
     });
   }, []);
 
+  const handleUpdateEstado = useCallback(
+    (claseId: string, matriculaId: string, estado: NonNullable<EstadoAsist>) => {
+      setClasesMes((prev) =>
+        prev.map((clase) =>
+          clase.id !== claseId
+            ? clase
+            : {
+                ...clase,
+                alumnos: clase.alumnos.map((a) =>
+                  a.matriculaId !== matriculaId ? a : { ...a, estado },
+                ),
+              },
+        ),
+      );
+    },
+    [],
+  );
+
   return (
     <section className="space-y-5">
       {/* Hero */}
@@ -706,7 +729,7 @@ export function AsistenciaView({ clasesMesInicial, asignaturas, mesInicial, anio
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-gray-800 dark:bg-gray-900">
-        {(["calendario"] as const).map((t) => (
+        {(["calendario", "tarjetas"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -729,6 +752,7 @@ export function AsistenciaView({ clasesMesInicial, asignaturas, mesInicial, anio
             mes={mes}
             anio={anio}
             onMesChange={handleMesChange}
+            onUpdateEstado={handleUpdateEstado}
           />
         </div>
       )}

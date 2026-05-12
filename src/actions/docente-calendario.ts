@@ -38,7 +38,7 @@ export async function listarClasePorAsignaturaYFecha(
   asignaturaId: string,
   fecha: string,
 ): Promise<ClaseDia | null> {
-  const actorResult = await requireActionActor("docente_clase_detalle", ["docente"]);
+  const actorResult = await requireActionActor("asignaturas.docente", ["docente"]);
   if (!actorResult.ok) return null;
 
   const db = getDb();

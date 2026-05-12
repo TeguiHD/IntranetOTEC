@@ -28,6 +28,7 @@ type Props = {
   horaFin: string | null;
   sala: string | null;
   onClose: () => void;
+  pruebasHref: string;
 };
 
 function iconTipo() {
@@ -43,6 +44,7 @@ export function PanelClase({
   horaFin,
   sala,
   onClose,
+  pruebasHref,
 }: Props) {
   const [clase, setClase] = useState<ClaseDia | null | undefined>(undefined);
   const [loading, startLoad] = useTransition();
@@ -271,7 +273,7 @@ export function PanelClase({
             {/* Pruebas */}
             <section className="px-5 py-4">
               <Link
-                href="/docente/pruebas"
+                href={pruebasHref}
                 className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 hover:border-primary/30 hover:bg-primary/5 dark:border-gray-800 dark:bg-gray-800/50"
               >
                 <div className="flex items-center gap-2.5">

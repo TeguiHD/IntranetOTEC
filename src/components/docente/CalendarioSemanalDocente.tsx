@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 import type { HorarioBloque } from "@/components/shared/WeeklyScheduleGrid";
 import { normalizarTextoVisible } from "@/lib/displayText";
@@ -127,8 +128,14 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
           Sin horario configurado
         </p>
         <p className="max-w-sm text-sm text-text-secondary dark:text-gray-400">
-          Tu horario semanal aún no está configurado. Contacta a administración para que asignen tus bloques horarios.
+          Tu horario aún no está configurado. Contacta a administración.
         </p>
+        <Link
+          href="/docente/calendario"
+          className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-primary hover:border-primary/40 hover:bg-primary/5 dark:border-gray-700 dark:hover:border-primary/40"
+        >
+          Ver Calendario
+        </Link>
       </div>
     );
   }

@@ -74,11 +74,14 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
   const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
 
   const periodos = await listarPeriodosDashboard();
-  const defaultPeriodoId = periodos.find((p) => p.estado === "activo")?.id ?? periodos[0]?.id ?? "";
+  const activePeriodoId = periodos.find((p) => p.estado === "activo")?.id ?? periodos[0]?.id ?? "";
+  // Si el usuario no pasó periodoId explícitamente, no forzar filtro por periodo activo
   const selectedPeriodoId =
     requestedPeriodoId && periodos.some((p) => p.id === requestedPeriodoId)
       ? requestedPeriodoId
-      : defaultPeriodoId;
+      : requestedPeriodoId === ""
+      ? ""
+      : activePeriodoId;
 
   const asignaturas = await listarAsignaturasAdmin(
     { limit: 1000, offset: 0 },
@@ -282,6 +285,7 @@ export default async function AdminClasesPage({ searchParams }: AdminClasesPageP
               periodoId: selectedPeriodoId,
               asignaturaId: selectedAsignaturaId,
             }}
+            allowClear={{ periodo: true }}
           />
 
           {/* Text search */}

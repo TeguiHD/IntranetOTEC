@@ -42,10 +42,15 @@ function minutesToTime(m: number): string {
   return `${h}:${min}`;
 }
 
-// Asigna un color consistente por nombre de asignatura
-function colorParaAsignatura(nombre: string, allNames: string[]): string {
-  const idx = allNames.indexOf(nombre);
-  return COLORES[idx % COLORES.length] ?? COLORES[0];
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff;
+  return h;
+}
+
+function colorParaAsignatura(bloque: HorarioBloque): string {
+  const key = bloque.asignaturaId ?? bloque.asignaturaNombre;
+  return COLORES[hashId(key) % COLORES.length] ?? COLORES[0];
 }
 
 // Convierte fecha ISO a día de semana 0=lun..5=sáb
@@ -56,11 +61,6 @@ function fechaToDiaSemana(fecha: string): number {
 }
 
 export function WeeklyScheduleGrid({ bloques, titulo }: Props) {
-  const allNames = useMemo(
-    () => [...new Set(bloques.map((b) => b.asignaturaNombre))],
-    [bloques],
-  );
-
   // Normalizar bloques (resolver diaSemana desde fecha si hace falta)
   const bloquesNorm = useMemo(
     () =>
@@ -125,7 +125,7 @@ export function WeeklyScheduleGrid({ bloques, titulo }: Props) {
                   .map((b) => (
                     <div
                       key={b.id}
-                      className={`rounded-xl border px-3 py-2.5 ${colorParaAsignatura(b.asignaturaNombre, allNames)}`}
+                      className={`rounded-xl border px-3 py-2.5 ${colorParaAsignatura(b)}`}
                     >
                       <p className="font-semibold text-sm leading-tight">{b.asignaturaNombre}</p>
                       <p className="mt-0.5 text-xs opacity-80">
@@ -197,7 +197,7 @@ export function WeeklyScheduleGrid({ bloques, titulo }: Props) {
                     const endMin = b.horaFin ? timeToMinutes(b.horaFin) : startMin + 60;
                     const top = ((startMin - minMin) / 60) * SLOT;
                     const height = Math.max(((endMin - startMin) / 60) * SLOT - 2, 24);
-                    const color = colorParaAsignatura(b.asignaturaNombre, allNames);
+                    const color = colorParaAsignatura(b);
 
                     return (
                       <div

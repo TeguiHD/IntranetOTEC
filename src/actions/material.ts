@@ -600,6 +600,59 @@ export async function cambiarEstadoMaterialAction(
   };
 }
 
+export async function cambiarEstadoMaterialesDocenteAction(
+  formData: FormData,
+): Promise<MutationResult> {
+  const actorResult = await requireActionActor("material_docente_cambiar_estado_masivo", ["docente"]);
+
+  if (!actorResult.ok) return actorResult.result;
+
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const habilitadoRaw = formData.get("habilitado") as string | null;
+  const habilitado = habilitadoRaw === "true";
+
+  if (habilitadoRaw !== "true" && habilitadoRaw !== "false") {
+    return { ok: false, code: "invalid_input", message: "Falta estado." };
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select({ id: material.id })
+    .from(material)
+    .innerJoin(clases, eq(material.claseId, clases.id))
+    .innerJoin(asignaturas, eq(clases.asignaturaId, asignaturas.id))
+    .where(
+      and(
+        eq(asignaturas.docenteId, actorResult.actor.userId),
+        asignaturaId ? eq(asignaturas.id, asignaturaId) : undefined,
+        isNull(material.eliminadoAt),
+        isNull(clases.eliminadoAt),
+        isNull(asignaturas.eliminadoAt),
+      ),
+    )
+    .limit(1000);
+
+  const ids = rows.map((row) => row.id);
+
+  if (ids.length > 0) {
+    await db
+      .update(material)
+      .set({ habilitado })
+      .where(inArray(material.id, ids));
+  }
+
+  revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/materiales");
+  revalidatePath("/alumno/asignaturas");
+  revalidatePath("/alumno/materiales");
+  revalidatePath("/admin/materiales");
+
+  return {
+    ok: true,
+    code: habilitado ? "materials_enabled_all" : "materials_disabled_all",
+  };
+}
+
 export async function cambiarEstadoMaterialesAdminAction(
   formData: FormData,
 ): Promise<MutationResult> {
@@ -722,6 +775,17 @@ export async function cambiarEstadoMaterialFormAction(formData: FormData): Promi
   const asignaturaId = formData.get("asignaturaId") as string | null;
   const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
   const result = await cambiarEstadoMaterialAction(formData);
+  const [pathname, search = ""] = redirectTo.split("?");
+  const query = new URLSearchParams(search);
+  query.set("state", result.code);
+  if (asignaturaId) query.set("asignaturaId", asignaturaId);
+  redirect(`${pathname}?${query.toString()}`);
+}
+
+export async function cambiarEstadoMaterialesDocenteFormAction(formData: FormData): Promise<void> {
+  const asignaturaId = formData.get("asignaturaId") as string | null;
+  const redirectTo = sanitizeDocenteMaterialRedirect(formData.get("redirectTo") as string | null);
+  const result = await cambiarEstadoMaterialesDocenteAction(formData);
   const [pathname, search = ""] = redirectTo.split("?");
   const query = new URLSearchParams(search);
   query.set("state", result.code);

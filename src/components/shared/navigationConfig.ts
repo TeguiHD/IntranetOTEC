@@ -148,7 +148,6 @@ const DOCENTE_SECTIONS: NavSection[] = [
       { href: "/docente/asignaturas", label: "Mis Asignaturas", Icon: BookOpen, gradient: "grad-blue", capability: "asignaturas.docente" },
       { href: "/docente/materiales", label: "Materiales", Icon: Upload, gradient: "grad-emerald", capability: "asignaturas.docente" },
       { href: "/docente/pruebas", label: "Pruebas", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_assigned" },
-      { href: "/docente/historial", label: "Historial", Icon: FileText, gradient: "grad-violet", capability: "historial.docente" },
       { href: "/docente/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.docente" },
       { href: "/docente/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.docente" },
       { href: "/docente/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan", capability: "calendario.docente" },

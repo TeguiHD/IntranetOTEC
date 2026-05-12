@@ -172,41 +172,34 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
         </p>
       </header>
 
-      <article className="rounded-md border border-primary/30 bg-primary/5 p-4 dark:border-primary/50 dark:bg-primary/10">
-        <h2 className="text-sm font-semibold text-text-primary dark:text-gray-100">Información de solicitudes</h2>
-        <div className="mt-3 flex gap-3 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
-          <div className="min-w-[220px] rounded border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-            Registrar asistencia al cerrar cada clase.
-          </div>
-          <div className="min-w-[220px] rounded border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-            Cargar notas con fecha de registro y control anual.
-          </div>
-          <div className="min-w-[220px] rounded border border-gray-200 bg-white px-3 py-2 text-xs text-text-secondary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-            Documentar observaciones por alumno con trazabilidad.
-          </div>
-        </div>
-      </article>
-
-      <article className="rounded-md border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-5">
         <h2 className="text-lg font-semibold text-text-primary dark:text-gray-100">Selecciona asignatura</h2>
-        <form className="mt-4 grid gap-4 md:grid-cols-3" method="get">
-          <select
+        <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
+          Elige el curso que vas a revisar y aplica el filtro de año para notas y observaciones.
+        </p>
+        <form className="mt-4 grid gap-3 lg:grid-cols-[minmax(240px,1fr)_220px_auto]" method="get">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Curso
+            <select
             name="asignaturaId"
             defaultValue={selectedAsignaturaId}
             title="Seleccionar asignatura"
-            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            className="mt-1 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           >
             {asignaturas.map((asignatura) => (
               <option key={asignatura.id} value={asignatura.id}>
                 {normalizarTextoVisible(asignatura.nombre)} ({asignatura.codigo ?? "SIN-CODIGO"})
               </option>
             ))}
-          </select>
-          <select
+            </select>
+          </label>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+            Año
+            <select
             name="anio"
             defaultValue={anioParam ? String(anioParam) : ""}
             title="Filtrar por año"
-            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            className="mt-1 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           >
             <option value="">Todos los años</option>
             {aniosDisponibles.map((anio) => (
@@ -214,12 +207,13 @@ export default async function DocenteAsignaturasPage({ searchParams }: DocenteAs
                 {anio}
               </option>
             ))}
-          </select>
+            </select>
+          </label>
           <button
             type="submit"
-            className="h-10 rounded bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
+            className="h-11 self-end rounded-xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary-dark"
           >
-            Cargar
+            Aplicar filtros
           </button>
         </form>
       </article>

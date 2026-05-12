@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-import { BookOpen, ClipboardList, Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
+import { BookOpen, ClipboardList, Eye, EyeOff, FileText, Search, Trash2, Upload } from "lucide-react";
 
 import { listarAsignaturasDocente, listarClasesDocente } from "@/actions/docente";
 import {
   cambiarEstadoMaterialFormAction,
+  cambiarEstadoMaterialesDocenteFormAction,
   editarMaterialFormAction,
   eliminarMaterialFormAction,
   listarMaterialPorAsignatura,
@@ -23,6 +24,8 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   material_deleted: { tone: "success", text: "Material eliminado correctamente." },
   material_enabled: { tone: "success", text: "Material habilitado y visible para alumnos." },
   material_disabled: { tone: "success", text: "Material deshabilitado y oculto para alumnos." },
+  materials_enabled_all: { tone: "success", text: "Materiales habilitados para alumnos." },
+  materials_disabled_all: { tone: "success", text: "Materiales deshabilitados para alumnos." },
   duplicate: { tone: "error", text: "Ese archivo ya fue subido a esta clase." },
   invalid_input: { tone: "error", text: "Faltan datos para subir el material." },
   file_too_large: { tone: "error", text: "El archivo excede 50 MB." },
@@ -36,6 +39,8 @@ type DocenteMaterialesPageProps = {
   searchParams?: Promise<{
     state?: string;
     asignaturaId?: string;
+    q?: string;
+    estado?: string;
   }>;
 };
 
@@ -45,8 +50,17 @@ const formatBytes = (value: number | null): string => {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const normalizeSearch = (value: string | null | undefined): string =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 export default async function DocenteMaterialesPage({ searchParams }: DocenteMaterialesPageProps) {
   const params = await (searchParams ?? Promise.resolve({} as NonNullable<Awaited<DocenteMaterialesPageProps["searchParams"]>>));
+  const query = typeof params?.q === "string" ? params.q.trim() : "";
+  const estado = typeof params?.estado === "string" ? params.estado : "todos";
   const asignaturas = await listarAsignaturasDocente();
   const requestedAsignaturaId = typeof params?.asignaturaId === "string" ? params.asignaturaId : "";
   const selectedAsignaturaId =
@@ -82,6 +96,21 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
       material: materialItem,
     })),
   );
+  const normalizedQuery = normalizeSearch(query);
+  const materialesFiltrados = materialesGlobal.filter(({ asignatura, material }) => {
+    const matchesQuery =
+      !normalizedQuery ||
+      normalizeSearch(material.nombre).includes(normalizedQuery) ||
+      normalizeSearch(asignatura.nombre).includes(normalizedQuery) ||
+      normalizeSearch(asignatura.codigo).includes(normalizedQuery) ||
+      normalizeSearch(material.claseTitulo).includes(normalizedQuery);
+    const matchesEstado =
+      estado === "todos" ||
+      (estado === "visibles" && material.habilitado) ||
+      (estado === "ocultos" && !material.habilitado);
+
+    return matchesQuery && matchesEstado;
+  });
 
   return (
     <section className="space-y-5">
@@ -153,17 +182,116 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
               </div>
             </div>
 
-            {materialesGlobal.length === 0 ? (
+            <form method="GET" className="mt-4 grid gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50 lg:grid-cols-[minmax(220px,1fr)_220px_170px_auto]">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Curso
+                <select
+                  name="asignaturaId"
+                  defaultValue={selectedAsignaturaId}
+                  className="mt-1 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                >
+                  {asignaturas.map((asignatura) => (
+                    <option key={asignatura.id} value={asignatura.id}>
+                      {normalizarTextoVisible(asignatura.nombre)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Buscar
+                <span className="relative mt-1 block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    name="q"
+                    defaultValue={query}
+                    placeholder="Archivo, curso o clase"
+                    className="h-11 w-full rounded-xl border border-gray-300 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                    inputMode="search"
+                  />
+                </span>
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Estado
+                <select
+                  name="estado"
+                  defaultValue={estado}
+                  className="mt-1 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="visibles">Visibles</option>
+                  <option value="ocultos">Ocultos</option>
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="h-11 self-end rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary-dark"
+              >
+                Filtrar
+              </button>
+            </form>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <form action={cambiarEstadoMaterialesDocenteFormAction}>
+                <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                <input type="hidden" name="habilitado" value="true" />
+                <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300"
+                >
+                  <Eye className="h-4 w-4" />
+                  Habilitar todo
+                </button>
+              </form>
+              <form action={cambiarEstadoMaterialesDocenteFormAction}>
+                <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
+                <input type="hidden" name="habilitado" value="false" />
+                <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+                >
+                  <EyeOff className="h-4 w-4" />
+                  Deshabilitar todo
+                </button>
+              </form>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <form action={cambiarEstadoMaterialesDocenteFormAction}>
+                <input type="hidden" name="habilitado" value="true" />
+                <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                >
+                  <Eye className="h-4 w-4" />
+                  Habilitar todos mis cursos
+                </button>
+              </form>
+              <form action={cambiarEstadoMaterialesDocenteFormAction}>
+                <input type="hidden" name="habilitado" value="false" />
+                <input type="hidden" name="redirectTo" value="/docente/materiales" />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                >
+                  <EyeOff className="h-4 w-4" />
+                  Deshabilitar todos mis cursos
+                </button>
+              </form>
+            </div>
+
+            {materialesFiltrados.length === 0 ? (
               <div className="mt-5 rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
                 <FileText className="mx-auto h-9 w-9 text-gray-300 dark:text-gray-600" />
                 <p className="mt-3 text-sm font-semibold text-text-primary dark:text-white">
-                  Aun no hay PDFs o materiales cargados en tus asignaturas.
+                  No hay PDFs o materiales para el filtro seleccionado.
                 </p>
               </div>
             ) : (
               <>
               <div className="mt-4 grid gap-3 lg:hidden">
-                {materialesGlobal.map(({ asignatura, material }) => (
+                {materialesFiltrados.map(({ asignatura, material }) => (
                   <article key={material.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
                     <div className="flex flex-col gap-2">
                       <p className="text-sm font-semibold text-text-primary dark:text-white">
@@ -224,7 +352,7 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                         Abrir PDF
                       </a>
                       <Link
-                        href={`/docente/materiales?asignaturaId=${asignatura.id}`}
+                        href={`/docente/asignaturas?asignaturaId=${asignatura.id}#material`}
                         className="inline-flex min-h-11 items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
                       >
                         Abrir curso
@@ -273,7 +401,7 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {materialesGlobal.map(({ asignatura, material }) => (
+                    {materialesFiltrados.map(({ asignatura, material }) => (
                       <tr key={material.id} className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
                         <td className="min-w-[260px] px-4 py-3">
                           <p className="font-semibold text-text-primary dark:text-white">
@@ -333,7 +461,7 @@ export default async function DocenteMaterialesPage({ searchParams }: DocenteMat
                               Abrir PDF
                             </a>
                             <Link
-                              href={`/docente/materiales?asignaturaId=${asignatura.id}`}
+                              href={`/docente/asignaturas?asignaturaId=${asignatura.id}#material`}
                               className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10 dark:border-primary-light/40 dark:text-primary-light"
                             >
                               Abrir curso

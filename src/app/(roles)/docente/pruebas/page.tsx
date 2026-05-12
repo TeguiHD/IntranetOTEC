@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ClipboardList, Eye, Plus, ShieldCheck, ShieldOff } from "lucide-react";
+import { ClipboardList, Eye, Plus, Search, ShieldCheck, ShieldOff } from "lucide-react";
 
 import { listarAsignaturasDocente } from "@/actions/docente";
 import {
@@ -33,12 +33,21 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
   error: { tone: "error", text: "No fue posible completar la accion." },
 };
 
+const normalizeSearch = (value: string | null | undefined): string =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 export default async function DocentePruebasPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ state?: string }>;
+  searchParams?: Promise<{ state?: string; q?: string; estado?: string }>;
 }) {
   const params = await searchParams;
+  const query = typeof params?.q === "string" ? params.q.trim() : "";
+  const estado = typeof params?.estado === "string" ? params.estado : "todos";
   const asignaturas = await listarAsignaturasDocente();
   const evaluacionesPorAsignatura = await Promise.all(
     asignaturas.map(async (asignatura) => ({
@@ -63,6 +72,26 @@ export default async function DocentePruebasPage({
   const createHref = asignaturas[0]
     ? `/docente/asignaturas/${asignaturas[0].id}/evaluaciones`
     : "/docente/asignaturas";
+  const normalizedQuery = normalizeSearch(query);
+  const evaluacionesFiltradasPorAsignatura = evaluacionesPorAsignatura
+    .map(({ asignatura, evaluaciones }) => ({
+      asignatura,
+      evaluaciones: evaluaciones.filter((evaluacion) => {
+        const matchesQuery =
+          !normalizedQuery ||
+          normalizeSearch(evaluacion.titulo).includes(normalizedQuery) ||
+          normalizeSearch(asignatura.nombre).includes(normalizedQuery) ||
+          normalizeSearch(asignatura.codigo).includes(normalizedQuery);
+        const matchesEstado =
+          estado === "todos" ||
+          (estado === "habilitadas" && evaluacion.publicada) ||
+          (estado === "deshabilitadas" && !evaluacion.publicada) ||
+          (estado === "respondidas" && evaluacion.totalRespondidas > 0);
+
+        return matchesQuery && matchesEstado;
+      }),
+    }))
+    .filter(({ evaluaciones }) => evaluaciones.length > 0 || (!normalizedQuery && estado === "todos"));
 
   return (
     <section className="space-y-5">
@@ -101,16 +130,51 @@ export default async function DocentePruebasPage({
         </div>
       </div>
 
-      {evaluacionesPorAsignatura.length === 0 ? (
+      <form method="GET" className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:grid-cols-[minmax(220px,1fr)_220px_auto]">
+        <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+          Buscar
+          <span className="relative mt-1 block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              name="q"
+              defaultValue={query}
+              placeholder="Prueba o asignatura"
+              className="h-11 w-full rounded-xl border border-gray-300 bg-white pl-9 pr-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+              inputMode="search"
+            />
+          </span>
+        </label>
+        <label className="block text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+          Estado
+          <select
+            name="estado"
+            defaultValue={estado}
+            className="mt-1 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+          >
+            <option value="todos">Todas</option>
+            <option value="habilitadas">Habilitadas</option>
+            <option value="deshabilitadas">Deshabilitadas</option>
+            <option value="respondidas">Con respuestas</option>
+          </select>
+        </label>
+        <button
+          type="submit"
+          className="h-11 self-end rounded-xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary-dark"
+        >
+          Filtrar
+        </button>
+      </form>
+
+      {evaluacionesFiltradasPorAsignatura.length === 0 ? (
         <article className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900">
           <ClipboardList className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" />
           <p className="mt-3 text-sm font-semibold text-text-primary dark:text-white">
-            No tienes asignaturas asignadas.
+            No hay pruebas para el filtro seleccionado.
           </p>
         </article>
       ) : (
         <div className="grid gap-4">
-          {evaluacionesPorAsignatura.map(({ asignatura, evaluaciones }) => (
+          {evaluacionesFiltradasPorAsignatura.map(({ asignatura, evaluaciones }) => (
             <article
               key={asignatura.id}
               className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"

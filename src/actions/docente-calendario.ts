@@ -1,6 +1,7 @@
 "use server";
 
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 import { getDb } from "@/db";
 import {
@@ -13,6 +14,7 @@ import {
   notas,
   usuarios,
 } from "@/db/schema";
+import { normalizarTextoVisible } from "@/lib/displayText";
 import { requireActionActor } from "./_security";
 
 export type ClaseDia = {
@@ -225,4 +227,229 @@ export async function listarResumenAsignaturasDocente(): Promise<ResumenAsignatu
       };
     }),
   );
+}
+
+// ---- Crear clase desde el panel docente ----
+
+export type CrearClaseResult =
+  | { ok: true; claseId: string }
+  | { ok: false; code: string; message: string };
+
+export async function crearClaseDocente(input: {
+  asignaturaId: string;
+  fecha: string;
+  horaInicio?: string | null;
+  horaFin?: string | null;
+  sala?: string | null;
+}): Promise<CrearClaseResult> {
+  const actorResult = await requireActionActor("asignaturas.docente", ["docente"]);
+  if (!actorResult.ok) return { ok: false, code: "unauthorized", message: "No autorizado." };
+
+  const db = getDb();
+
+  const [owned] = await db
+    .select({ id: asignaturas.id, nombre: asignaturas.nombre })
+    .from(asignaturas)
+    .where(
+      and(
+        eq(asignaturas.id, input.asignaturaId),
+        eq(asignaturas.docenteId, actorResult.actor.userId),
+        isNull(asignaturas.eliminadoAt),
+      ),
+    )
+    .limit(1);
+
+  if (!owned) return { ok: false, code: "not_found", message: "Asignatura no encontrada." };
+
+  // Verificar que no existe clase para esa fecha
+  const [existing] = await db
+    .select({ id: clases.id })
+    .from(clases)
+    .where(
+      and(
+        eq(clases.asignaturaId, input.asignaturaId),
+        eq(clases.fecha, input.fecha),
+        isNull(clases.eliminadoAt),
+      ),
+    )
+    .limit(1);
+
+  if (existing) return { ok: false, code: "already_exists", message: "Ya existe una clase para esta fecha." };
+
+  // Calcular número de sesión
+  const [{ total }] = await db
+    .select({ total: count(clases.id) })
+    .from(clases)
+    .where(and(eq(clases.asignaturaId, input.asignaturaId), isNull(clases.eliminadoAt)));
+
+  const numeroSesion = (total ?? 0) + 1;
+  const titulo = `Sesión ${numeroSesion} — ${normalizarTextoVisible(owned.nombre)}`;
+
+  const [inserted] = await db
+    .insert(clases)
+    .values({
+      asignaturaId: input.asignaturaId,
+      titulo,
+      numeroSesion,
+      fecha: input.fecha,
+      horaInicio: input.horaInicio ?? null,
+      horaFin: input.horaFin ?? null,
+      sala: input.sala ?? null,
+      publicada: true,
+    })
+    .returning({ id: clases.id });
+
+  revalidatePath("/docente/asignaturas");
+  revalidatePath("/docente/horario");
+
+  return { ok: true, claseId: inserted!.id };
+}
+
+// ---- Historial de clases por asignatura (para /docente/horario) ----
+
+export type ClaseHistorial = {
+  id: string;
+  titulo: string;
+  fecha: string;
+  numeroSesion: number;
+  horaInicio: string | null;
+  horaFin: string | null;
+  sala: string | null;
+  totalAlumnos: number;
+  presentes: number;
+  ausentes: number;
+  tardanzas: number;
+  pctAsistencia: number | null;
+};
+
+export type AsignaturaHistorial = {
+  asignaturaId: string;
+  asignaturaNombre: string;
+  totalClases: number;
+  clases: ClaseHistorial[];
+};
+
+export async function listarHistorialClasesDocente(): Promise<AsignaturaHistorial[]> {
+  const actorResult = await requireActionActor("asignaturas.docente", ["docente"]);
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  const asigs = await db
+    .select({ id: asignaturas.id, nombre: asignaturas.nombre })
+    .from(asignaturas)
+    .where(
+      and(
+        eq(asignaturas.docenteId, actorResult.actor.userId),
+        isNull(asignaturas.eliminadoAt),
+      ),
+    )
+    .orderBy(asignaturas.nombre);
+
+  if (asigs.length === 0) return [];
+
+  const asigIds = asigs.map((a) => a.id);
+
+  const clasesRows = await db
+    .select({
+      id: clases.id,
+      asignaturaId: clases.asignaturaId,
+      titulo: clases.titulo,
+      fecha: clases.fecha,
+      numeroSesion: clases.numeroSesion,
+      horaInicio: clases.horaInicio,
+      horaFin: clases.horaFin,
+      sala: clases.sala,
+    })
+    .from(clases)
+    .where(
+      and(
+        inArray(clases.asignaturaId, asigIds),
+        isNull(clases.eliminadoAt),
+        eq(clases.publicada, true),
+      ),
+    )
+    .orderBy(desc(clases.fecha), desc(clases.numeroSesion));
+
+  if (clasesRows.length === 0) {
+    return asigs.map((a) => ({
+      asignaturaId: a.id,
+      asignaturaNombre: a.nombre,
+      totalClases: 0,
+      clases: [],
+    }));
+  }
+
+  const claseIds = clasesRows.map((c) => c.id);
+
+  // Contar alumnos matriculados por asignatura
+  const matriculasCounts = await db
+    .select({
+      asignaturaId: matriculas.asignaturaId,
+      total: count(matriculas.id),
+    })
+    .from(matriculas)
+    .where(
+      and(
+        inArray(matriculas.asignaturaId, asigIds),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .groupBy(matriculas.asignaturaId);
+
+  const alumnosPorAsig = new Map(matriculasCounts.map((m) => [m.asignaturaId, m.total ?? 0]));
+
+  // Estadísticas de asistencia por clase
+  const asistStats = await db
+    .select({
+      claseId: asistencia.claseId,
+      presentes: sql<number>`COUNT(CASE WHEN ${asistencia.estado} IN ('presente','tardanza') THEN 1 END)::int`,
+      ausentes: sql<number>`COUNT(CASE WHEN ${asistencia.estado} = 'ausente' THEN 1 END)::int`,
+      tardanzas: sql<number>`COUNT(CASE WHEN ${asistencia.estado} = 'tardanza' THEN 1 END)::int`,
+      registrados: sql<number>`COUNT(*)::int`,
+    })
+    .from(asistencia)
+    .where(inArray(asistencia.claseId, claseIds))
+    .groupBy(asistencia.claseId);
+
+  const statsPorClase = new Map(asistStats.map((s) => [s.claseId, s]));
+
+  const clasesMap = new Map<string, ClaseHistorial[]>();
+  for (const c of clasesRows) {
+    const stats = statsPorClase.get(c.id);
+    const totalAlumnos = alumnosPorAsig.get(c.asignaturaId) ?? 0;
+    const presentes = stats?.presentes ?? 0;
+    const ausentes = stats?.ausentes ?? 0;
+    const tardanzas = stats?.tardanzas ?? 0;
+    const registrados = stats?.registrados ?? 0;
+    const item: ClaseHistorial = {
+      id: c.id,
+      titulo: c.titulo,
+      fecha: c.fecha,
+      numeroSesion: c.numeroSesion,
+      horaInicio: c.horaInicio ? String(c.horaInicio).slice(0, 5) : null,
+      horaFin: c.horaFin ? String(c.horaFin).slice(0, 5) : null,
+      sala: c.sala,
+      totalAlumnos,
+      presentes,
+      ausentes,
+      tardanzas,
+      pctAsistencia: registrados > 0 ? Math.round((presentes / registrados) * 100) : null,
+    };
+    const arr = clasesMap.get(c.asignaturaId) ?? [];
+    arr.push(item);
+    clasesMap.set(c.asignaturaId, arr);
+  }
+
+  return asigs
+    .map((a) => {
+      const lista = clasesMap.get(a.id) ?? [];
+      return {
+        asignaturaId: a.id,
+        asignaturaNombre: a.nombre,
+        totalClases: lista.length,
+        clases: lista,
+      };
+    })
+    .filter((a) => a.totalClases > 0);
 }

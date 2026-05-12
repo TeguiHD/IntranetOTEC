@@ -149,7 +149,7 @@ const DOCENTE_SECTIONS: NavSection[] = [
       { href: "/docente/materiales", label: "Materiales", Icon: Upload, gradient: "grad-emerald", capability: "asignaturas.docente" },
       { href: "/docente/pruebas", label: "Pruebas", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_assigned" },
       { href: "/docente/asistencia", label: "Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.docente" },
-      { href: "/docente/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.docente" },
+      { href: "/docente/horario", label: "Mis Clases", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.docente" },
       { href: "/docente/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan", capability: "calendario.docente" },
       { href: "/encuestas", label: "Mis Encuestas", Icon: MessageSquare, gradient: "grad-indigo", capability: "encuestas.docente" },
     ],

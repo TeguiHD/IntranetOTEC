@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-import { ChevronRight, Clock, FileText, MapPin, Shield, Upload, X } from "lucide-react";
+import { ChevronRight, Clock, FileText, MapPin, PlayCircle, Shield, Upload, X } from "lucide-react";
 import Link from "next/link";
 
 import { registrarAsistenciaDocenteAction } from "@/actions/docente";
-import { listarClasePorAsignaturaYFecha, type ClaseDia } from "@/actions/docente-calendario";
+import { crearClaseDocente, listarClasePorAsignaturaYFecha, type ClaseDia } from "@/actions/docente-calendario";
 import { subirMaterialAction } from "@/actions/material";
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 
@@ -54,6 +54,8 @@ export function PanelClase({
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [fetchKey, setFetchKey] = useState(0);
   const [tab, setTab] = useState<Tab>("asistencia");
+  const [creating, startCreate] = useTransition();
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +98,24 @@ export function PanelClase({
     },
     [clase, fecha, estadosLocales],
   );
+
+  const iniciarClase = () => {
+    setCreateError(null);
+    startCreate(async () => {
+      const result = await crearClaseDocente({
+        asignaturaId,
+        fecha,
+        horaInicio,
+        horaFin,
+        sala,
+      });
+      if (result.ok) {
+        setFetchKey((k) => k + 1);
+      } else {
+        setCreateError(result.message);
+      }
+    });
+  };
 
   const marcados = Object.keys(estadosLocales).length;
   const total = clase?.alumnos.length ?? 0;
@@ -164,14 +184,36 @@ export function PanelClase({
           </div>
         )}
 
-        {/* Sin clase */}
+        {/* Sin clase — el docente puede iniciarla */}
         {!loading && clase === null && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-            <Clock className="h-10 w-10 text-gray-200 dark:text-gray-700" />
-            <p className="text-sm font-semibold text-text-primary dark:text-white">Sin clase este día</p>
-            <p className="max-w-xs text-xs text-text-secondary dark:text-gray-400">
-              No hay clase registrada para esta fecha. Contacta a administración para generarla.
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <PlayCircle className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary dark:text-white">No hay clase activa para hoy</p>
+              <p className="mt-1 max-w-xs text-xs text-text-secondary dark:text-gray-400">
+                Inicia la sesión de hoy para pasar asistencia, subir material o activar pruebas.
+              </p>
+            </div>
+            {createError && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950 dark:text-red-400">
+                {createError}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={iniciarClase}
+              disabled={creating}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60"
+            >
+              {creating ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <PlayCircle className="h-4 w-4" />
+              )}
+              Iniciar clase de hoy
+            </button>
           </div>
         )}
 

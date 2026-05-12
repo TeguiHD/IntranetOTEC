@@ -313,6 +313,7 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
           horaFin={panelAbierto.horaFin}
           sala={panelAbierto.sala}
           onClose={() => setPanelAbierto(null)}
+          pruebasHref={`/docente/pruebas?asignaturaId=${panelAbierto.asignaturaId}`}
         />
       )}
     </>

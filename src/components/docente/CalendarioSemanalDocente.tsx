@@ -71,22 +71,29 @@ type Props = {
   bloques: HorarioBloque[];
 };
 
+function colorIndex(id: string, count: number): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) & 0xffff;
+  }
+  return hash % count;
+}
+
 export function CalendarioSemanalDocente({ bloques }: Props) {
   const [semanaBase, setSemanaBase] = useState<Date>(() =>
     getMondayOfWeek(new Date()),
   );
   const [panelAbierto, setPanelAbierto] = useState<PanelInfo | null>(null);
 
-  const nombresUnicos = useMemo(
-    () => [...new Set(bloques.map((b) => b.asignaturaNombre))],
-    [bloques],
-  );
+  const colorBg = (bloque: HorarioBloque) => {
+    const id = bloque.asignaturaId ?? bloque.asignaturaNombre;
+    return COLORES_BG[colorIndex(id, COLORES_BG.length)] ?? COLORES_BG[0];
+  };
 
-  const colorBg = (nombre: string) =>
-    COLORES_BG[nombresUnicos.indexOf(nombre) % COLORES_BG.length] ?? COLORES_BG[0];
-
-  const colorBar = (nombre: string) =>
-    COLORES_BAR[nombresUnicos.indexOf(nombre) % COLORES_BAR.length] ?? COLORES_BAR[0];
+  const colorBar = (bloque: HorarioBloque) => {
+    const id = bloque.asignaturaId ?? bloque.asignaturaNombre;
+    return COLORES_BAR[colorIndex(id, COLORES_BAR.length)] ?? COLORES_BAR[0];
+  };
 
   const diasSemana = useMemo(
     () => Array.from({ length: 6 }, (_, i) => addDays(semanaBase, i)),
@@ -103,10 +110,19 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
     return `${fmt.format(inicio)} – ${fmt.format(fin)} ${inicio.getFullYear()}`;
   }, [diasSemana]);
 
-  const bloquesDelDia = (diaIndex: number) =>
-    bloques
-      .filter((b) => b.diaSemana === diaIndex)
-      .sort((a, b) => (a.horaInicio ?? "").localeCompare(b.horaInicio ?? ""));
+  const bloquesPorDia = useMemo(() => {
+    const map = new Map<number, HorarioBloque[]>();
+    for (const b of bloques) {
+      if (b.diaSemana == null) continue;
+      const list = map.get(b.diaSemana) ?? [];
+      list.push(b);
+      map.set(b.diaSemana, list);
+    }
+    for (const [, list] of map) {
+      list.sort((a, b) => (a.horaInicio ?? "").localeCompare(b.horaInicio ?? ""));
+    }
+    return map;
+  }, [bloques]);
 
   const abrirPanel = (bloque: HorarioBloque, dia: Date) => {
     if (!bloque.asignaturaId) return;
@@ -199,7 +215,7 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
         {/* Celdas con bloques */}
         <div className="grid grid-cols-6 divide-x divide-gray-100 dark:divide-gray-800">
           {diasSemana.map((dia, i) => {
-            const bloquesHoy = bloquesDelDia(i);
+            const bloquesHoy = bloquesPorDia.get(i) ?? [];
             const iso = toIso(dia);
             const esHoy = iso === hoy;
             return (
@@ -217,7 +233,7 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
                     onClick={() => abrirPanel(bloque, dia)}
                     className={[
                       "w-full rounded-xl border p-2 text-left text-xs font-semibold transition-all hover:opacity-80 active:scale-[0.98]",
-                      colorBg(bloque.asignaturaNombre),
+                      colorBg(bloque),
                     ].join(" ")}
                   >
                     <span className="block truncate">
@@ -243,7 +259,7 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
       {/* Vista mobile: lista por día */}
       <div className="space-y-2 md:hidden">
         {diasSemana.map((dia, i) => {
-          const bloquesHoy = bloquesDelDia(i);
+          const bloquesHoy = bloquesPorDia.get(i) ?? [];
           const iso = toIso(dia);
           const esHoy = iso === hoy;
           if (bloquesHoy.length === 0) return null;
@@ -278,7 +294,7 @@ export function CalendarioSemanalDocente({ bloques }: Props) {
                     <span
                       className={[
                         "h-9 w-1.5 shrink-0 rounded-full",
-                        colorBar(bloque.asignaturaNombre),
+                        colorBar(bloque),
                       ].join(" ")}
                     />
                     <div className="min-w-0 flex-1">

@@ -43,6 +43,14 @@ export async function listarClasePorAsignaturaYFecha(
 
   const db = getDb();
 
+  const [owned] = await db
+    .select({ id: asignaturas.id })
+    .from(asignaturas)
+    .where(and(eq(asignaturas.id, asignaturaId), eq(asignaturas.docenteId, actorResult.actor.userId)))
+    .limit(1);
+
+  if (!owned) return null;
+
   const [clase] = await db
     .select({
       id: clases.id,

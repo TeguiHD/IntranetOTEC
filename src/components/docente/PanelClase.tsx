@@ -7,7 +7,7 @@ import Link from "next/link";
 
 import { registrarAsistenciaDocenteAction } from "@/actions/docente";
 import { listarClasePorAsignaturaYFecha, type ClaseDia } from "@/actions/docente-calendario";
-import { subirMaterialFormAction } from "@/actions/material";
+import { subirMaterialAction } from "@/actions/material";
 import { QrAsistenciaButton } from "@/components/docente/QrAsistenciaButton";
 
 type EstadoAsist = "presente" | "ausente" | "tardanza" | "justificado";
@@ -51,10 +51,13 @@ export function PanelClase({
   const [estadosLocales, setEstadosLocales] = useState<Record<string, EstadoAsist>>({});
   const [pendiente, startSave] = useTransition();
   const [showMaterialForm, setShowMaterialForm] = useState(false);
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     startLoad(async () => {
       const data = await listarClasePorAsignaturaYFecha(asignaturaId, fecha);
+      if (cancelled) return;
       setClase(data);
       if (data) {
         const init: Record<string, EstadoAsist> = {};
@@ -64,22 +67,32 @@ export function PanelClase({
         setEstadosLocales(init);
       }
     });
-  }, [asignaturaId, fecha]);
+    return () => { cancelled = true; };
+  }, [asignaturaId, fecha, fetchKey]);
 
   const marcar = useCallback(
     (matriculaId: string, estado: EstadoAsist) => {
       if (!clase) return;
+      const previous = estadosLocales[matriculaId] ?? null;
       setEstadosLocales((prev) => ({ ...prev, [matriculaId]: estado }));
       startSave(async () => {
-        await registrarAsistenciaDocenteAction({
+        const result = await registrarAsistenciaDocenteAction({
           claseId: clase.id,
           matriculaId,
           estado,
           fechaRegistro: fecha,
         });
+        if (!result.ok) {
+          setEstadosLocales((prev) => {
+            const next = { ...prev };
+            if (previous === null) delete next[matriculaId];
+            else next[matriculaId] = previous;
+            return next;
+          });
+        }
       });
     },
-    [clase, fecha],
+    [clase, fecha, estadosLocales],
   );
 
   return (
@@ -207,33 +220,48 @@ export function PanelClase({
 
               {showMaterialForm && (
                 <form
-                  action={subirMaterialFormAction}
                   encType="multipart/form-data"
                   className="space-y-2 rounded-xl border border-dashed border-primary/30 p-3"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    await subirMaterialAction(formData);
+                    setFetchKey((k) => k + 1);
+                    setShowMaterialForm(false);
+                  }}
                 >
                   <input type="hidden" name="asignaturaId" value={asignaturaId} />
                   <input type="hidden" name="claseId" value={clase.id} />
-                  <input
-                    name="nombre"
-                    placeholder="Nombre del material"
-                    required
-                    maxLength={200}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  />
-                  <textarea
-                    name="descripcion"
-                    placeholder="Descripción (opcional)"
-                    rows={2}
-                    maxLength={500}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  />
-                  <input
-                    name="archivo"
-                    type="file"
-                    required
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.mp4,.webm,.zip"
-                    className="w-full text-sm text-text-secondary file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary"
-                  />
+                  <label className="block text-xs font-semibold text-text-secondary dark:text-gray-400">
+                    Nombre del material
+                    <input
+                      name="nombre"
+                      placeholder="Nombre del material"
+                      required
+                      maxLength={200}
+                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-text-secondary dark:text-gray-400">
+                    Descripción (opcional)
+                    <textarea
+                      name="descripcion"
+                      placeholder="Descripción (opcional)"
+                      rows={2}
+                      maxLength={500}
+                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-text-secondary dark:text-gray-400">
+                    Archivo
+                    <input
+                      name="archivo"
+                      type="file"
+                      required
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.mp4,.webm,.zip"
+                      className="mt-1 w-full text-sm text-text-secondary file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary"
+                    />
+                  </label>
                   <button
                     type="submit"
                     className="h-9 w-full rounded-lg bg-primary text-sm font-semibold text-white hover:bg-primary-dark"

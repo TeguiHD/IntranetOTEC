@@ -705,7 +705,7 @@ export async function emitirCertificadoAlumnoRegular(
       alumnoRut: registro.alumnoRut ?? null,
       asignaturaId: registro.asignaturaId,
       fechaEmision: fechaEmision.toISOString(),
-      nombreCurso: `${registro.cursoNombre} – ${registro.asignaturaNombre}`,
+      nombreCurso: registro.cursoNombre ?? registro.asignaturaNombre ?? "",
       nombreEstablecimiento: INSTITUCION_OTEC.nombreCorto,
       finalidad: finalidadTexto,
       codigoUnico,

@@ -181,11 +181,9 @@ const ALUMNO_SECTIONS: NavSection[] = [
     items: [
       { href: "/alumno/asignaturas", label: "Mis Cursos", Icon: GraduationCap, gradient: "grad-blue", capability: "asignaturas.alumno" },
       { href: "/alumno/materiales", label: "Materiales", Icon: FileText, gradient: "grad-emerald", capability: "clases.alumno" },
-      { href: "/alumno/horario", label: "Mi Horario", Icon: CalendarRange, gradient: "grad-teal", capability: "horario.alumno" },
       { href: "/alumno/calendario", label: "Calendario", Icon: CalendarDays, gradient: "grad-cyan", capability: "calendario.alumno" },
       { href: "/alumno/clases", label: "Clases", Icon: CalendarDays, gradient: "grad-cyan", capability: "clases.alumno" },
       { href: "/alumno/evaluaciones", label: "Evaluaciones", Icon: ClipboardList, gradient: "grad-violet", capability: "evaluaciones.read_own" },
-      { href: "/alumno/historial", label: "Historial", Icon: FileText, gradient: "grad-indigo", capability: "historial.alumno" },
       { href: "/alumno/notas", label: "Mis Notas", Icon: ClipboardList, gradient: "grad-gold", capability: "notas.alumno" },
       { href: "/alumno/asistencias", label: "Mi Asistencia", Icon: ClipboardCheck, gradient: "grad-emerald", capability: "asistencia.alumno" },
       { href: "/alumno/encuesta-docente", label: "Evaluar Docente", Icon: Star, gradient: "grad-amber", capability: "encuestas.alumno" },

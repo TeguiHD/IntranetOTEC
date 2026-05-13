@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import Link from "next/link";
+
 import { Bell, BookOpen, CalendarCheck2, ChevronLeft, ChevronRight, ClipboardList, Star } from "lucide-react";
 
 import type { EventoCalendario } from "@/actions/calendario";
@@ -19,6 +21,7 @@ type Props = {
   onMesChange?: (mes: number, anio: number) => void;
   selectedDate?: string;
   onDateSelect?: (dateIso: string) => void;
+  hideEventPanel?: boolean;
 };
 
 export function CalendarioMensual({
@@ -28,6 +31,7 @@ export function CalendarioMensual({
   onMesChange,
   selectedDate,
   onDateSelect,
+  hideEventPanel,
 }: Props) {
   const [mes, setMes] = useState(mesInicial);
   const [anio, setAnio] = useState(anioInicial);
@@ -198,7 +202,7 @@ export function CalendarioMensual({
           <span className="h-2.5 w-2.5 rounded-sm bg-red-500" /> Evaluación / entrega
         </span>
       </div>
-      {selectedDate && (
+      {selectedDate && !hideEventPanel && (
         <div className="border-t border-gray-100 px-5 py-4 dark:border-gray-800">
           <h3 className="text-sm font-semibold text-text-primary dark:text-white">
             Eventos del día
@@ -211,15 +215,15 @@ export function CalendarioMensual({
             <div className="mt-3 space-y-2">
               {selectedEventos.map((evento) => {
                 const Icon = getEventoIcon(evento.tipo, evento.relevante);
-                return (
-                  <div key={`${evento.tipo}-${evento.id}`} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50">
+                const cardInner = (
+                  <>
                     <span
                       className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
                       style={{ backgroundColor: evento.tipo === "evaluacion" ? "#EF4444" : evento.color }}
                     >
                       <Icon className="h-4 w-4" />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
                         {evento.titulo}
                       </p>
@@ -228,6 +232,25 @@ export function CalendarioMensual({
                         {evento.hora ? ` · ${evento.hora}` : ""}
                       </p>
                     </div>
+                    {evento.href && (
+                      <span aria-hidden="true" className="mt-1 shrink-0 text-sm text-text-muted dark:text-gray-500">
+                        →
+                      </span>
+                    )}
+                  </>
+                );
+                const cardClass = "flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/50";
+                return evento.href ? (
+                  <Link
+                    key={`${evento.tipo}-${evento.id}`}
+                    href={evento.href}
+                    className={`${cardClass} cursor-pointer transition-colors hover:border-primary/40 hover:bg-primary/5 dark:hover:border-primary/40 dark:hover:bg-primary/10`}
+                  >
+                    {cardInner}
+                  </Link>
+                ) : (
+                  <div key={`${evento.tipo}-${evento.id}`} className={cardClass}>
+                    {cardInner}
                   </div>
                 );
               })}

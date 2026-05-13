@@ -11,6 +11,7 @@ import {
   clases,
   cursos,
   evaluacionDestinatarios,
+  evaluacionIntentos,
   evaluaciones,
   matriculas,
 } from "@/db/schema";
@@ -28,6 +29,8 @@ export type EventoCalendario = {
   nota?: string | null;
   relevante?: boolean;
   personal?: boolean;
+  href?: string | null;
+  estado?: "futuro" | "pendiente" | "pasado" | null;
 };
 
 const COLORS = [
@@ -72,6 +75,8 @@ export async function obtenerEventosCalendarioAlumno(
   if (mats.length === 0) return [];
   const asigIds = mats.map((m) => m.asignaturaId);
 
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const ahoraMs = Date.now();
   const eventos: EventoCalendario[] = [];
 
   // Nombre de asignaturas para colores
@@ -119,6 +124,8 @@ export async function obtenerEventosCalendarioAlumno(
         fecha: c.fecha,
         hora: c.horaInicio,
         color: colorMap[c.asignaturaId] ?? "#8B3A9E",
+        href: "/alumno/clases",
+        estado: c.fecha < hoyStr ? "pasado" : "futuro",
       });
     }
 
@@ -156,12 +163,35 @@ export async function obtenerEventosCalendarioAlumno(
     }
     const matriculaId = mats.find((m) => m.asignaturaId === asigId)?.id ?? "";
 
+    const evalIds = evalRows.map((row) => row.id);
+    const intentosEnviados = evalIds.length && matriculaId
+      ? await db
+          .select({ evaluacionId: evaluacionIntentos.evaluacionId })
+          .from(evaluacionIntentos)
+          .where(
+            and(
+              inArray(evaluacionIntentos.evaluacionId, evalIds),
+              eq(evaluacionIntentos.matriculaId, matriculaId),
+            ),
+          )
+      : [];
+    const respondidasSet = new Set(
+      intentosEnviados.map((row) => row.evaluacionId),
+    );
+
     for (const e of evalRows) {
       const habilitados = destinatariosMap.get(e.id);
       if (habilitados && !habilitados.has(matriculaId)) continue;
       if (!e.fechaLimite) continue;
       const fechaStr = e.fechaLimite.toISOString().slice(0, 10);
       if (fechaStr < inicio || fechaStr > fin) continue;
+      const limiteMs = e.fechaLimite.getTime();
+      const respondida = respondidasSet.has(e.id);
+      const estado: EventoCalendario["estado"] = respondida
+        ? "pasado"
+        : limiteMs < ahoraMs
+          ? "pasado"
+          : "pendiente";
       eventos.push({
         id: e.id,
         tipo: "evaluacion",
@@ -170,6 +200,8 @@ export async function obtenerEventosCalendarioAlumno(
         fecha: fechaStr,
         hora: e.fechaLimite.toTimeString().slice(0, 5),
         color: colorMap[e.asignaturaId] ?? "#EF4444",
+        href: "/alumno/evaluaciones",
+        estado,
       });
     }
   }

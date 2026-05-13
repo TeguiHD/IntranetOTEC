@@ -164,7 +164,6 @@ const DOCENTE_SECTIONS: NavSection[] = [
   {
     title: "Mi cuenta",
     items: [
-      { href: "/docente/tutoriales", label: "Tutoriales", Icon: PlayCircle, gradient: "grad-violet", capability: "tutoriales.docente" },
       { href: "/docente/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue", capability: "perfil.self" },
       { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald", capability: "app.install" },
     ],
@@ -210,7 +209,6 @@ const ALUMNO_SECTIONS: NavSection[] = [
   {
     title: "Mi cuenta",
     items: [
-      { href: "/alumno/tutoriales", label: "Tutoriales", Icon: PlayCircle, gradient: "grad-violet", capability: "tutoriales.alumno" },
       { href: "/alumno/perfil", label: "Mi Perfil", Icon: User, gradient: "grad-blue", capability: "perfil.self" },
       { href: "/instalar", label: "Instalar App", Icon: Download, gradient: "grad-emerald", capability: "app.install" },
     ],

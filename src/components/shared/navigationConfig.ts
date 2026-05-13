@@ -18,7 +18,6 @@ import {
   LayoutDashboard,
   type LucideIcon,
   MessageSquare,
-  PlayCircle,
   Shield,
   Star,
   TrendingUp,

@@ -26,9 +26,8 @@ export default async function AlumnoCertificadosPage() {
           <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
             Certificados
           </h1>
-          <p className="text-sm text-text-secondary dark:text-gray-400">
-            Genera tu certificado de alumno regular de forma autónoma. El documento incluye
-            firma digital institucional y código QR de validación.
+          <p className="text-balance text-sm text-text-secondary dark:text-gray-400">
+            Genera tu certificado con firma digital y código QR de validación.
           </p>
         </div>
       </header>

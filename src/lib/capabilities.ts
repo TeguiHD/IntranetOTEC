@@ -56,6 +56,8 @@ export const APP_CAPABILITIES = [
   "solicitudes.admin",
   "solicitudes.alumno",
   "test_estilos.alumno",
+  "tutoriales.alumno",
+  "tutoriales.docente",
 ] as const;
 
 export type AppCapability = (typeof APP_CAPABILITIES)[number];
@@ -106,6 +108,7 @@ const DOCENTE_CAPABILITIES: AppCapability[] = [
   "anuncios.read",
   "anuncios.write",
   "app.install",
+  "tutoriales.docente",
   "asignaturas.docente",
   "asistencia.docente",
   "calendario.docente",
@@ -128,6 +131,7 @@ const DOCENTE_CAPABILITIES: AppCapability[] = [
 const ALUMNO_CAPABILITIES: AppCapability[] = [
   "anuncios.read",
   "app.install",
+  "tutoriales.alumno",
   "asignaturas.alumno",
   "asistencia.alumno",
   "calendario.alumno",

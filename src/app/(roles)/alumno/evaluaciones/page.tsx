@@ -153,9 +153,14 @@ export default async function AlumnoEvaluacionesPage() {
                   >
                     {EVALUATION_WINDOW_LABELS[ev.estadoVentana]}
                   </span>
-                  {ev.respondidaPorAlumno ? (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
-                      Respondida
+                  {ev.estadoVentana === "disponible" && !ev.respondidaPorAlumno ? (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                      Pendiente
+                    </span>
+                  ) : null}
+                  {ev.respondidaPorAlumno && !ev.notaAlumno ? (
+                    <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                      Enviada
                     </span>
                   ) : null}
                   {ev.notaAlumno ? (

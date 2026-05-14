@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Download, FileWarning, Loader2, ShieldCheck, XCircle } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronDown, Download, FileText, FileWarning, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -161,47 +161,68 @@ export function CertificadosAlumnoCliente({ disponibles, historial }: Props) {
             <div>
               <label
                 htmlFor="cert-curso"
-                className="mb-1.5 block text-sm font-medium text-text-primary dark:text-gray-200"
+                className="mb-2 block text-sm font-semibold text-text-primary dark:text-gray-200"
               >
                 Curso / asignatura
               </label>
-              <select
-                id="cert-curso"
-                value={matriculaId}
-                onChange={(e) => setMatriculaId(e.target.value)}
-                disabled={isPending}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-              >
-                {disponibles.map((d) => (
-                  <option key={d.matriculaId} value={d.matriculaId}>
-                    {d.cursoNombre} – {d.asignaturaNombre}
-                    {d.asignaturaCodigo ? ` (${d.asignaturaCodigo})` : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="group relative">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-primary dark:text-primary-light">
+                  <BookOpen className="h-5 w-5" />
+                </span>
+                <select
+                  id="cert-curso"
+                  value={matriculaId}
+                  onChange={(e) => setMatriculaId(e.target.value)}
+                  disabled={isPending}
+                  className="w-full appearance-none rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/60 py-4 pl-12 pr-11 text-base font-medium text-text-primary shadow-sm transition-all hover:border-primary/40 hover:shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100 dark:hover:border-primary-light/40 sm:py-3 sm:text-sm"
+                >
+                  {disponibles.map((d) => (
+                    <option key={d.matriculaId} value={d.matriculaId}>
+                      {d.cursoNombre} – {d.asignaturaNombre}
+                      {d.asignaturaCodigo ? ` (${d.asignaturaCodigo})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary transition-transform group-hover:text-primary dark:text-gray-400 dark:group-hover:text-primary-light">
+                  <ChevronDown className="h-5 w-5" />
+                </span>
+              </div>
+              {disponibles.length > 1 ? (
+                <p className="mt-1.5 text-xs text-text-muted dark:text-gray-500">
+                  {disponibles.length} cursos disponibles · toca para elegir
+                </p>
+              ) : null}
             </div>
 
             {/* Finalidad selector */}
             <div>
               <label
                 htmlFor="cert-finalidad"
-                className="mb-1.5 block text-sm font-medium text-text-primary dark:text-gray-200"
+                className="mb-2 block text-sm font-semibold text-text-primary dark:text-gray-200"
               >
                 Finalidad del certificado
               </label>
-              <select
-                id="cert-finalidad"
-                value={finalidad}
-                onChange={(e) => setFinalidad(e.target.value as FinalidadValue)}
-                disabled={isPending}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-              >
-                {FINALIDADES.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+              <div className="group relative">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-primary dark:text-primary-light">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <select
+                  id="cert-finalidad"
+                  value={finalidad}
+                  onChange={(e) => setFinalidad(e.target.value as FinalidadValue)}
+                  disabled={isPending}
+                  className="w-full appearance-none rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/60 py-4 pl-12 pr-11 text-base font-medium text-text-primary shadow-sm transition-all hover:border-primary/40 hover:shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100 dark:hover:border-primary-light/40 sm:py-3 sm:text-sm"
+                >
+                  {FINALIDADES.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary transition-transform group-hover:text-primary dark:text-gray-400 dark:group-hover:text-primary-light">
+                  <ChevronDown className="h-5 w-5" />
+                </span>
+              </div>
             </div>
 
             {/* Otro finalidad */}

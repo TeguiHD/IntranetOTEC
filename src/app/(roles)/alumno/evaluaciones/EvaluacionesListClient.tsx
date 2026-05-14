@@ -154,14 +154,14 @@ export function EvaluacionesListClient({ evaluaciones }: Props) {
           </div>
         </article>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtradas.map((ev) => {
             const isUpcoming = ev.estadoVentana === "programada";
             const isOverdue = ev.estadoVentana === "vencida";
             return (
               <article
                 key={ev.id}
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+                className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-900 sm:p-5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">

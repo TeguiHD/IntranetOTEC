@@ -195,14 +195,14 @@ export function Topbar({
   const showBackButton = pathname !== `/${role}`;
 
   return (
-    <header className="app-topbar fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:px-4">
-      <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+    <header className="app-topbar fixed left-0 right-0 top-0 z-30 flex items-center justify-between gap-1 border-b border-gray-200/80 bg-white/90 px-2 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/90 sm:gap-2 sm:px-4">
+      <div className="flex min-w-0 shrink items-center gap-0.5 sm:gap-3">
         {/* Mobile menu button */}
         <button
           type="button"
           aria-label="Abrir menú"
           onClick={onToggleMobileSidebar}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
+          className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -213,7 +213,7 @@ export function Topbar({
             aria-label="Volver"
             title="Volver"
             onClick={handleSmartBack}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20"
+            className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-text-primary hover:bg-primary/10 active:bg-primary/20 dark:text-gray-100 dark:hover:bg-primary/20"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -257,17 +257,17 @@ export function Topbar({
 
       </div>
 
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         {showInstallAction ? (
           <button
             type="button"
             onClick={handleInstallAction}
             aria-label="Instalar app"
             title={platform === "ios" ? "Ver pasos de instalacion" : "Instalar app"}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-cta px-3 text-sm font-semibold text-white shadow-sm shadow-cta/20 transition-colors hover:bg-cta-dark active:scale-95"
+            className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center gap-2 rounded-xl bg-cta text-white shadow-sm shadow-cta/20 transition-colors hover:bg-cta-dark active:scale-95 sm:w-auto sm:px-3"
           >
             <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">
+            <span className="hidden text-sm font-semibold sm:inline">
               {platform === "ios" ? "Instalar app" : "Instalar"}
             </span>
           </button>
@@ -284,7 +284,7 @@ export function Topbar({
                 : "Solicitudes"
             }
             title="Solicitudes"
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
+            className="relative inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
           >
             <FileText className="h-5 w-5" />
             {pendingSolicitudes > 0 ? (
@@ -301,7 +301,7 @@ export function Topbar({
           aria-label={navMode === "grid" ? "Cambiar a vista de lista" : "Cambiar a vista de iconos"}
           title={navMode === "grid" ? "Vista de lista" : "Vista de iconos"}
           onClick={onToggleNavMode}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
+          className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20 md:hidden"
         >
           {navMode === "grid" ? (
             <PanelLeft className="h-5 w-5" />
@@ -317,7 +317,7 @@ export function Topbar({
             onClick={handleBellClick}
             aria-label={unreadNotifs > 0 ? `${unreadNotifs} notificaciones sin leer` : "Notificaciones"}
             title="Notificaciones"
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
+            className="relative inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
           >
             <Bell className="h-5 w-5" />
             {unreadNotifs > 0 && (
@@ -432,7 +432,7 @@ export function Topbar({
           aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           title={isDark ? "Modo claro" : "Modo oscuro"}
           onClick={handleThemeToggle}
-          className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
+          className="relative inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-text-primary transition-colors hover:bg-primary/10 active:scale-95 dark:text-gray-100 dark:hover:bg-primary/20"
         >
           {mounted ? (
             isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />
@@ -441,12 +441,12 @@ export function Topbar({
           )}
         </button>
 
-        {/* User avatar + name (desktop) */}
-        <div className="hidden items-center gap-2.5 rounded-xl bg-gray-50 px-3 py-1.5 dark:bg-gray-900 sm:flex">
+        {/* User avatar + name (desktop only para evitar overflow en tablet) */}
+        <div className="hidden items-center gap-2.5 rounded-xl bg-gray-50 px-3 py-1.5 dark:bg-gray-900 lg:flex">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark text-xs font-bold text-white shadow-sm">
             {getInitials(userName)}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 max-w-[10rem]">
             <p className="truncate text-sm font-semibold text-text-primary dark:text-white">{userName}</p>
             <p className="text-xs text-text-secondary dark:text-gray-400">{ROLE_NAMES[role]}</p>
           </div>

@@ -80,13 +80,13 @@ export function HistorialSolicitudes({ solicitudes, tipoFiltro }: Props) {
           )}
 
           {s.tipo === "credencial" && s.estado === "aprobada" && (
-            <Link
-              href="/alumno/solicitudes/credencial"
+            <a
+              href="#credencial-aprobada"
               className="inline-flex items-center gap-1.5 self-start rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 dark:text-primary-light"
             >
               <FileDown className="h-3.5 w-3.5" />
               Ver credencial
-            </Link>
+            </a>
           )}
         </div>
       ))}

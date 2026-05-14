@@ -1,25 +1,6 @@
-import { CalendarDays, ClipboardList } from "lucide-react";
-import Link from "next/link";
-
 import { listarEvaluacionesAlumno } from "@/actions/evaluaciones";
-import {
-  EVALUATION_WINDOW_LABELS,
-  EVALUATION_WINDOW_TONES,
-} from "@/lib/evaluation-status";
 
-const TIPO_LABELS: Record<string, string> = {
-  formulario: "Formulario",
-  tarea: "Tarea",
-  examen: "Examen",
-  proyecto: "Proyecto",
-};
-
-const TIPO_COLORS: Record<string, string> = {
-  formulario: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  tarea: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  examen: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  proyecto: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-};
+import { EvaluacionesListClient } from "./EvaluacionesListClient";
 
 export const metadata = {
   title: "Mis Evaluaciones",
@@ -47,16 +28,16 @@ export default async function AlumnoEvaluacionesPage() {
     );
   }
 
-  const upcomingCount = evaluaciones.filter(
-    (evaluacion) => evaluacion.estadoVentana === "programada",
+  const pendientesCount = evaluaciones.filter(
+    (ev) => ev.estadoVentana === "disponible" && !ev.respondidaPorAlumno,
   ).length;
-  const overdueCount = evaluaciones.filter(
-    (evaluacion) => evaluacion.estadoVentana === "vencida",
+  const enviadasCount = evaluaciones.filter(
+    (ev) => ev.respondidaPorAlumno && !ev.notaAlumno,
   ).length;
-  const availableCount = evaluaciones.filter(
-    (evaluacion) => evaluacion.estadoVentana === "disponible",
+  const revisadasCount = evaluaciones.filter((ev) => ev.notaAlumno !== null).length;
+  const vencidasCount = evaluaciones.filter(
+    (ev) => ev.estadoVentana === "vencida",
   ).length;
-  const answeredCount = evaluaciones.filter((evaluacion) => evaluacion.respondidaPorAlumno).length;
 
   return (
     <section className="space-y-6">
@@ -69,157 +50,46 @@ export default async function AlumnoEvaluacionesPage() {
         </p>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-4">
-        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-            Disponibles
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <article className="rounded-xl border border-amber-200 bg-gradient-to-b from-amber-50 to-amber-100/40 p-4 shadow-sm dark:border-amber-900/40 dark:from-amber-950/30 dark:to-amber-900/10">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
+            Pendientes
           </p>
-          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{availableCount}</p>
-          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-            Puedes responderlas ahora mismo.
-          </p>
-        </article>
-        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-            Próximas
-          </p>
-          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{upcomingCount}</p>
-          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-            Quedan preparadas, pero aún no abren.
+          <p className="mt-2 text-2xl font-bold text-amber-900 dark:text-amber-100">{pendientesCount}</p>
+          <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-200/80">
+            Aún no respondidas.
           </p>
         </article>
-        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <article className="rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50 to-blue-100/40 p-4 shadow-sm dark:border-blue-900/40 dark:from-blue-950/30 dark:to-blue-900/10">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
+            Enviadas
+          </p>
+          <p className="mt-2 text-2xl font-bold text-blue-900 dark:text-blue-100">{enviadasCount}</p>
+          <p className="mt-1 text-xs text-blue-700/80 dark:text-blue-200/80">
+            Esperando revisión.
+          </p>
+        </article>
+        <article className="rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-emerald-100/40 p-4 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-emerald-900/10">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+            Revisadas
+          </p>
+          <p className="mt-2 text-2xl font-bold text-emerald-900 dark:text-emerald-100">{revisadasCount}</p>
+          <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-200/80">
+            Con nota registrada.
+          </p>
+        </article>
+        <article className="rounded-xl border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100/40 p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-gray-900/60">
           <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
             Vencidas
           </p>
-          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{overdueCount}</p>
+          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{vencidasCount}</p>
           <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-            Sirven como historial, no admiten nuevos envíos.
-          </p>
-        </article>
-        <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
-            Respondidas
-          </p>
-          <p className="mt-2 text-2xl font-bold text-text-primary dark:text-white">{answeredCount}</p>
-          <p className="mt-1 text-xs text-text-secondary dark:text-gray-400">
-            Ya forman parte de tu historial académico.
+            Historial cerrado.
           </p>
         </article>
       </div>
 
-      {evaluaciones.length === 0 ? (
-        <article className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <ClipboardList className="h-10 w-10 text-gray-300 dark:text-gray-600" />
-            <p className="text-sm text-text-secondary dark:text-gray-400">
-              No tienes evaluaciones disponibles en este momento.
-            </p>
-          </div>
-        </article>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {evaluaciones.map((ev) => {
-            const isUpcoming = ev.estadoVentana === "programada";
-            const isOverdue = ev.estadoVentana === "vencida";
-            return (
-              <article
-                key={ev.id}
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-text-primary dark:text-gray-100">
-                      {ev.titulo}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-text-secondary dark:text-gray-400">
-                      {ev.asignaturaNombre}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      TIPO_COLORS[ev.tipo] ?? "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {TIPO_LABELS[ev.tipo] ?? ev.tipo}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                      EVALUATION_WINDOW_TONES[ev.estadoVentana]
-                    }`}
-                  >
-                    {EVALUATION_WINDOW_LABELS[ev.estadoVentana]}
-                  </span>
-                  {ev.estadoVentana === "disponible" && !ev.respondidaPorAlumno ? (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                      Pendiente
-                    </span>
-                  ) : null}
-                  {ev.respondidaPorAlumno && !ev.notaAlumno ? (
-                    <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
-                      Enviada
-                    </span>
-                  ) : null}
-                  {ev.notaAlumno ? (
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                      Nota {ev.notaAlumno}
-                    </span>
-                  ) : null}
-                </div>
-
-                {isUpcoming && ev.fechaInicio && (
-                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800/60 dark:bg-blue-950/30 dark:text-blue-100">
-                    Disponible desde{" "}
-                    {new Date(ev.fechaInicio).toLocaleDateString("es-CL", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </div>
-                )}
-
-                {ev.fechaLimite && (
-                  <div
-                    className={`mt-3 flex items-center gap-1.5 text-xs ${
-                      isOverdue ? "text-danger" : "text-text-secondary dark:text-gray-400"
-                    }`}
-                  >
-                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      {isOverdue ? "Venció el " : "Límite: "}
-                      {new Date(ev.fechaLimite).toLocaleDateString("es-CL", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                )}
-
-                <div className="mt-4">
-                  <Link
-                    href={`/alumno/evaluaciones/${ev.id}`}
-                    className={`inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
-                      isOverdue || isUpcoming
-                        ? "border border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
-                        : "bg-primary text-white hover:bg-primary-dark active:scale-[0.98]"
-                    }`}
-                  >
-                    {isUpcoming
-                      ? "Aún no disponible"
-                      : ev.respondidaPorAlumno || isOverdue
-                        ? "Ver historial"
-                        : "Responder"}
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+      <EvaluacionesListClient evaluaciones={evaluaciones} />
     </section>
   );
 }

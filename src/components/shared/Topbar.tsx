@@ -461,7 +461,7 @@ export function Topbar({
             });
           }}
           disabled={isSigningOut}
-          className="inline-flex h-11 items-center gap-2 rounded-xl border border-danger/30 px-3 text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-white active:scale-95 disabled:opacity-50 dark:border-danger/40 dark:text-red-400 dark:hover:bg-danger dark:hover:text-white sm:px-4"
+          className="inline-flex h-10 sm:h-11 items-center gap-2 rounded-xl border border-danger/30 px-2.5 text-sm font-semibold text-danger transition-colors hover:bg-danger hover:text-white active:scale-95 disabled:opacity-50 dark:border-danger/40 dark:text-red-400 dark:hover:bg-danger dark:hover:text-white sm:px-4"
         >
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">{isSigningOut ? "..." : "Salir"}</span>

@@ -19,7 +19,6 @@ import {
 
 import { obtenerAccesoDocumentosAlumnoActual } from "@/actions/accesos-documentos";
 import { obtenerDashboardAlumno } from "@/actions/alumno-dashboard";
-import { listarObservacionesAlumno } from "@/actions/docente";
 import { listarMisNotificaciones } from "@/actions/notificaciones";
 import { normalizarTextoVisible } from "@/lib/displayText";
 
@@ -58,13 +57,6 @@ const ALUMNO_NAV_GESTION: AlumnoNavItem[] = [
   { href: "/alumno/perfil",                        title: "Mi Perfil",          gradient: "grad-blue",   Icon: User },
 ];
 
-const TIPO_EVAL_LABELS: Record<string, string> = {
-  formulario: "Formulario",
-  tarea: "Tarea",
-  examen: "Examen",
-  proyecto: "Proyecto",
-};
-
 const ESTADO_COLORS: Record<string, string> = {
   activo: "text-success",
   finalizado: "text-amber-600 dark:text-amber-400",
@@ -85,40 +77,20 @@ function formatFecha(value: string | Date | null): string {
   return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short" }).format(d);
 }
 
-function formatFechaFull(value: string | Date | null): string {
-  if (!value) return "-";
-  const d = typeof value === "string" ? new Date(value + "T12:00:00") : value;
-  return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", year: "numeric" }).format(d);
-}
-
-function tiempoRestante(fecha: Date | null): string | null {
-  if (!fecha) return null;
-  const ahora = new Date();
-  const diff = fecha.getTime() - ahora.getTime();
-  if (diff <= 0) return "Vencida";
-  const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  if (dias > 0) return `${dias}d ${horas}h`;
-  return `${horas}h`;
-}
-
 export const metadata = {
   title: "Dashboard",
 };
 
 export default async function AlumnoDashboardPage() {
   let data;
-  let observaciones: Awaited<ReturnType<typeof listarObservacionesAlumno>> = [];
   let notificacionesRecientes: Awaited<ReturnType<typeof listarMisNotificaciones>> = [];
 
   try {
-    [data, observaciones, notificacionesRecientes] = await Promise.all([
+    [data, notificacionesRecientes] = await Promise.all([
       obtenerDashboardAlumno(),
-      listarObservacionesAlumno(),
       listarMisNotificaciones(),
     ]);
   } catch {
-    observaciones = [];
     return (
       <section className="space-y-5">
         <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
@@ -144,8 +116,14 @@ export default async function AlumnoDashboardPage() {
     );
   }
 
-  const { resumen, cursos, proximasClases, evaluacionesPendientes, notasRecientes, notasDocenteRecientes, estaSemanaPendiente } = data;
-  const evalSinNota = evaluacionesPendientes.filter((e) => !e.tieneNota);
+  const { resumen, cursos, proximasClases, estaSemanaPendiente } = data;
+  const hoyStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const clasesHoy = proximasClases.filter((c) => c.fecha === hoyStr);
   const accesos = await obtenerAccesoDocumentosAlumnoActual();
   const gestionItems = ALUMNO_NAV_GESTION.filter((item) => {
     if (item.href === "/alumno/solicitudes/credencial") return accesos?.credencialHabilitada ?? true;
@@ -378,148 +356,55 @@ export default async function AlumnoDashboardPage() {
         </article>
       )}
 
-      {/* Pending evaluations */}
-      {evalSinNota.length > 0 && (
-        <article className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-5 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20 sm:p-6">
-          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-            Evaluaciones Pendientes
+      {/* Clases de hoy */}
+      <article className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-emerald-100/40 p-5 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-emerald-900/10 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+            <CalendarDays className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            Clases de Hoy
           </h2>
-          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-            Actividades y entregas que requieren tu atención.
-          </p>
+          <Link
+            href="/alumno/clases"
+            className="text-xs font-medium text-primary hover:underline dark:text-primary-light"
+          >
+            Ver todas
+          </Link>
+        </div>
 
-          <div className="mt-4 space-y-2">
-            {evalSinNota.map((ev) => {
-              const restante = tiempoRestante(ev.fechaLimite);
-              const vencida = restante === "Vencida";
-
-              return (
-                <div
-                  key={ev.evaluacionId}
-                  className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary dark:bg-primary/20 dark:text-primary-light">
-                        {TIPO_EVAL_LABELS[ev.tipo] ?? ev.tipo}
-                      </span>
-                      <p className="truncate text-sm font-medium text-text-primary dark:text-white">
-                        {normalizarTextoVisible(ev.titulo)}
-                      </p>
-                    </div>
-                    <p className="mt-0.5 text-xs text-text-secondary dark:text-gray-400">
-                      {normalizarTextoVisible(ev.asignaturaNombre)}
-                    </p>
-                  </div>
-                  {restante && (
-                    <div className="ml-3 text-right">
-                      <p className={`text-sm font-bold ${vencida ? "text-danger" : "text-amber-600 dark:text-amber-400"}`}>
-                        {restante}
-                      </p>
-                      {ev.fechaLimite && (
-                        <p className="text-[10px] text-text-muted dark:text-gray-500">
-                          {formatFechaFull(ev.fechaLimite)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </article>
-      )}
-
-      {/* Recent grades */}
-      {(notasRecientes.length > 0 || notasDocenteRecientes.length > 0) && (
-        <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-            Notas Recientes
-          </h2>
-          <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-            Últimas calificaciones registradas.
-          </p>
-
-          <div className="mt-4 space-y-2">
-            {notasRecientes.map((n) => (
-              <div
-                key={n.notaId}
-                className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-text-primary dark:text-white">
-                    {normalizarTextoVisible(n.evaluacionTitulo)}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-gray-400">
-                    {normalizarTextoVisible(n.asignaturaNombre)} · {TIPO_EVAL_LABELS[n.evaluacionTipo] ?? n.evaluacionTipo}
-                  </p>
-                </div>
-                <div className="ml-3 text-right">
-                  <p className={`text-lg font-bold ${Number(n.nota) >= 4.0 ? "text-success" : "text-danger"}`}>
-                    {n.nota ?? "-"}
-                  </p>
-                  <p className="text-[10px] text-text-muted dark:text-gray-500">
-                    {formatFecha(n.fechaNota)}
-                  </p>
-                </div>
-              </div>
-            ))}
-
-            {notasDocenteRecientes.map((n) => (
-              <div
-                key={n.id}
-                className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-text-primary dark:text-white">
-                    Nota Docente
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-gray-400">
-                    {normalizarTextoVisible(n.asignaturaNombre)}
-                  </p>
-                </div>
-                <div className="ml-3 text-right">
-                  <p className={`text-lg font-bold ${Number(n.nota) >= 4.0 ? "text-success" : "text-danger"}`}>
-                    {n.nota}
-                  </p>
-                  <p className="text-[10px] text-text-muted dark:text-gray-500">
-                    {formatFecha(n.fechaRegistro)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      )}
-
-      {/* Observaciones de docentes */}
-      <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
-        <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-          Observaciones de Docentes
-        </h2>
-        {observaciones.length === 0 ? (
+        {clasesHoy.length === 0 ? (
           <p className="mt-4 text-sm text-text-secondary dark:text-gray-400">
-            No tienes observaciones registradas por tus docentes.
+            No tienes clases programadas para hoy.
           </p>
         ) : (
-          <div className="mt-4 space-y-2">
-            {observaciones.slice(0, 10).map((obs) => (
-              <div
-                key={obs.id}
-                className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+          <ul className="mt-4 space-y-2">
+            {clasesHoy.map((clase) => (
+              <li
+                key={clase.claseId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200/60 bg-white/80 p-3 backdrop-blur dark:border-emerald-800/40 dark:bg-gray-900/60"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm text-text-primary dark:text-gray-100">{obs.observacion}</p>
-                  <div className="shrink-0 text-right">
-                    <p className="text-xs font-medium text-primary dark:text-primary-light">
-                      {formatFecha(obs.fechaRegistro)}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                      Sesión {clase.numeroSesion}
+                    </span>
+                    <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
+                      {normalizarTextoVisible(clase.titulo)}
                     </p>
-                    <p className="text-[10px] text-text-muted dark:text-gray-500">{normalizarTextoVisible(obs.asignaturaNombre)}</p>
                   </div>
+                  <p className="mt-0.5 truncate text-xs text-text-secondary dark:text-gray-400">
+                    {normalizarTextoVisible(clase.asignaturaNombre)}
+                  </p>
                 </div>
-              </div>
+                {clase.horaInicio && (
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                      {clase.horaInicio.slice(0, 5)}
+                    </p>
+                  </div>
+                )}
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </article>
 

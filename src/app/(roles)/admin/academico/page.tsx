@@ -113,7 +113,7 @@ export default async function AdminAcademicoPage({ searchParams }: PageProps) {
           />
         </aside>
 
-        <main className="space-y-4">
+        <main id="academico-main" className="space-y-4 scroll-mt-4">
           {!selectedCurso ? (
             <article className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-text-secondary shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
               Selecciona un curso a la izquierda para ver sus secciones.

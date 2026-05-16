@@ -2,14 +2,18 @@ import { IdCard, ShieldCheck, Users } from "lucide-react";
 
 import {
   actualizarAccesoDocumentosAlumnoFormAction,
+  contarAccesosDocumentosAdmin,
   listarAccesosDocumentosAdmin,
   listarSeccionesParaAccesosAdmin,
 } from "@/actions/accesos-documentos";
+import { Pagination } from "@/components/shared/Pagination";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { formatearIdentificador } from "@/lib/rut";
 
 import { BeneficiosCursoForm } from "./BeneficiosCursoForm";
 import { BeneficiosPersonaFilter } from "./BeneficiosPersonaFilter";
+
+const PAGE_SIZE = 20;
 
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   acceso_alumno_actualizado: { tone: "success", text: "Acceso del alumno actualizado correctamente." },
@@ -21,7 +25,7 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type PageProps = {
-  searchParams?: Promise<{ state?: string; q?: string; asignaturaId?: string }>;
+  searchParams?: Promise<{ state?: string; q?: string; asignaturaId?: string; page?: string }>;
 };
 
 export const metadata = { title: "Beneficios y Credenciales" };
@@ -47,14 +51,30 @@ function EstadoPill({ enabled }: { enabled: boolean }) {
 }
 
 export default async function AdminBeneficiosCredencialesPage({ searchParams }: PageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; q?: string; asignaturaId?: string }));
+  const params = (await searchParams) ?? {};
   const q = typeof params.q === "string" ? params.q.trim() : "";
   const asignaturaId = typeof params.asignaturaId === "string" ? params.asignaturaId : "";
+  const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const [alumnos, secciones] = await Promise.all([
-    listarAccesosDocumentosAdmin({ query: q, asignaturaId: asignaturaId || undefined }),
+  const [alumnos, totalCount, secciones] = await Promise.all([
+    listarAccesosDocumentosAdmin({
+      query: q,
+      asignaturaId: asignaturaId || undefined,
+      limit: PAGE_SIZE,
+      offset,
+    }),
+    contarAccesosDocumentosAdmin({ query: q, asignaturaId: asignaturaId || undefined }),
     listarSeccionesParaAccesosAdmin(),
   ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const buildHref = (page: number) => {
+    const qs = new URLSearchParams({ page: String(page) });
+    if (q) qs.set("q", q);
+    if (asignaturaId) qs.set("asignaturaId", asignaturaId);
+    return `/admin/beneficios-credenciales?${qs.toString()}`;
+  };
 
   return (
     <section className="space-y-5">
@@ -91,8 +111,13 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
                 Control por persona
               </h2>
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                {alumnos.length}
+                {totalCount}
               </span>
+              {totalCount > PAGE_SIZE ? (
+                <span className="text-[11px] text-text-secondary dark:text-gray-400">
+                  pág {currentPage}/{totalPages}
+                </span>
+              ) : null}
             </div>
 
             {alumnos.length === 0 ? (
@@ -158,6 +183,13 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
                 </table>
               </div>
             )}
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              buildHref={buildHref}
+              totalCount={totalCount}
+            />
           </article>
         </div>
 

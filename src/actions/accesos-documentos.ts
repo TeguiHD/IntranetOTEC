@@ -57,9 +57,47 @@ export type AlumnoAccesoDocumentoRow = {
   secciones: string;
 };
 
+export async function contarAccesosDocumentosAdmin(options?: {
+  query?: string;
+  asignaturaId?: string;
+}): Promise<number> {
+  const actorResult = await requireActionActor("admin_accesos_documentos_count", ["admin"]);
+  if (!actorResult.ok) return 0;
+  const db = getDb();
+  const conditions: (SQL | undefined)[] = [
+    eq(usuarios.rol, "alumno"),
+    isNull(usuarios.eliminadoAt),
+  ];
+  if (options?.query) {
+    const term = `%${escapeLike(options.query)}%`;
+    conditions.push(
+      or(
+        ilike(usuarios.nombre, term),
+        ilike(usuarios.apellido, term),
+        ilike(usuarios.rut, term),
+        ilike(usuarios.email, term),
+      ),
+    );
+  }
+  if (options?.asignaturaId) {
+    conditions.push(eq(matriculas.asignaturaId, options.asignaturaId));
+  }
+  const rows = await db
+    .selectDistinct({ id: usuarios.id })
+    .from(usuarios)
+    .leftJoin(
+      matriculas,
+      and(eq(matriculas.alumnoId, usuarios.id), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
+    )
+    .where(and(...conditions));
+  return rows.length;
+}
+
 export async function listarAccesosDocumentosAdmin(options?: {
   query?: string;
   asignaturaId?: string;
+  limit?: number;
+  offset?: number;
 }): Promise<AlumnoAccesoDocumentoRow[]> {
   const actorResult = await requireActionActor("admin_accesos_documentos_list", ["admin"]);
   if (!actorResult.ok) return [];
@@ -119,7 +157,8 @@ export async function listarAccesosDocumentosAdmin(options?: {
       alumnoAccesosDocumentos.credencialHabilitada,
     )
     .orderBy(asc(usuarios.apellido), asc(usuarios.nombre))
-    .limit(200);
+    .limit(options?.limit ?? 20)
+    .offset(options?.offset ?? 0);
 
   return rows.map((row) => ({
     ...row,

@@ -902,7 +902,7 @@ export async function POST(request: Request) {
         } else {
           alumnoId = randomUUID();
           const pin = derivarPinPredeterminado(loginIdentifier);
-          const passwordHash = await bcrypt.hash(pin, 12);
+          const passwordHash = await bcrypt.hash(pin, 10);
 
           await tx.insert(usuarios).values({
             id: alumnoId,

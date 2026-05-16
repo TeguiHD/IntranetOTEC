@@ -556,8 +556,13 @@ export async function POST(request: Request) {
         continue;
       }
 
-      row.cursoKey = resolvedCourse.canonicalKey;
-      row.cursoCanonico = resolvedCourse.canonicalLabel;
+      if (resolvedCourse.matchType === "fuzzy") {
+        row.cursoKey = resolvedCourse.strictKey;
+        row.cursoCanonico = normalizeWhitespace(row.curso);
+      } else {
+        row.cursoKey = resolvedCourse.canonicalKey;
+        row.cursoCanonico = resolvedCourse.canonicalLabel;
+      }
 
       row.cursoIdentityKey = buildCourseTemplateIdentityKey(
         row.cursoKey,

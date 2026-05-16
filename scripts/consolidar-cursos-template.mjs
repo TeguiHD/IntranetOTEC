@@ -38,10 +38,10 @@ const slug = (s) =>
     .trim();
 
 // Strip "<Día> <HH:MM>" o solo "<HH:MM>" al final.
-// Días aceptados (con/sin tilde, mayus/min): Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo + ONLINE
+// IMPORTANTE: NO consumir "ONLINE" (es parte del nombre del curso, ej "Inspector Educacional ONLINE")
 const TAIL_RX =
-  /\s+(ONLINE\s+)?(Lunes|Martes|Mi[eé]rcoles|Jueves|Viernes|S[aá]bado|Domingo)\s+\d{1,2}[:.]\d{2}\s*$/iu;
-const TAIL_NO_DAY_RX = /\s+(ONLINE)?\s*\d{1,2}[:.]\d{2}\s*$/iu;
+  /\s+(Lunes|Martes|Mi[eé]rcoles|Jueves|Viernes|S[aá]bado|Domingo)\s+\d{1,2}[:.]\d{2}\s*$/iu;
+const TAIL_NO_DAY_RX = /\s+\d{1,2}[:.]\d{2}\s*$/iu;
 
 function baseName(nombre) {
   let s = String(nombre).trim();

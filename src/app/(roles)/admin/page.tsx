@@ -11,12 +11,21 @@ import {
   Download,
   FileCheck,
   FileText,
+  FileUp,
+  FolderUp,
+  GraduationCap,
   IdCard,
-  LayoutDashboard,
+  Inbox,
+  Layers,
+  LayoutGrid,
   type LucideIcon,
+  MessageSquareText,
+  PencilLine,
+  PlaySquare,
+  Settings2,
   Shield,
+  ShieldCheck,
   TrendingUp,
-  Upload,
   UserCog,
   Users,
   Wallet,
@@ -76,32 +85,63 @@ type AccessItem = {
   Icon: LucideIcon;
 };
 
-const ADMIN_PANEL_ACCESS: AccessItem[] = [
-  { href: "/admin", label: "Panel", Icon: LayoutDashboard },
-  { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
-  { href: "/admin/academico", label: "Vista academica", Icon: BookOpen },
-  { href: "/admin/asignaturas", label: "Secciones", Icon: BookOpen },
-  { href: "/admin/cursos", label: "Cursos", Icon: BookOpen },
-  { href: "/admin/horarios", label: "Horarios", Icon: CalendarRange },
-  { href: "/admin/clases", label: "Clases", Icon: CalendarDays },
-  { href: "/admin/materiales", label: "Materiales", Icon: Upload },
-  { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList },
-  { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck },
-  { href: "/admin/notas", label: "Notas", Icon: ClipboardList },
-  { href: "/admin/encuestas-builder", label: "Encuestas", Icon: FileText },
-  { href: "/admin/docentes", label: "Docentes", Icon: UserCog },
-  { href: "/admin/alumnos", label: "Alumnos", Icon: Users },
-  { href: "/admin/matriculas", label: "Matriculas", Icon: Wallet },
-  { href: "/admin/administradores", label: "Administradores", Icon: Shield },
-  { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell },
-  { href: "/admin/solicitudes", label: "Solicitudes", Icon: FileText },
-  { href: "/admin/beneficios-credenciales", label: "Beneficios y Credenciales", Icon: IdCard },
-  { href: "/admin/certificados", label: "Certificados", Icon: FileCheck },
-  { href: "/admin/importar", label: "Importar Alumnos", Icon: Upload },
-  { href: "/admin/reportes", label: "Analitica", Icon: BarChart3 },
-  { href: "/admin/historial", label: "Historial", Icon: FileText },
-  { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp },
-  { href: "/instalar", label: "Instalar App", Icon: Download },
+type AccessGroup = {
+  titulo: string;
+  descripcion: string;
+  items: AccessItem[];
+};
+
+const ADMIN_PANEL_GROUPS: AccessGroup[] = [
+  {
+    titulo: "Académico",
+    descripcion: "Oferta, calendario y operación del aula.",
+    items: [
+      { href: "/admin/academico", label: "Vista académica", Icon: LayoutGrid },
+      { href: "/admin/cursos", label: "Cursos", Icon: BookOpen },
+      { href: "/admin/asignaturas", label: "Secciones", Icon: Layers },
+      { href: "/admin/periodos", label: "Periodos", Icon: CalendarRange },
+      { href: "/admin/horarios", label: "Horarios", Icon: Settings2 },
+      { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
+      { href: "/admin/clases", label: "Clases", Icon: PlaySquare },
+    ],
+  },
+  {
+    titulo: "Personas",
+    descripcion: "Docentes, alumnos y permisos administrativos.",
+    items: [
+      { href: "/admin/docentes", label: "Docentes", Icon: UserCog },
+      { href: "/admin/alumnos", label: "Alumnos", Icon: Users },
+      { href: "/admin/administradores", label: "Administradores", Icon: Shield },
+      { href: "/admin/matriculas", label: "Matrículas", Icon: Wallet },
+    ],
+  },
+  {
+    titulo: "Operaciones",
+    descripcion: "Material académico, evaluación y comunicación.",
+    items: [
+      { href: "/admin/materiales", label: "Materiales", Icon: FolderUp },
+      { href: "/admin/evaluaciones", label: "Evaluaciones", Icon: ClipboardList },
+      { href: "/admin/notas", label: "Notas", Icon: PencilLine },
+      { href: "/admin/asistencias", label: "Asistencias", Icon: ClipboardCheck },
+      { href: "/admin/encuestas-builder", label: "Encuestas", Icon: MessageSquareText },
+      { href: "/admin/notificaciones", label: "Notificaciones", Icon: Bell },
+      { href: "/admin/solicitudes", label: "Solicitudes", Icon: Inbox },
+      { href: "/admin/importar", label: "Importar alumnos", Icon: FileUp },
+    ],
+  },
+  {
+    titulo: "Reportes y administración",
+    descripcion: "Indicadores, finanzas, certificados y auditoría.",
+    items: [
+      { href: "/admin/reportes", label: "Analítica", Icon: BarChart3 },
+      { href: "/admin/finanzas", label: "Finanzas", Icon: TrendingUp },
+      { href: "/admin/certificados", label: "Certificados", Icon: FileCheck },
+      { href: "/admin/historial", label: "Historial académico", Icon: GraduationCap },
+      { href: "/admin/auditoria", label: "Auditoría", Icon: ShieldCheck },
+      { href: "/admin/beneficios-credenciales", label: "Beneficios", Icon: IdCard },
+      { href: "/instalar", label: "Instalar app", Icon: Download },
+    ],
+  },
 ];
 
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
@@ -250,27 +290,46 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
       <article className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
         <div>
           <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-            Accesos del panel
+            Accesos rápidos
           </h2>
           <p className="mt-1 text-sm text-text-secondary dark:text-gray-400">
-            Los mismos puntos del menu lateral, disponibles en el panel principal para PC y PWA.
+            Áreas operativas agrupadas. Cada tarjeta abre la sección completa con sus métricas y
+            acciones.
           </p>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          {ADMIN_PANEL_ACCESS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href === "/admin/reportes" && periodoQuery ? `${item.href}${periodoQuery}` : item.href}
-              className="group flex min-h-16 items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-md dark:border-gray-800 dark:bg-gray-950/30 dark:text-white dark:hover:border-primary/50 dark:hover:bg-primary/10 dark:hover:text-primary-light"
-            >
-              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-white dark:bg-primary/20 dark:text-primary-light">
-                <item.Icon className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 text-sm font-semibold leading-tight">
-                {item.label}
-              </span>
-            </Link>
+        <div className="mt-5 space-y-6">
+          {ADMIN_PANEL_GROUPS.map((grupo) => (
+            <div key={grupo.titulo}>
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary dark:text-primary-light">
+                  {grupo.titulo}
+                </h3>
+                <p className="hidden text-[11px] text-text-secondary dark:text-gray-400 sm:block">
+                  {grupo.descripcion}
+                </p>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+                {grupo.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={
+                      item.href === "/admin/reportes" && periodoQuery
+                        ? `${item.href}${periodoQuery}`
+                        : item.href
+                    }
+                    className="group flex min-h-[72px] items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:border-gray-800 dark:bg-gray-950/30 dark:text-white dark:hover:border-primary/50 dark:hover:bg-primary/10 dark:hover:text-primary-light"
+                  >
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-white dark:bg-primary/20 dark:text-primary-light">
+                      <item.Icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 text-sm font-semibold leading-tight">
+                      {item.label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </article>

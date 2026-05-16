@@ -104,7 +104,7 @@ export default function RootLayout({
                   cancelButton:
                     "!rounded-lg !bg-gray-100 !text-text-primary dark:!bg-gray-800 dark:!text-gray-100 !font-medium !text-xs",
                   closeButton:
-                    "!border-gray-200 dark:!border-gray-700 !bg-white dark:!bg-gray-800",
+                    "!h-6 !w-6 !rounded-full !border-gray-200 dark:!border-gray-700 !bg-white dark:!bg-gray-800 !top-1/2 !-translate-y-1/2 !left-2 !flex !items-center !justify-center !p-0",
                 },
               }}
             />

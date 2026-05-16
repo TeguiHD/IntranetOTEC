@@ -168,9 +168,14 @@ export const periodosAcademicos = pgTable(
     estado: estadoPeriodoEnum("estado").notNull().default("activo"),
     createdAt: tstz("created_at").defaultNow(),
     updatedAt: tstz("updated_at").defaultNow(),
+    eliminadoAt: tstz("eliminado_at"),
+    eliminadoPor: uuid("eliminado_por"),
   },
   (t) => ({
     rangoIdx: index("periodos_academicos_rango_idx").on(t.fechaInicio, t.fechaFin),
+    activosIdx: index("periodos_academicos_activos_idx")
+      .on(t.estado)
+      .where(sql`${t.eliminadoAt} IS NULL`),
   }),
 );
 

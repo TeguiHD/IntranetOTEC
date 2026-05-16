@@ -20,16 +20,22 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type PageProps = {
-  searchParams?: Promise<{ state?: string; page?: string; q?: string }>;
+  searchParams?: Promise<{
+    state?: string;
+    page?: string;
+    q?: string;
+    incluirInactivos?: string;
+  }>;
 };
 
 export const metadata = { title: "Cursos" };
 
 export default async function AdminCursosPage({ searchParams }: PageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { state?: string; page?: string; q?: string }));
+  const params = (await searchParams) ?? {};
   const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
   const q = typeof params.q === "string" ? params.q.trim() : "";
+  const incluirInactivos = params.incluirInactivos === "1";
 
   let listado: Awaited<ReturnType<typeof listarCursos>> = [];
   let periodos: Awaited<ReturnType<typeof listarPeriodosDashboard>> = [];
@@ -39,8 +45,8 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
 
   try {
     [listado, total, periodos, docentes] = await Promise.all([
-      listarCursos({ limit: PAGE_SIZE, offset }, { query: q, incluirInactivos: true }),
-      contarCursos({ query: q, incluirInactivos: true }),
+      listarCursos({ limit: PAGE_SIZE, offset }, { query: q, incluirInactivos }),
+      contarCursos({ query: q, incluirInactivos }),
       listarPeriodosDashboard(),
       listarUsuariosPorRol("docente", { limit: 200, offset: 0 }),
     ]);
@@ -52,6 +58,7 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
   const buildHref = (page: number) => {
     const qs = new URLSearchParams({ page: String(page) });
     if (q) qs.set("q", q);
+    if (incluirInactivos) qs.set("incluirInactivos", "1");
     return `/admin/cursos?${qs.toString()}`;
   };
 
@@ -84,15 +91,39 @@ export default async function AdminCursosPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <div className="mb-4 flex items-center gap-3">
-          <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
-            Catálogo de Cursos
-          </h2>
-          {total > 0 && (
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
-              {total}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-semibold text-text-primary dark:text-white sm:text-lg">
+              Catálogo de Cursos
+            </h2>
+            {total > 0 && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20 dark:text-primary-light">
+                {total}
+              </span>
+            )}
+            <span className="text-[11px] text-text-secondary dark:text-gray-400">
+              {incluirInactivos ? "Incluye inactivos" : "Solo activos"}
             </span>
-          )}
+          </div>
+          <form method="GET" className="flex items-center gap-2">
+            {q ? <input type="hidden" name="q" value={q} /> : null}
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+              <input
+                type="checkbox"
+                name="incluirInactivos"
+                value="1"
+                defaultChecked={incluirInactivos}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              Mostrar inactivos
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-8 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary-dark"
+            >
+              Aplicar
+            </button>
+          </form>
         </div>
 
         <CursoManager

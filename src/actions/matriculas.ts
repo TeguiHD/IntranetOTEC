@@ -879,3 +879,54 @@ export async function eliminarMatriculaFormAction(formData: FormData): Promise<v
   const pageQuery = page ? `&page=${page}` : "";
   redirect(`/admin/matriculas?state=${result.ok ? result.code : "error"}${filterQuery}${pageQuery}`);
 }
+
+export type AlumnoDeSeccionRow = {
+  matriculaId: string;
+  alumnoId: string;
+  nombre: string;
+  apellido: string;
+  rut: string;
+  estadoPago: string | null;
+  activa: boolean | null;
+};
+
+export async function obtenerAlumnosDeSeccion(
+  asignaturaId: string,
+): Promise<AlumnoDeSeccionRow[]> {
+  const actorResult = await requireActionActor("admin_seccion_alumnos_inline", ["admin"]);
+  if (!actorResult.ok || !UUID_REGEX.test(asignaturaId)) {
+    return [];
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      matriculaId: matriculas.id,
+      alumnoId: usuarios.id,
+      nombre: usuarios.nombre,
+      apellido: usuarios.apellido,
+      rut: usuarios.rut,
+      estadoPago: matriculas.estadoPago,
+      activa: matriculas.activa,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(usuarios.id, matriculas.alumnoId))
+    .where(
+      and(
+        eq(matriculas.asignaturaId, asignaturaId),
+        isNull(matriculas.eliminadoAt),
+        isNull(usuarios.eliminadoAt),
+      ),
+    )
+    .orderBy(usuarios.apellido, usuarios.nombre);
+
+  return rows.map((r) => ({
+    matriculaId: r.matriculaId,
+    alumnoId: r.alumnoId,
+    nombre: r.nombre ?? "",
+    apellido: r.apellido ?? "",
+    rut: r.rut ?? "",
+    estadoPago: r.estadoPago,
+    activa: r.activa,
+  }));
+}

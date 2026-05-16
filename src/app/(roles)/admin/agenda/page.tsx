@@ -474,18 +474,28 @@ export default async function AdminAgendaPage({ searchParams }: PageProps) {
         </form>
       </article>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <article className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">Clases del mes</p>
-          <p className="mt-1 text-2xl font-bold text-text-primary dark:text-white">{clasesAgenda.length}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <article className="rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-4">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400 sm:text-xs">
+            Clases mes
+          </p>
+          <p className="mt-1 text-lg font-bold text-text-primary dark:text-white sm:text-2xl">
+            {clasesAgenda.length}
+          </p>
         </article>
-        <article className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">Clases publicadas</p>
-          <p className="mt-1 text-2xl font-bold text-success">{clasesPublicadas}</p>
+        <article className="rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-4">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400 sm:text-xs">
+            Publicadas
+          </p>
+          <p className="mt-1 text-lg font-bold text-success sm:text-2xl">{clasesPublicadas}</p>
         </article>
-        <article className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400">Evaluaciones del mes</p>
-          <p className="mt-1 text-2xl font-bold text-secondary">{evaluationRows.length}</p>
+        <article className="rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-4">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-text-secondary dark:text-gray-400 sm:text-xs">
+            Evaluaciones
+          </p>
+          <p className="mt-1 text-lg font-bold text-secondary sm:text-2xl">
+            {evaluationRows.length}
+          </p>
         </article>
       </div>
 

@@ -85,6 +85,7 @@ export async function listarPeriodosDashboard(): Promise<DashboardPeriodoOption[
       fechaFin: periodosAcademicos.fechaFin,
     })
     .from(periodosAcademicos)
+    .where(isNull(periodosAcademicos.eliminadoAt))
     .orderBy(desc(periodosAcademicos.fechaInicio), desc(periodosAcademicos.createdAt));
 
   return rows.map((row) => ({

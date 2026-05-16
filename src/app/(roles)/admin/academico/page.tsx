@@ -1,8 +1,11 @@
 import Link from "next/link";
 
-import { BookOpen, ChevronRight, ExternalLink, Plus, Search, Users } from "lucide-react";
+import { BookOpen, ExternalLink, Plus, Search } from "lucide-react";
 
 import { listarCursos, listarSeccionesDeCurso } from "@/actions/cursos";
+
+import { CursoListClient } from "./CursoListClient";
+import { SeccionAlumnosAccordion } from "./SeccionAlumnosAccordion";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -98,50 +101,16 @@ export default async function AdminAcademicoPage({ searchParams }: PageProps) {
             </div>
           </form>
 
-          <ul className="space-y-1.5 rounded-2xl border border-gray-200/80 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            {cursosList.length === 0 ? (
-              <li className="px-3 py-6 text-center text-xs text-text-secondary dark:text-gray-400">
-                {q ? `Sin cursos para "${q}"` : "Sin cursos disponibles"}
-              </li>
-            ) : (
-              cursosList.map((c) => {
-                const isActive = c.id === selectedCursoId;
-                return (
-                  <li key={c.id}>
-                    <Link
-                      href={`/admin/academico?cursoId=${c.id}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-                      className={`flex items-start justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                        isActive
-                          ? "bg-primary/10 text-primary dark:bg-primary/20"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <p
-                          className={`truncate text-sm font-semibold ${
-                            isActive
-                              ? "text-primary dark:text-primary-light"
-                              : "text-text-primary dark:text-gray-100"
-                          }`}
-                        >
-                          {c.nombre}
-                        </p>
-                        <p className="truncate text-[11px] text-text-secondary dark:text-gray-400">
-                          {c.codigo ?? "Sin código"} · {c.totalSecciones} sección
-                          {c.totalSecciones === 1 ? "" : "es"}
-                        </p>
-                      </div>
-                      <ChevronRight
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${
-                          isActive ? "text-primary" : "text-gray-300 dark:text-gray-600"
-                        }`}
-                      />
-                    </Link>
-                  </li>
-                );
-              })
-            )}
-          </ul>
+          <CursoListClient
+            cursos={cursosList.map((c) => ({
+              id: c.id,
+              nombre: c.nombre,
+              codigo: c.codigo ?? null,
+              totalSecciones: c.totalSecciones,
+            }))}
+            selectedId={selectedCursoId}
+            query={q}
+          />
         </aside>
 
         <main className="space-y-4">
@@ -219,35 +188,25 @@ export default async function AdminAcademicoPage({ searchParams }: PageProps) {
                               ? `${s.docenteNombre ?? ""} ${s.docenteApellido ?? ""}`.trim()
                               : null;
                           return (
-                            <li
-                              key={s.id}
-                              className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="truncate text-sm font-semibold text-text-primary dark:text-gray-100">
-                                    {s.nombre}
+                            <li key={s.id} className="px-4 py-3 sm:px-5">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="min-w-0 break-words text-sm font-semibold text-text-primary dark:text-gray-100">
+                                      {s.nombre}
+                                    </p>
+                                    <span
+                                      className={`inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold uppercase ${estadoMeta.tone}`}
+                                    >
+                                      {estadoMeta.label}
+                                    </span>
+                                  </div>
+                                  <p className="mt-0.5 text-[11px] text-text-secondary dark:text-gray-400">
+                                    {s.codigo ? `${s.codigo} · ` : ""}Turno {s.turno} ·{" "}
+                                    {formatDate(s.fechaInicio)} → {formatDate(s.fechaFin)}
+                                    {docente ? ` · ${docente}` : ""}
                                   </p>
-                                  <span
-                                    className={`inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold uppercase ${estadoMeta.tone}`}
-                                  >
-                                    {estadoMeta.label}
-                                  </span>
                                 </div>
-                                <p className="mt-0.5 text-[11px] text-text-secondary dark:text-gray-400">
-                                  {s.codigo ? `${s.codigo} · ` : ""}Turno {s.turno} ·{" "}
-                                  {formatDate(s.fechaInicio)} → {formatDate(s.fechaFin)}
-                                  {docente ? ` · ${docente}` : ""}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Link
-                                  href={`/admin/matriculas?asignaturaId=${s.id}`}
-                                  className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                                >
-                                  <Users className="h-3.5 w-3.5" />
-                                  Alumnos
-                                </Link>
                                 <Link
                                   href={`/admin/secciones/${s.id}`}
                                   className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
@@ -256,6 +215,7 @@ export default async function AdminAcademicoPage({ searchParams }: PageProps) {
                                   Ficha
                                 </Link>
                               </div>
+                              <SeccionAlumnosAccordion asignaturaId={s.id} />
                             </li>
                           );
                         })}

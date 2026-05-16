@@ -128,7 +128,7 @@ async function main() {
         for (let i = 0; i < fechas.length; i++) {
           await client.query(
             `INSERT INTO clases (asignatura_id, titulo, numero_sesion, fecha, hora_inicio, hora_fin, publicada)
-             VALUES ($1,$2,$3,$4,$5,$6,false)`,
+             VALUES ($1,$2,$3,$4,$5,$6,true)`,
             [s.id, `Sesion ${i + 1}`, i + 1, fechas[i], hi, hf],
           );
         }

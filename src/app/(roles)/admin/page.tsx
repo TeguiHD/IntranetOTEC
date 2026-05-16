@@ -179,58 +179,124 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
 
   return (
     <section className="space-y-5">
-      {seccionesSinClases.length > 0 ? (
-        <article className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 sm:p-5">
-          <div className="flex items-start gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-800 dark:bg-amber-800/60 dark:text-amber-100">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
-                {seccionesSinClases.length} secci{seccionesSinClases.length === 1 ? "ón" : "ones"}{" "}
-                sin calendario asignado
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-                Tienen alumnos matriculados pero ninguna clase publicada. Los alumnos no verán
-                clases en su calendario hasta que se asigne día/hora a la sección.
-              </p>
-              <ul className="mt-3 space-y-1.5">
-                {seccionesSinClases.slice(0, 5).map((s) => (
-                  <li key={s.asignaturaId}>
-                    <Link
-                      href={`/admin/secciones/${s.asignaturaId}`}
-                      className="group flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs transition hover:border-amber-400 hover:bg-amber-100/50 dark:border-amber-900 dark:bg-amber-950/40 dark:hover:border-amber-700 dark:hover:bg-amber-900/40"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-amber-900 dark:text-amber-100">
-                          {s.asignaturaNombre}
-                        </span>
-                        <span className="block truncate text-[11px] text-amber-700 dark:text-amber-300">
-                          {s.cursoNombre} · periodo {s.periodoCodigo}
-                          {s.sinDia ? " · nombre sin día (Lun/Mar/…)" : ""}
-                        </span>
-                      </span>
-                      <span className="inline-flex shrink-0 items-center gap-2">
-                        <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800/60 dark:text-amber-100">
-                          {s.totalMatriculas} alumno{s.totalMatriculas === 1 ? "" : "s"}
-                        </span>
-                        <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 dark:text-amber-300 dark:group-hover:text-amber-100">
-                          Configurar →
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-                {seccionesSinClases.length > 5 ? (
-                  <li className="px-1 text-[11px] text-amber-700 dark:text-amber-300">
-                    + {seccionesSinClases.length - 5} más
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-          </div>
-        </article>
-      ) : null}
+      {seccionesSinClases.length > 0
+        ? (() => {
+            const sinDia = seccionesSinClases.filter((s) => s.sinDia);
+            const conDia = seccionesSinClases.filter((s) => !s.sinDia);
+            return (
+              <article className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-800 dark:bg-amber-800/60 dark:text-amber-100">
+                    <AlertTriangle className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold uppercase tracking-wide text-amber-900 dark:text-amber-100">
+                      Acción requerida
+                    </p>
+                    <p className="mt-1 text-sm leading-snug text-amber-900 dark:text-amber-100">
+                      {sinDia.length > 0 ? (
+                        <>
+                          <strong>
+                            {sinDia.length} curso{sinDia.length === 1 ? "" : "s"} no tiene
+                            {sinDia.length === 1 ? "" : "n"} día asignado.
+                          </strong>{" "}
+                          Sus alumnos no verán clases hasta que asignes el día (Lunes, Martes…) en
+                          el nombre de la sección.
+                        </>
+                      ) : (
+                        <>
+                          <strong>
+                            {conDia.length} secci{conDia.length === 1 ? "ón" : "ones"} sin
+                            calendario.
+                          </strong>{" "}
+                          Tiene{conDia.length === 1 ? "" : "n"} alumnos pero falta generar las
+                          clases.
+                        </>
+                      )}
+                    </p>
+
+                    {sinDia.length > 0 ? (
+                      <div className="mt-3">
+                        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-200">
+                          Cursos sin día asignado
+                        </p>
+                        <ul className="space-y-1.5">
+                          {sinDia.map((s) => (
+                            <li key={s.asignaturaId}>
+                              <Link
+                                href={`/admin/asignaturas?asignaturaId=${s.asignaturaId}`}
+                                className="group flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs transition hover:border-amber-500 hover:bg-amber-100/50 dark:border-amber-900 dark:bg-amber-950/40 dark:hover:border-amber-600 dark:hover:bg-amber-900/40"
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-bold text-amber-900 dark:text-amber-100">
+                                    {s.cursoNombre}
+                                  </span>
+                                  <span className="block truncate text-[11px] text-amber-700 dark:text-amber-300">
+                                    Sección actual: <em>{s.asignaturaNombre}</em> · falta el día
+                                  </span>
+                                </span>
+                                <span className="inline-flex shrink-0 items-center gap-2">
+                                  <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800/60 dark:text-amber-100">
+                                    {s.totalMatriculas} alumno
+                                    {s.totalMatriculas === 1 ? "" : "s"}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-amber-800 group-hover:text-amber-900 dark:text-amber-200 dark:group-hover:text-amber-100">
+                                    Asignar día →
+                                  </span>
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {conDia.length > 0 ? (
+                      <div className={sinDia.length > 0 ? "mt-3" : "mt-3"}>
+                        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-200">
+                          {sinDia.length > 0 ? "Otras secciones sin calendario" : "Secciones sin calendario"}
+                        </p>
+                        <ul className="space-y-1.5">
+                          {conDia.slice(0, 5).map((s) => (
+                            <li key={s.asignaturaId}>
+                              <Link
+                                href={`/admin/secciones/${s.asignaturaId}`}
+                                className="group flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs transition hover:border-amber-400 hover:bg-amber-100/50 dark:border-amber-900 dark:bg-amber-950/40 dark:hover:border-amber-700 dark:hover:bg-amber-900/40"
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate font-semibold text-amber-900 dark:text-amber-100">
+                                    {s.asignaturaNombre}
+                                  </span>
+                                  <span className="block truncate text-[11px] text-amber-700 dark:text-amber-300">
+                                    {s.cursoNombre} · periodo {s.periodoCodigo}
+                                  </span>
+                                </span>
+                                <span className="inline-flex shrink-0 items-center gap-2">
+                                  <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800/60 dark:text-amber-100">
+                                    {s.totalMatriculas} alumno
+                                    {s.totalMatriculas === 1 ? "" : "s"}
+                                  </span>
+                                  <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 dark:text-amber-300 dark:group-hover:text-amber-100">
+                                    Generar →
+                                  </span>
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                          {conDia.length > 5 ? (
+                            <li className="px-1 text-[11px] text-amber-700 dark:text-amber-300">
+                              + {conDia.length - 5} más
+                            </li>
+                          ) : null}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          })()
+        : null}
 
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">

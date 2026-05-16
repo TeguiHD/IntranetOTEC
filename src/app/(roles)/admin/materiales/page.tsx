@@ -14,6 +14,7 @@ import {
   listarMaterialPorAsignatura,
   subirMaterialAdminFormAction,
 } from "@/actions/material";
+import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { RouteStateToast } from "@/components/shared/RouteStateToast";
 import { normalizarTextoVisible } from "@/lib/displayText";
 
@@ -183,30 +184,41 @@ export default async function AdminMaterialesPage({
               <Upload className="h-4 w-4" />
               Crear material
             </a>
-            <form action={cambiarEstadoMaterialesAdminFormAction}>
+            <ConfirmActionForm
+              action={cambiarEstadoMaterialesAdminFormAction}
+              buttonClassName="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              buttonLabel={
+                <>
+                  <Eye className="h-4 w-4" />
+                  Habilitar todo
+                </>
+              }
+              confirmTitle="Habilitar todos los materiales"
+              confirmDescription={`Vas a marcar como visibles para alumnos todos los materiales del periodo y filtro seleccionados (${materialesResumen.length} en el listado actual). La acción se puede revertir individualmente. ¿Confirmar?`}
+              confirmLabel="Sí, habilitar todo"
+            >
               <input type="hidden" name="periodoId" value={selectedPeriodoId} />
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
               <input type="hidden" name="habilitado" value="true" />
-              <button
-                type="submit"
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-              >
-                <Eye className="h-4 w-4" />
-                Habilitar todo
-              </button>
-            </form>
-            <form action={cambiarEstadoMaterialesAdminFormAction}>
+            </ConfirmActionForm>
+            <ConfirmActionForm
+              action={cambiarEstadoMaterialesAdminFormAction}
+              buttonClassName="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
+              buttonLabel={
+                <>
+                  <EyeOff className="h-4 w-4" />
+                  Deshabilitar todo
+                </>
+              }
+              confirmTitle="Deshabilitar todos los materiales"
+              confirmDescription={`Vas a ocultar para los alumnos todos los materiales del periodo y filtro seleccionados (${materialesResumen.length} en el listado actual). La acción se puede revertir individualmente. ¿Confirmar?`}
+              confirmLabel="Sí, deshabilitar todo"
+              variant="danger"
+            >
               <input type="hidden" name="periodoId" value={selectedPeriodoId} />
               <input type="hidden" name="asignaturaId" value={selectedAsignaturaId} />
               <input type="hidden" name="habilitado" value="false" />
-              <button
-                type="submit"
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300 dark:hover:bg-amber-950/40"
-              >
-                <EyeOff className="h-4 w-4" />
-                Deshabilitar todo
-              </button>
-            </form>
+            </ConfirmActionForm>
           </div>
         </div>
 

@@ -171,17 +171,26 @@ export function CertificadosAlumnoCliente({ disponibles, historial }: Props) {
                 </span>
                 <select
                   id="cert-curso"
+                  aria-label="Selecciona el curso para el certificado"
+                  aria-disabled={isPending}
                   value={matriculaId}
                   onChange={(e) => setMatriculaId(e.target.value)}
                   disabled={isPending}
-                  className="w-full appearance-none rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/60 py-4 pl-12 pr-11 text-base font-medium text-text-primary shadow-sm transition-all hover:border-primary/40 hover:shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100 dark:hover:border-primary-light/40 sm:py-3 sm:text-sm"
+                  className="block h-12 w-full appearance-none rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/60 pl-12 pr-11 text-base font-medium text-text-primary shadow-sm transition-colors hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100 dark:hover:border-primary-light/40 sm:h-11 sm:text-sm"
                 >
-                  {disponibles.map((d) => (
-                    <option key={d.matriculaId} value={d.matriculaId}>
-                      {d.cursoNombre} – {d.asignaturaNombre}
-                      {d.asignaturaCodigo ? ` (${d.asignaturaCodigo})` : ""}
-                    </option>
-                  ))}
+                  {disponibles.map((d) => {
+                    const codigoSuffix = d.asignaturaCodigo ? ` (${d.asignaturaCodigo})` : "";
+                    const fullLabel = `${d.cursoNombre} – ${d.asignaturaNombre}${codigoSuffix}`;
+                    const label =
+                      fullLabel.length <= 60
+                        ? fullLabel
+                        : `${d.cursoNombre.slice(0, 26)}… – ${d.asignaturaNombre.slice(0, 28)}${codigoSuffix}`;
+                    return (
+                      <option key={d.matriculaId} value={d.matriculaId} title={fullLabel}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
                 <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary transition-transform group-hover:text-primary dark:text-gray-400 dark:group-hover:text-primary-light">
                   <ChevronDown className="h-5 w-5" />
@@ -208,10 +217,12 @@ export function CertificadosAlumnoCliente({ disponibles, historial }: Props) {
                 </span>
                 <select
                   id="cert-finalidad"
+                  aria-label="Finalidad del certificado"
+                  aria-disabled={isPending}
                   value={finalidad}
                   onChange={(e) => setFinalidad(e.target.value as FinalidadValue)}
                   disabled={isPending}
-                  className="w-full appearance-none rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/60 py-4 pl-12 pr-11 text-base font-medium text-text-primary shadow-sm transition-all hover:border-primary/40 hover:shadow focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100 dark:hover:border-primary-light/40 sm:py-3 sm:text-sm"
+                  className="block h-12 w-full appearance-none rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/60 pl-12 pr-11 text-base font-medium text-text-primary shadow-sm transition-colors hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100 dark:hover:border-primary-light/40 sm:h-11 sm:text-sm"
                 >
                   {FINALIDADES.map((f) => (
                     <option key={f.value} value={f.value}>
@@ -283,7 +294,7 @@ export function CertificadosAlumnoCliente({ disponibles, historial }: Props) {
             Aún no has emitido certificados.
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="max-h-[480px] space-y-3 overflow-y-auto pr-1">
             {historial.map((c) => (
               <li
                 key={c.id}
@@ -296,11 +307,11 @@ export function CertificadosAlumnoCliente({ disponibles, historial }: Props) {
                     {c.asignaturaNombre ? ` – ${c.asignaturaNombre}` : ""}
                   </span>
                   {c.valido ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
                       <CheckCircle2 className="h-3 w-3" /> Válido
                     </span>
                   ) : (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-900/40 dark:text-rose-200">
                       <XCircle className="h-3 w-3" /> Anulado
                     </span>
                   )}

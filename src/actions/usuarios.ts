@@ -1207,7 +1207,7 @@ export async function desactivarAlumnoFormAction(
   });
 
   revalidatePath("/admin/alumnos");
-  redirect(`/admin/alumnos?state=${result.code}`);
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function activarAlumnoFormAction(
@@ -1408,7 +1408,7 @@ export async function editarDocenteFormAction(formData: FormData): Promise<void>
   });
 
   revalidatePath("/admin/docentes");
-  redirect(`/admin/docentes?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/docentes?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function editarAlumnoFormAction(formData: FormData): Promise<void> {
@@ -1420,7 +1420,7 @@ export async function editarAlumnoFormAction(formData: FormData): Promise<void> 
   });
 
   revalidatePath("/admin/alumnos");
-  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function crearAdminAction(input: {
@@ -1621,7 +1621,7 @@ export async function crearAdministradorFormAction(formData: FormData): Promise<
   });
 
   revalidatePath("/admin/administradores");
-  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/administradores?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function editarAdministradorFormAction(formData: FormData): Promise<void> {
@@ -1633,7 +1633,7 @@ export async function editarAdministradorFormAction(formData: FormData): Promise
   });
 
   revalidatePath("/admin/administradores");
-  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/administradores?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function desactivarAdministradorFormAction(formData: FormData): Promise<void> {
@@ -1642,7 +1642,7 @@ export async function desactivarAdministradorFormAction(formData: FormData): Pro
   });
 
   revalidatePath("/admin/administradores");
-  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/administradores?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function activarAdministradorFormAction(formData: FormData): Promise<void> {
@@ -1651,7 +1651,7 @@ export async function activarAdministradorFormAction(formData: FormData): Promis
   });
 
   revalidatePath("/admin/administradores");
-  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/administradores?state=${result.ok ? result.code : "error"}`);
 }
 
 // ── Baja definitiva logica (sin hard-delete) ──────────────────────
@@ -1930,7 +1930,7 @@ export async function eliminarAlumnoPermanenteFormAction(formData: FormData): Pr
     userId: getStringField(formData, "userId"),
   });
   revalidatePath("/admin/alumnos");
-  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function desactivarAlumnosMasivoFormAction(formData: FormData): Promise<void> {
@@ -1938,7 +1938,7 @@ export async function desactivarAlumnosMasivoFormAction(formData: FormData): Pro
     userIds: formData.getAll("userId").filter((value): value is string => typeof value === "string"),
   });
   revalidatePath("/admin/alumnos");
-  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function eliminarAlumnosMasivoFormAction(formData: FormData): Promise<void> {
@@ -1946,7 +1946,7 @@ export async function eliminarAlumnosMasivoFormAction(formData: FormData): Promi
     userIds: formData.getAll("userId").filter((value): value is string => typeof value === "string"),
   });
   revalidatePath("/admin/alumnos");
-  redirect(`/admin/alumnos?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/alumnos?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function eliminarDocentePermanenteFormAction(formData: FormData): Promise<void> {
@@ -1954,7 +1954,7 @@ export async function eliminarDocentePermanenteFormAction(formData: FormData): P
     userId: getStringField(formData, "userId"),
   });
   revalidatePath("/admin/docentes");
-  redirect(`/admin/docentes?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/docentes?state=${result.ok ? result.code : "error"}`);
 }
 
 export async function eliminarAdministradorPermanenteFormAction(formData: FormData): Promise<void> {
@@ -1962,7 +1962,7 @@ export async function eliminarAdministradorPermanenteFormAction(formData: FormDa
     userId: getStringField(formData, "userId"),
   });
   revalidatePath("/admin/administradores");
-  redirect(`/admin/administradores?state=${result.ok ? result.code : result.code}`);
+  redirect(`/admin/administradores?state=${result.ok ? result.code : "error"}`);
 }
 
 const PIN_REGEX = /^\d{4}$/;

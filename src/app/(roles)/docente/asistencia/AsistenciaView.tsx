@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useOptimistic, useState, useTransition } from "react";
 
+import { toast } from "sonner";
+
 import {
   BookOpen,
   CalendarDays,
@@ -119,19 +121,24 @@ function CalendarTab({
 
   const handleMarcar = useCallback(
     (claseId: string, matriculaId: string, estado: NonNullable<EstadoAsist>, fecha: string) => {
-      startTransition(async () => {
-        setLocalClases((prev) =>
-          prev.map((clase) =>
-            clase.id !== claseId
-              ? clase
-              : {
-                  ...clase,
-                  alumnos: clase.alumnos.map((a) =>
-                    a.matriculaId !== matriculaId ? a : { ...a, estado },
-                  ),
-                },
-          ),
+      let estadoPrevio: EstadoAsist | undefined;
+      setLocalClases((prev) => {
+        const claseTarget = prev.find((c) => c.id === claseId);
+        const alumnoTarget = claseTarget?.alumnos.find((a) => a.matriculaId === matriculaId);
+        estadoPrevio = alumnoTarget?.estado ?? null;
+        return prev.map((clase) =>
+          clase.id !== claseId
+            ? clase
+            : {
+                ...clase,
+                alumnos: clase.alumnos.map((a) =>
+                  a.matriculaId !== matriculaId ? a : { ...a, estado },
+                ),
+              },
         );
+      });
+
+      startTransition(async () => {
         const result = await registrarAsistenciaDocenteAction({
           claseId,
           matriculaId,
@@ -140,7 +147,26 @@ function CalendarTab({
         });
         if (result.ok) {
           onUpdateEstado(claseId, matriculaId, estado);
+          return;
         }
+
+        setLocalClases((prev) =>
+          prev.map((clase) =>
+            clase.id !== claseId
+              ? clase
+              : {
+                  ...clase,
+                  alumnos: clase.alumnos.map((a) =>
+                    a.matriculaId !== matriculaId ? a : { ...a, estado: estadoPrevio ?? null },
+                  ),
+                },
+          ),
+        );
+        toast.error(
+          "message" in result && typeof result.message === "string"
+            ? result.message
+            : "No se pudo registrar la asistencia. Intenta de nuevo.",
+        );
       });
     },
     [setLocalClases, onUpdateEstado],

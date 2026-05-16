@@ -37,6 +37,7 @@ import {
   type PreguntaItem,
   type RespuestaPendienteItem,
 } from "@/actions/evaluaciones";
+import { ConfirmActionForm } from "@/components/shared/ConfirmActionForm";
 import { AuditTimeline } from "@/components/evaluaciones/AuditTimeline";
 import { EvaluacionParticipacionPanel } from "@/components/evaluaciones/EvaluacionParticipacionPanel";
 import { RehabilitarIntentoActions } from "@/components/evaluaciones/RehabilitarIntentoActions";
@@ -532,32 +533,43 @@ export default async function AdminEvaluacionesPage({
               ) : null}
               {selectedAsignaturaId ? (
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+                  <ConfirmActionForm
+                    action={cambiarEstadoEvaluacionesAsignaturaFormAction}
+                    buttonClassName="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300"
+                    buttonLabel={
+                      <>
+                        <Eye className="h-4 w-4" />
+                        Habilitar todo
+                      </>
+                    }
+                    confirmTitle="Publicar todas las evaluaciones"
+                    confirmDescription="Vas a publicar todas las evaluaciones del periodo seleccionado. Los alumnos podrán verlas y rendirlas según la configuración de cada una. ¿Confirmar?"
+                    confirmLabel="Sí, publicar todo"
+                  >
                     <input type="hidden" name="scope" value="periodo" />
                     <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                     <input type="hidden" name="publicada" value="true" />
                     <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
-                    <button
-                      type="submit"
-                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Habilitar todo
-                    </button>
-                  </form>
-                  <form action={cambiarEstadoEvaluacionesAsignaturaFormAction}>
+                  </ConfirmActionForm>
+                  <ConfirmActionForm
+                    action={cambiarEstadoEvaluacionesAsignaturaFormAction}
+                    buttonClassName="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+                    buttonLabel={
+                      <>
+                        <ShieldOff className="h-4 w-4" />
+                        Deshabilitar todo
+                      </>
+                    }
+                    confirmTitle="Despublicar todas las evaluaciones"
+                    confirmDescription="Vas a quitar publicación a todas las evaluaciones del periodo seleccionado. Los alumnos dejarán de verlas hasta que el docente las vuelva a publicar. ¿Confirmar?"
+                    confirmLabel="Sí, deshabilitar todo"
+                    variant="danger"
+                  >
                     <input type="hidden" name="scope" value="periodo" />
                     <input type="hidden" name="periodoId" value={selectedPeriodoId} />
                     <input type="hidden" name="publicada" value="false" />
                     <input type="hidden" name="redirectTo" value={currentEvaluacionesHref} />
-                    <button
-                      type="submit"
-                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
-                    >
-                      <ShieldOff className="h-4 w-4" />
-                      Deshabilitar todo
-                    </button>
-                  </form>
+                  </ConfirmActionForm>
                 </div>
               ) : null}
               <form method="GET" className="grid gap-2 sm:grid-cols-[minmax(0,240px)_170px_auto]">

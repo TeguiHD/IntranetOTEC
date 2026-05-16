@@ -648,6 +648,17 @@ export async function POST(request: Request) {
       );
     }
 
+    const createdCourseIds: string[] = [];
+    const createdSectionIds: string[] = [];
+    const createdUserIds: string[] = [];
+    const createdEnrollmentIds: string[] = [];
+    let created = 0;
+    let updated = 0;
+    let enrollmentsCreated = 0;
+    let autoCredentialsCreated = 0;
+    const errors: string[] = [];
+
+    await db.transaction(async (tx) => {
     for (const row of parsedRows) {
       if (!row.curso || !row.cursoKey) {
         continue;
@@ -664,7 +675,7 @@ export async function POST(request: Request) {
           courseCodeSet,
         );
 
-        await db.insert(cursos).values({
+        await tx.insert(cursos).values({
           id: cursoId,
           nombre: row.cursoCanonico || row.curso,
           codigo: codigoCurso,
@@ -679,6 +690,7 @@ export async function POST(request: Request) {
 
         template = { id: cursoId, codigo: codigoCurso };
         coursesCreated += 1;
+        createdCourseIds.push(cursoId);
       }
 
       if (row.cursoIdentityKey) {
@@ -701,7 +713,7 @@ export async function POST(request: Request) {
         suffix += 1;
       }
 
-      await db.insert(asignaturas).values({
+      await tx.insert(asignaturas).values({
         id: asignaturaId,
         nombre: row.cursoCanonico || row.curso,
         descripcion: buildCourseDescription(row.diasHora, row.fechaExplicita),
@@ -720,13 +732,8 @@ export async function POST(request: Request) {
       sectionMap.set(sectionKey, asignaturaId);
       sectionCodeSet.add(sectionCode);
       sectionsCreated += 1;
+      createdSectionIds.push(asignaturaId);
     }
-
-    let created = 0;
-    let updated = 0;
-    let enrollmentsCreated = 0;
-    let autoCredentialsCreated = 0;
-    const errors: string[] = [];
 
     const personIdentifierMap = new Map<string, string>();
     for (const row of parsedRows) {
@@ -825,7 +832,7 @@ export async function POST(request: Request) {
       const loginFormatted = loginIsForeign ? loginIdentifier : formatearRut(loginIdentifier);
 
       try {
-        const [existing] = await db
+        const [existing] = await tx
           .select({ id: usuarios.id })
           .from(usuarios)
           .where(
@@ -867,14 +874,14 @@ export async function POST(request: Request) {
             updateValues.telefono = row.telefono;
           }
 
-          await db.update(usuarios).set(updateValues).where(eq(usuarios.id, existing.id));
+          await tx.update(usuarios).set(updateValues).where(eq(usuarios.id, existing.id));
           updated++;
         } else {
           alumnoId = randomUUID();
           const pin = derivarPinPredeterminado(loginIdentifier);
           const passwordHash = await bcrypt.hash(pin, 12);
 
-          await db.insert(usuarios).values({
+          await tx.insert(usuarios).values({
             id: alumnoId,
             nombre,
             apellido,
@@ -891,10 +898,11 @@ export async function POST(request: Request) {
           });
 
           created++;
+          createdUserIds.push(alumnoId);
         }
 
         if (asignaturaId) {
-          const insertedEnrollment = await db
+          const insertedEnrollment = await tx
             .insert(matriculas)
             .values({
               id: randomUUID(),
@@ -908,6 +916,7 @@ export async function POST(request: Request) {
 
           if (insertedEnrollment.length > 0) {
             enrollmentsCreated += 1;
+            createdEnrollmentIds.push(insertedEnrollment[0].id);
           }
         }
       } catch (rowError) {
@@ -916,9 +925,11 @@ export async function POST(request: Request) {
           errors.push(`Fila ${lineNum}: Conflicto de datos (${loginFormatted}).`);
         } else {
           errors.push(`Fila ${lineNum}: Error inesperado.`);
+          throw rowError;
         }
       }
     }
+    });
 
     const correlationId = request.headers.get("x-correlation-id") ?? randomUUID();
     await registrarAudit({
@@ -941,6 +952,10 @@ export async function POST(request: Request) {
         erroresCount: errors.length,
         warningsCount: warnings.length,
         total: parsedRows.length,
+        createdUserIds,
+        createdCourseIds,
+        createdSectionIds,
+        createdEnrollmentIds,
       },
       exitoso: true,
     });
@@ -956,6 +971,10 @@ export async function POST(request: Request) {
       errors,
       warnings,
       total: parsedRows.length,
+      createdUserIds,
+      createdCourseIds,
+      createdSectionIds,
+      createdEnrollmentIds,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "unknown";

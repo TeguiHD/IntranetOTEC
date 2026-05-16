@@ -50,15 +50,28 @@ function addMinutes(h, m, plus) {
 const pad2 = (n) => String(n).padStart(2, "0");
 const fmtTime = ({ h, m }) => `${pad2(h)}:${pad2(m)}:00`;
 
-function generarFechas(fechaInicioIso, diaSemanaLun, n) {
-  const start = new Date(`${fechaInicioIso}T00:00:00`);
-  const delta = (diaSemanaLun - jsToLun(start.getDay()) + 7) % 7;
+function toIsoDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) {
+    if (Number.isNaN(v.getTime())) return null;
+    return v.toISOString().slice(0, 10);
+  }
+  const s = String(v).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+function generarFechas(fechaInicioRaw, diaSemanaLun, n) {
+  const iso = toIsoDate(fechaInicioRaw);
+  if (!iso) return null;
+  const start = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) return null;
+  const delta = (diaSemanaLun - jsToLun(start.getUTCDay()) + 7) % 7;
   const first = new Date(start);
-  first.setDate(start.getDate() + delta);
+  first.setUTCDate(start.getUTCDate() + delta);
   const out = [];
   for (let i = 0; i < n; i++) {
     const d = new Date(first);
-    d.setDate(first.getDate() + i * 7);
+    d.setUTCDate(first.getUTCDate() + i * 7);
     out.push(d.toISOString().slice(0, 10));
   }
   return out;
@@ -97,6 +110,11 @@ async function main() {
       const hi = fmtTime(parsed.horaInicio);
       const hf = fmtTime(horaFin);
       const fechas = generarFechas(s.fecha_inicio, parsed.diaSemana, SESIONES);
+      if (!fechas) {
+        saltados++;
+        reportRows.push({ id: s.id, nombre: s.nombre, status: "skip", razon: `fecha_inicio invalida: ${s.fecha_inicio}` });
+        continue;
+      }
       reportRows.push({
         id: s.id, nombre: s.nombre, status: "ok",
         dia_semana: parsed.diaSemana, hora_inicio: hi, hora_fin: hf,

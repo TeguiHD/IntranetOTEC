@@ -75,8 +75,22 @@ const buildCourseTemplateIdentityKey = (
 const CURSO_KEYS = new Set(["curso", "asignatura", "materia"]);
 const CODIGO_KEYS = new Set(["codigo", "codigocurso", "codcurso", "cod"]);
 const DIAS_HORA_KEYS = new Set(["diashora", "diasyhora", "horario", "diahora"]);
-const NOMBRE_KEYS = new Set(["nombre", "nombrecompleto", "alumno", "estudiante"]);
-const RUT_KEYS = new Set(["rut", "identificador", "credencial"]);
+const NOMBRE_KEYS = new Set([
+  "nombre",
+  "nombres",
+  "nombrecompleto",
+  "nombrescompletos",
+  "alumno",
+  "estudiante",
+  "primernombre",
+]);
+const APELLIDO_KEYS = new Set([
+  "apellido",
+  "apellidos",
+  "primerapellido",
+  "apellidopaterno",
+]);
+const RUT_KEYS = new Set(["rut", "identificador", "credencial", "rutcredencial"]);
 const TELEFONO_KEYS = new Set([
   "numero",
   "numerocelular",
@@ -399,7 +413,11 @@ export async function POST(request: Request) {
       const codigoCurso = getRowField(row, CODIGO_KEYS);
       const curso = getRowField(row, CURSO_KEYS);
       const diasHora = getRowField(row, DIAS_HORA_KEYS);
-      const nombreCompleto = getRowField(row, NOMBRE_KEYS);
+      const nombreField = getRowField(row, NOMBRE_KEYS);
+      const apellidoField = getRowField(row, APELLIDO_KEYS);
+      const nombreCompleto = apellidoField
+        ? `${nombreField} ${apellidoField}`.trim()
+        : nombreField;
       const rutRaw = getRowField(row, RUT_KEYS);
       const telefonoRaw = getRowField(row, TELEFONO_KEYS);
       const fechaRaw = getRowField(row, FECHA_KEYS);

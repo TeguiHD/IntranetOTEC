@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 
-import { Eye, EyeOff, KeyRound, Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import { Eye, EyeOff, History, KeyRound, Loader2, Pencil, Search, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -163,11 +164,18 @@ export function DocenteTable({
                     {d.activo ? "Activo" : "Inactivo"}
                   </span>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={`/admin/docentes/${d.id}`}
+                    className="flex h-10 flex-1 min-w-[7rem] items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10 dark:text-primary-light"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    Historial
+                  </Link>
                   <button
                     type="button"
                     onClick={() => setEditing(d)}
-                    className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-medium text-text-primary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200 dark:hover:border-primary-light dark:hover:text-primary-light"
+                    className="flex h-10 flex-1 min-w-[6rem] items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-medium text-text-primary transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200 dark:hover:border-primary-light dark:hover:text-primary-light"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Editar
@@ -221,6 +229,14 @@ export function DocenteTable({
                     </td>
                     <td className="px-3 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
+                        <Link
+                          href={`/admin/docentes/${d.id}`}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10 dark:text-primary-light"
+                          aria-label={`Ver historial de ${d.nombre} ${d.apellido}`}
+                        >
+                          <History className="h-3.5 w-3.5" />
+                          Historial
+                        </Link>
                         <button
                           type="button"
                           onClick={() => setEditing(d)}

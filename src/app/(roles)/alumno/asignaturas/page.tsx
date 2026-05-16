@@ -240,8 +240,17 @@ export default async function AlumnoAsignaturasPage() {
                         />
                       </div>
                     )}
-                    <p className="mt-1 text-[11px] text-text-secondary dark:text-gray-500">
-                      {asistencia?.presente ?? 0}P · {asistencia?.ausente ?? 0}A · {asistencia?.tardanza ?? 0}T · {asistencia?.justificado ?? 0}J
+                    <p
+                      className="mt-1 text-xs text-text-secondary dark:text-gray-500"
+                      title="P: presente · A: ausente · T: tardanza · J: justificado"
+                    >
+                      <span title="Presentes">{asistencia?.presente ?? 0}P</span>
+                      {" · "}
+                      <span title="Ausentes">{asistencia?.ausente ?? 0}A</span>
+                      {" · "}
+                      <span title="Tardanzas">{asistencia?.tardanza ?? 0}T</span>
+                      {" · "}
+                      <span title="Justificados">{asistencia?.justificado ?? 0}J</span>
                       &nbsp;({asistencia?.total ?? 0} clases)
                     </p>
                   </div>

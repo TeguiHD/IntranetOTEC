@@ -97,3 +97,32 @@ next-env.d.ts
 /pnpm-lock.zip
 /cambios/
 tmp-seed-otec-users.js
+
+# pre-marcha-blanca cleanup (May 2026): working notes, archives, media
+*.zip
+*.docx
+/13MayoITERACIONES.TXT
+/12Mayo2026/
+/GRABACIÓN/
+/Pruebas2/
+/drive-download-*.zip
+/tutorial-videos2.zip
+/SAVE_*.jpg.jpeg
+/SAVE_*.jpeg
+/SAVE_*.jpg
+/planIntranetCorrecciones.txt
+/pruebas docente para alumnos con activac.txt
+/Listado*.xlsx
+/CAMBIOS_BENEFICIOS_CREDENCIALES.md
+/CAPA_4_SEGURIDAD_UIUX_MARZO_2026.md
+/CHECKING_INTRANET_ALUMNO_DOCENTE_ADMIN_2026-05-10.md
+/ORDEN_DOCUMENTAL.md
+/PLAN_CAMBIOS_CLIENTE_2026-05-09.md
+/PLAN_PRUEBAS_DOCENTE_2026-05-10.md
+/PROGRESO_ITERACIONES.md
+/REVISION_*.md
+/project-state.md
+/180
+/240
+/260
+/otec/

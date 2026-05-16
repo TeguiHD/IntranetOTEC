@@ -156,7 +156,9 @@ export default async function FichaSeccionPage({ params, searchParams }: PagePro
   const [clasesRow] = await db
     .select({ n: count(clases.id) })
     .from(clases)
-    .where(and(eq(clases.asignaturaId, id), isNull(clases.eliminadoAt)));
+    .where(
+      and(eq(clases.asignaturaId, id), eq(clases.publicada, true), isNull(clases.eliminadoAt)),
+    );
   const totalClasesActivas = Number(clasesRow?.n ?? 0);
 
   const proximasEvaluaciones = await db
@@ -316,6 +318,7 @@ export default async function FichaSeccionPage({ params, searchParams }: PagePro
           <article className="lg:col-span-2 space-y-4">
             <ConfiguracionPipeline
               seccionId={id}
+              seccionNombre={seccion.nombre}
               tieneBloques={totalBloques > 0}
               tieneClases={totalClasesActivas > 0}
               tieneDocente={Boolean(seccion.docenteId)}
@@ -546,15 +549,19 @@ function CarpetaAlumnoCard({ row }: { row: CarpetaRow }) {
 
 function ConfiguracionPipeline({
   seccionId,
+  seccionNombre,
   tieneBloques,
   tieneClases,
   tieneDocente,
 }: {
   seccionId: string;
+  seccionNombre: string;
   tieneBloques: boolean;
   tieneClases: boolean;
   tieneDocente: boolean;
 }) {
+  const nombreSinDia =
+    !/\b(Lunes|Martes|Mi[eé]rcoles|Jueves|Viernes|S[aá]bado|Domingo)\b/i.test(seccionNombre);
   const pasos = [
     {
       id: "docente",
@@ -596,6 +603,15 @@ function ConfiguracionPipeline({
         Flujo: <strong>Docente → Bloques horarios → Clases del calendario</strong>. Completa para
         habilitar asistencia, notas y evaluaciones.
       </p>
+      {nombreSinDia && !tieneBloques ? (
+        <p className="mt-2 rounded-lg bg-amber-100 px-2.5 py-1.5 text-[11px] text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+          ⚠️ El nombre de la sección no contiene día (Lunes/Martes/…). Edita el nombre desde{" "}
+          <Link href={`/admin/asignaturas?asignaturaId=${seccionId}`} className="font-semibold underline">
+            /admin/asignaturas
+          </Link>{" "}
+          y luego define los bloques horarios.
+        </p>
+      ) : null}
       <ul className="mt-3 space-y-2">
         {pasos.map((p) => (
           <li

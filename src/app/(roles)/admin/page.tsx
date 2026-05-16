@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import {
+  AlertTriangle,
   BarChart3,
   Bell,
   BookOpen,
@@ -34,6 +35,7 @@ import {
 import {
   listarPeriodosDashboard,
   obtenerMetricasGlobales,
+  obtenerSeccionesSinClasesAdmin,
 } from "@/actions/admin-metricas";
 import { listarNotificacionesAdmin } from "@/actions/notificaciones";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
@@ -150,10 +152,11 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   const periodoSeleccionadoId =
     periodoIdRaw && periodoIdRaw.toLowerCase() !== "all" ? periodoIdRaw : null;
 
-  const [periodos, metricas, notificacionesRecientes] = await Promise.all([
+  const [periodos, metricas, notificacionesRecientes, seccionesSinClases] = await Promise.all([
     listarPeriodosDashboard(),
     obtenerMetricasGlobales({ periodoId: periodoSeleccionadoId }),
     listarNotificacionesAdmin(),
+    obtenerSeccionesSinClasesAdmin(),
   ]);
 
   const periodoSeleccionado =
@@ -176,6 +179,59 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
 
   return (
     <section className="space-y-5">
+      {seccionesSinClases.length > 0 ? (
+        <article className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-800 dark:bg-amber-800/60 dark:text-amber-100">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                {seccionesSinClases.length} secci{seccionesSinClases.length === 1 ? "ón" : "ones"}{" "}
+                sin calendario asignado
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+                Tienen alumnos matriculados pero ninguna clase publicada. Los alumnos no verán
+                clases en su calendario hasta que se asigne día/hora a la sección.
+              </p>
+              <ul className="mt-3 space-y-1.5">
+                {seccionesSinClases.slice(0, 5).map((s) => (
+                  <li key={s.asignaturaId}>
+                    <Link
+                      href={`/admin/secciones/${s.asignaturaId}`}
+                      className="group flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs transition hover:border-amber-400 hover:bg-amber-100/50 dark:border-amber-900 dark:bg-amber-950/40 dark:hover:border-amber-700 dark:hover:bg-amber-900/40"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-amber-900 dark:text-amber-100">
+                          {s.asignaturaNombre}
+                        </span>
+                        <span className="block truncate text-[11px] text-amber-700 dark:text-amber-300">
+                          {s.cursoNombre} · periodo {s.periodoCodigo}
+                          {s.sinDia ? " · nombre sin día (Lun/Mar/…)" : ""}
+                        </span>
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-2">
+                        <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-800/60 dark:text-amber-100">
+                          {s.totalMatriculas} alumno{s.totalMatriculas === 1 ? "" : "s"}
+                        </span>
+                        <span className="text-[11px] font-semibold text-amber-700 group-hover:text-amber-900 dark:text-amber-300 dark:group-hover:text-amber-100">
+                          Configurar →
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+                {seccionesSinClases.length > 5 ? (
+                  <li className="px-1 text-[11px] text-amber-700 dark:text-amber-300">
+                    + {seccionesSinClases.length - 5} más
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          </div>
+        </article>
+      ) : null}
+
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-r from-primary to-primary-dark p-5 shadow-lg shadow-primary/15 sm:p-6">
         <div className="flex items-center gap-3">

@@ -267,3 +267,59 @@ export async function obtenerMetricasPorAsignatura(
     asistenciaPromedio: asistMap.get(r.id) ?? null,
   }));
 }
+
+export type SeccionSinClasesRow = {
+  asignaturaId: string;
+  asignaturaNombre: string;
+  cursoNombre: string;
+  cursoCodigo: string | null;
+  periodoCodigo: string;
+  totalMatriculas: number;
+  totalClases: number;
+  sinDia: boolean;
+};
+
+export async function obtenerSeccionesSinClasesAdmin(): Promise<SeccionSinClasesRow[]> {
+  const actorResult = await requireActionActor("admin_secciones_sin_clases", ["admin"]);
+  if (!actorResult.ok) return [];
+
+  const db = getDb();
+
+  const rows = await db.execute(sql`
+    SELECT
+      a.id AS asignatura_id,
+      a.nombre AS asignatura_nombre,
+      c.nombre AS curso_nombre,
+      c.codigo AS curso_codigo,
+      p.codigo AS periodo_codigo,
+      (SELECT COUNT(*) FROM matriculas m WHERE m.asignatura_id = a.id AND m.eliminado_at IS NULL) AS total_matriculas,
+      (SELECT COUNT(*) FROM clases cl WHERE cl.asignatura_id = a.id AND cl.publicada = true AND cl.eliminado_at IS NULL) AS total_clases
+    FROM asignaturas a
+    INNER JOIN cursos c ON c.id = a.curso_id
+    INNER JOIN periodos_academicos p ON p.id = a.periodo_id
+    WHERE a.eliminado_at IS NULL
+      AND p.eliminado_at IS NULL
+      AND (SELECT COUNT(*) FROM matriculas m WHERE m.asignatura_id = a.id AND m.eliminado_at IS NULL) > 0
+      AND (SELECT COUNT(*) FROM clases cl WHERE cl.asignatura_id = a.id AND cl.publicada = true AND cl.eliminado_at IS NULL) = 0
+    ORDER BY total_matriculas DESC, c.nombre
+  `);
+
+  return (rows.rows as Array<{
+    asignatura_id: string;
+    asignatura_nombre: string;
+    curso_nombre: string;
+    curso_codigo: string | null;
+    periodo_codigo: string;
+    total_matriculas: number;
+    total_clases: number;
+  }>).map((r) => ({
+    asignaturaId: r.asignatura_id,
+    asignaturaNombre: r.asignatura_nombre,
+    cursoNombre: r.curso_nombre,
+    cursoCodigo: r.curso_codigo,
+    periodoCodigo: r.periodo_codigo,
+    totalMatriculas: Number(r.total_matriculas),
+    totalClases: Number(r.total_clases),
+    sinDia: !/\b(Lunes|Martes|Mi[eé]rcoles|Jueves|Viernes|S[aá]bado|Domingo)\b/i.test(r.asignatura_nombre),
+  }));
+}

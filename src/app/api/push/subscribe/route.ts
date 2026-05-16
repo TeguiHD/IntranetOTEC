@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { auth } from "@/auth";
 import { getDb } from "@/db";
@@ -71,11 +71,20 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
   }
 
+  if (!body.endpoint || typeof body.endpoint !== "string") {
+    return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+  }
+
   const db = getDb();
 
   await db
     .delete(pushSubscriptions)
-    .where(eq(pushSubscriptions.endpoint, body.endpoint));
+    .where(
+      and(
+        eq(pushSubscriptions.endpoint, body.endpoint),
+        eq(pushSubscriptions.usuarioId, session.user.id),
+      ),
+    );
 
   logEvent({
     correlationId: "",

@@ -19,6 +19,7 @@ import { getDb } from "@/db";
 import {
   asignaturas,
   asistencia,
+  bloquesHorario,
   certificados,
   clases,
   cursos,
@@ -145,6 +146,18 @@ export default async function FichaSeccionPage({ params, searchParams }: PagePro
     )
     .orderBy(asc(clases.fecha), asc(clases.horaInicio))
     .limit(5);
+
+  const [bloquesRow] = await db
+    .select({ n: count(bloquesHorario.id) })
+    .from(bloquesHorario)
+    .where(and(eq(bloquesHorario.asignaturaId, id), isNull(bloquesHorario.eliminadoAt)));
+  const totalBloques = Number(bloquesRow?.n ?? 0);
+
+  const [clasesRow] = await db
+    .select({ n: count(clases.id) })
+    .from(clases)
+    .where(and(eq(clases.asignaturaId, id), isNull(clases.eliminadoAt)));
+  const totalClasesActivas = Number(clasesRow?.n ?? 0);
 
   const proximasEvaluaciones = await db
     .select({
@@ -301,6 +314,13 @@ export default async function FichaSeccionPage({ params, searchParams }: PagePro
       {activeTab === "resumen" ? (
         <div className="grid gap-4 lg:grid-cols-3">
           <article className="lg:col-span-2 space-y-4">
+            <ConfiguracionPipeline
+              seccionId={id}
+              tieneBloques={totalBloques > 0}
+              tieneClases={totalClasesActivas > 0}
+              tieneDocente={Boolean(seccion.docenteId)}
+            />
+
             <div className="grid gap-3 sm:grid-cols-2">
               <MetricCard
                 label="Alumnos matriculados"
@@ -520,6 +540,97 @@ function CarpetaAlumnoCard({ row }: { row: CarpetaRow }) {
           <p className="text-text-secondary dark:text-gray-400">Docs</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ConfiguracionPipeline({
+  seccionId,
+  tieneBloques,
+  tieneClases,
+  tieneDocente,
+}: {
+  seccionId: string;
+  tieneBloques: boolean;
+  tieneClases: boolean;
+  tieneDocente: boolean;
+}) {
+  const pasos = [
+    {
+      id: "docente",
+      label: "Docente asignado",
+      ok: tieneDocente,
+      cta: "Asignar docente",
+      href: `/admin/asignaturas?asignaturaId=${seccionId}`,
+    },
+    {
+      id: "bloques",
+      label: "Bloques horarios",
+      ok: tieneBloques,
+      cta: "Definir bloques",
+      href: `/admin/horarios?asignaturaId=${seccionId}`,
+    },
+    {
+      id: "clases",
+      label: "Clases del calendario",
+      ok: tieneClases,
+      cta: "Crear / generar clases",
+      href: `/admin/clases?asignaturaId=${seccionId}`,
+    },
+  ];
+  const pendientes = pasos.filter((p) => !p.ok);
+  if (pendientes.length === 0) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+        <p className="font-semibold">Sección lista</p>
+        <p className="mt-0.5">Docente, bloques y clases configurados. Ya puede operar.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
+      <p className="text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+        Configuración pendiente · {pendientes.length} paso{pendientes.length === 1 ? "" : "s"}
+      </p>
+      <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+        Flujo: <strong>Docente → Bloques horarios → Clases del calendario</strong>. Completa para
+        habilitar asistencia, notas y evaluaciones.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {pasos.map((p) => (
+          <li
+            key={p.id}
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 ${
+              p.ok
+                ? "border-emerald-200 bg-white text-emerald-700 dark:border-emerald-900 dark:bg-gray-900 dark:text-emerald-300"
+                : "border-amber-200 bg-white text-amber-800 dark:border-amber-900 dark:bg-gray-900 dark:text-amber-200"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2 text-sm font-semibold">
+              <span
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                  p.ok
+                    ? "bg-emerald-500 text-white"
+                    : "border border-amber-400 bg-white text-amber-700 dark:bg-gray-800"
+                }`}
+              >
+                {p.ok ? "✓" : "·"}
+              </span>
+              {p.label}
+            </span>
+            {!p.ok ? (
+              <Link
+                href={p.href}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-[11px] font-semibold text-white transition hover:bg-amber-700"
+              >
+                {p.cta}
+              </Link>
+            ) : (
+              <span className="text-[11px] font-medium opacity-70">Listo</span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

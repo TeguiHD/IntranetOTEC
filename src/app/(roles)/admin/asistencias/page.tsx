@@ -1,16 +1,21 @@
 import { CheckCircle2, Search, Users, XCircle } from "lucide-react";
+import Link from "next/link";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
   actualizarAsistenciaAdminFormAction,
   countAsistenciasAdmin,
+  crearAsistenciaAdminFormAction,
   listarAsistenciasAdmin,
+  listarClasesParaAsistenciaAdmin,
+  listarMatriculasParaAsistenciaAdmin,
   resumenAsistenciasAdmin,
 } from "@/actions/admin-asistencias";
 import { formatearRut } from "@/lib/rut";
 import { Pagination } from "@/components/shared/Pagination";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
+import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const PAGE_SIZE = 50;
 
@@ -26,6 +31,17 @@ const ESTADO_LABELS: Record<string, string> = {
   ausente: "Ausente",
   tardanza: "Tardanza",
   justificado: "Justificado",
+};
+
+const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
+  attendance_created: { tone: "success", text: "Asistencia registrada correctamente." },
+  attendance_updated: { tone: "success", text: "Asistencia actualizada correctamente." },
+  invalid_input: { tone: "error", text: "Revisa clase, alumno y estado antes de guardar." },
+  clase_not_found: { tone: "error", text: "Clase no encontrada." },
+  matricula_not_found: { tone: "error", text: "La matricula seleccionada no pertenece a la seccion." },
+  attendance_not_found: { tone: "error", text: "El registro de asistencia no existe." },
+  forbidden: { tone: "error", text: "No tienes permisos para esta accion." },
+  error: { tone: "error", text: "No fue posible completar la accion." },
 };
 
 function formatFecha(value: string | null): string {
@@ -44,11 +60,12 @@ type AdminAsistenciasPageProps = {
     periodoId?: string;
     asignaturaId?: string;
     page?: string;
+    state?: string;
   }>;
 };
 
 export default async function AdminAsistenciasPage({ searchParams }: AdminAsistenciasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string; page?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string; page?: string; state?: string }));
   const q = typeof params.q === "string" ? params.q.trim() : undefined;
   const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
 
@@ -80,11 +97,13 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
     periodoId: selectedPeriodoId || undefined,
   };
 
-  const [asistencias, totalCount, resumenGlobal] = await Promise.all([
+  const [asistencias, totalCount, resumenGlobal, matriculasParaAsistencia, clasesParaAsistencia] = await Promise.all([
     listarAsistenciasAdmin({ ...filterCommon, limit: PAGE_SIZE, offset }),
     countAsistenciasAdmin(filterCommon),
     // Resumen del periodo entero, sin q ni asignatura, para metricas estables al filtrar.
     resumenAsistenciasAdmin({ periodoId: selectedPeriodoId || undefined }),
+    listarMatriculasParaAsistenciaAdmin(asignaturaId),
+    listarClasesParaAsistenciaAdmin(asignaturaId),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -116,6 +135,8 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
 
   return (
     <section className="space-y-5">
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
+
       {/* Header */}
       <header>
         <h1 className="text-xl font-bold uppercase text-text-primary dark:text-white sm:text-2xl">
@@ -204,15 +225,111 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
         </div>
         {(q || asignaturaId) && (
           <div className="mt-2">
-            <a
+            <Link
               href={selectedPeriodoId ? `/admin/asistencias?periodoId=${selectedPeriodoId}` : "/admin/asistencias"}
               className="rounded-lg border border-gray-200 px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               Limpiar filtros
-            </a>
+            </Link>
           </div>
         )}
       </form>
+
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-base font-semibold text-text-primary dark:text-white">
+            Registrar asistencia
+          </h2>
+          <p className="text-sm text-text-secondary dark:text-gray-400">
+            Crea asistencia para alumnos matriculados en la seccion seleccionada, incluso si aun no existen registros.
+          </p>
+        </div>
+
+        {!asignaturaId ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            Selecciona una seccion en el filtro superior para habilitar el registro de asistencia.
+          </div>
+        ) : clasesParaAsistencia.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            No hay clases creadas para esta seccion.
+          </div>
+        ) : matriculasParaAsistencia.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            No hay alumnos activos matriculados en esta seccion.
+          </div>
+        ) : (
+          <form action={crearAsistenciaAdminFormAction} className="mt-4 grid gap-3 lg:grid-cols-[minmax(240px,1fr)_minmax(240px,1fr)_160px_minmax(180px,0.8fr)_auto] lg:items-end">
+            <input type="hidden" name="redirectTo" value={currentHref} />
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Clase
+              </span>
+              <select
+                name="claseId"
+                required
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="">Seleccionar clase</option>
+                {clasesParaAsistencia.map((clase) => (
+                  <option key={clase.claseId} value={clase.claseId}>
+                    Sesion {clase.numeroSesion} - {formatFecha(clase.fecha)} - {clase.titulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Alumno
+              </span>
+              <select
+                name="matriculaId"
+                required
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="">Seleccionar alumno</option>
+                {matriculasParaAsistencia.map((m) => (
+                  <option key={m.matriculaId} value={m.matriculaId}>
+                    {m.alumnoApellido} {m.alumnoNombre}
+                    {m.alumnoRut ? ` - ${formatearRut(m.alumnoRut)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Estado
+              </span>
+              <select
+                name="estado"
+                required
+                defaultValue="presente"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="presente">Presente</option>
+                <option value="ausente">Ausente</option>
+                <option value="tardanza">Tardanza</option>
+                <option value="justificado">Justificado</option>
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Observacion
+              </span>
+              <input
+                name="observacion"
+                placeholder="Opcional"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary placeholder:text-gray-400 focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+              />
+            </label>
+            <button
+              type="submit"
+              className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
+            >
+              Crear asistencia
+            </button>
+          </form>
+        )}
+      </article>
 
       {asistencias.length === 0 ? (
         <article className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -228,12 +345,12 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
               : "Los registros aparecerán aquí cuando los docentes comiencen a tomar asistencia en sus clases mediante el código QR."}
           </p>
           {(q || asignaturaId) && (
-            <a
+            <Link
               href="/admin/asistencias"
               className="mt-4 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
             >
               Ver todos los registros
-            </a>
+            </Link>
           )}
         </article>
       ) : (

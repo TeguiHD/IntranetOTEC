@@ -1,11 +1,12 @@
 "use server";
 
-import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db";
 import { asignaturas, matriculas, notasDocente, usuarios } from "@/db/schema";
+import { registrarAudit } from "@/lib/audit";
 
 import { requireActionActor } from "./_security";
 
@@ -63,6 +64,58 @@ const getStringField = (formData: FormData, field: string): string => {
   const rawValue = formData.get(field);
   return typeof rawValue === "string" ? rawValue : "";
 };
+
+const parseDateInput = (value: string): Date | null => {
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const date = new Date(`${trimmed}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeRedirectTo = (redirectTo: string, fallback = "/admin/notas"): string => {
+  const [pathname, search = ""] = redirectTo.startsWith("/admin/notas")
+    ? redirectTo.split("?")
+    : [fallback, ""];
+  return search ? `${pathname}?${search}` : pathname;
+};
+
+export type MatriculaNotaAdminOption = {
+  matriculaId: string;
+  alumnoNombre: string;
+  alumnoApellido: string;
+  alumnoRut: string | null;
+};
+
+export async function listarMatriculasParaNotaAdmin(
+  asignaturaId?: string,
+): Promise<MatriculaNotaAdminOption[]> {
+  const actorResult = await requireActionActor("admin_notas_matriculas_list", ["admin"]);
+  if (!actorResult.ok || !asignaturaId) return [];
+
+  const db = getDb();
+
+  return db
+    .select({
+      matriculaId: matriculas.id,
+      alumnoNombre: usuarios.nombre,
+      alumnoApellido: usuarios.apellido,
+      alumnoRut: usuarios.rut,
+    })
+    .from(matriculas)
+    .innerJoin(usuarios, eq(matriculas.alumnoId, usuarios.id))
+    .where(
+      and(
+        eq(matriculas.asignaturaId, asignaturaId),
+        eq(matriculas.activa, true),
+        isNull(matriculas.eliminadoAt),
+        isNull(usuarios.eliminadoAt),
+      ),
+    )
+    .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
+}
 
 export async function listarNotasAdmin(
   options?: NotasFilters & { limit?: number; offset?: number },
@@ -215,6 +268,99 @@ export async function actualizarNotaAdminAction(input: {
   return { ok: true, code: "grade_updated" };
 }
 
+export async function crearNotaAdminAction(input: {
+  asignaturaId: string;
+  matriculaId: string;
+  nota: string;
+  fechaRegistro: string;
+}) {
+  const actorResult = await requireActionActor("admin_nota_create", ["admin"]);
+  if (!actorResult.ok) return actorResult.result;
+
+  const notaValue = Number.parseFloat(input.nota.replace(",", "."));
+  const fechaRegistro = parseDateInput(input.fechaRegistro);
+  if (
+    !input.asignaturaId ||
+    !input.matriculaId ||
+    !Number.isFinite(notaValue) ||
+    notaValue < 1 ||
+    notaValue > 7 ||
+    !fechaRegistro
+  ) {
+    return { ok: false, code: "invalid_input", message: "Datos invalidos para registrar la nota." };
+  }
+
+  const db = getDb();
+
+  const [matriculaRow] = await db
+    .select({
+      id: matriculas.id,
+      asignaturaId: matriculas.asignaturaId,
+      alumnoId: matriculas.alumnoId,
+    })
+    .from(matriculas)
+    .where(
+      and(
+        eq(matriculas.id, input.matriculaId),
+        eq(matriculas.asignaturaId, input.asignaturaId),
+        isNull(matriculas.eliminadoAt),
+      ),
+    )
+    .limit(1);
+
+  if (!matriculaRow) {
+    return { ok: false, code: "matricula_not_found", message: "Matricula no encontrada." };
+  }
+
+  const [asignaturaRow] = await db
+    .select({ id: asignaturas.id })
+    .from(asignaturas)
+    .where(eq(asignaturas.id, input.asignaturaId))
+    .limit(1);
+
+  if (!asignaturaRow) {
+    return { ok: false, code: "asignatura_not_found", message: "Seccion no encontrada." };
+  }
+
+  const [created] = await db
+    .insert(notasDocente)
+    .values({
+      docenteId: actorResult.actor.userId,
+      asignaturaId: input.asignaturaId,
+      matriculaId: input.matriculaId,
+      nota: notaValue.toFixed(1),
+      fechaRegistro: input.fechaRegistro,
+      anioRegistro: fechaRegistro.getUTCFullYear(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning({ id: notasDocente.id });
+
+  await registrarAudit({
+    correlationId: actorResult.actor.correlationId,
+    userId: actorResult.actor.userId,
+    userRol: actorResult.actor.userRol,
+    accion: "cambiar_nota",
+    entidad: "notas_docente",
+    entidadId: created.id,
+    payload: {
+      origen: "admin",
+      asignaturaId: input.asignaturaId,
+      matriculaId: input.matriculaId,
+      alumnoId: matriculaRow.alumnoId,
+      nota: notaValue.toFixed(1),
+      fechaRegistro: input.fechaRegistro,
+    },
+    exitoso: true,
+  });
+
+  revalidatePath("/admin/notas");
+  revalidatePath("/alumno/notas");
+  revalidatePath("/alumno/asignaturas");
+
+  return { ok: true, code: "grade_created" };
+}
+
 export async function actualizarNotaAdminFormAction(formData: FormData): Promise<void> {
   const redirectTo = getStringField(formData, "redirectTo") || "/admin/notas";
   const result = await actualizarNotaAdminAction({
@@ -222,10 +368,23 @@ export async function actualizarNotaAdminFormAction(formData: FormData): Promise
     nota: getStringField(formData, "nota"),
   });
 
-  const [pathname, search = ""] = redirectTo.startsWith("/admin/notas")
-    ? redirectTo.split("?")
-    : ["/admin/notas", ""];
+  const [pathname, search = ""] = normalizeRedirectTo(redirectTo).split("?");
   const params = new URLSearchParams(search);
   params.set("state", result.ok ? result.code : "error");
+  redirect(`${pathname}?${params.toString()}`);
+}
+
+export async function crearNotaAdminFormAction(formData: FormData): Promise<void> {
+  const redirectTo = getStringField(formData, "redirectTo") || "/admin/notas";
+  const result = await crearNotaAdminAction({
+    asignaturaId: getStringField(formData, "asignaturaId"),
+    matriculaId: getStringField(formData, "matriculaId"),
+    nota: getStringField(formData, "nota"),
+    fechaRegistro: getStringField(formData, "fechaRegistro"),
+  });
+
+  const [pathname, search = ""] = normalizeRedirectTo(redirectTo).split("?");
+  const params = new URLSearchParams(search);
+  params.set("state", result.ok ? result.code : result.code);
   redirect(`${pathname}?${params.toString()}`);
 }

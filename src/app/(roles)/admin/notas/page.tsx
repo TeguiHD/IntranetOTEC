@@ -1,26 +1,45 @@
 import { BookOpen, CheckCircle2, Search, TrendingUp } from "lucide-react";
+import Link from "next/link";
 
 import { listarPeriodosDashboard } from "@/actions/admin-metricas";
 import { listarAsignaturasAdmin } from "@/actions/asignaturas";
 import {
   actualizarNotaAdminFormAction,
   countNotasAdmin,
+  crearNotaAdminFormAction,
+  listarMatriculasParaNotaAdmin,
   listarNotasAdmin,
   resumenNotasAdmin,
 } from "@/actions/admin-notas";
 import { formatearRut } from "@/lib/rut";
 import { Pagination } from "@/components/shared/Pagination";
 import { PeriodoCursoSeccionPicker } from "@/components/shared/PeriodoCursoSeccionPicker";
+import { RouteStateToast } from "@/components/shared/RouteStateToast";
 
 const PAGE_SIZE = 50;
 
 const NOTA_COLOR = (nota: string) =>
   Number(nota) >= 4.0 ? "text-success" : "text-danger";
 
+const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
+  grade_created: { tone: "success", text: "Nota registrada correctamente." },
+  grade_updated: { tone: "success", text: "Nota actualizada correctamente." },
+  invalid_input: { tone: "error", text: "Revisa alumno, nota y fecha antes de guardar." },
+  matricula_not_found: { tone: "error", text: "La matricula seleccionada no pertenece a la seccion." },
+  asignatura_not_found: { tone: "error", text: "Seccion no encontrada." },
+  grade_not_found: { tone: "error", text: "La nota que intentas editar no existe." },
+  forbidden: { tone: "error", text: "No tienes permisos para esta accion." },
+  error: { tone: "error", text: "No fue posible completar la accion." },
+};
+
 function formatFecha(value: string | null): string {
   if (!value) return "-";
   const d = new Date(value + "T12:00:00");
   return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", year: "numeric" }).format(d);
+}
+
+function todayInputValue(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export const metadata = {
@@ -33,11 +52,12 @@ type AdminNotasPageProps = {
     periodoId?: string;
     asignaturaId?: string;
     page?: string;
+    state?: string;
   }>;
 };
 
 export default async function AdminNotasPage({ searchParams }: AdminNotasPageProps) {
-  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string; page?: string }));
+  const params = await (searchParams ?? Promise.resolve({} as { q?: string; periodoId?: string; asignaturaId?: string; page?: string; state?: string }));
   const q = typeof params.q === "string" ? params.q.trim() : undefined;
   const requestedPeriodoId = typeof params.periodoId === "string" ? params.periodoId.trim() : "";
 
@@ -69,10 +89,11 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
     periodoId: selectedPeriodoId || undefined,
   };
 
-  const [notas, totalCount, resumenGlobal] = await Promise.all([
+  const [notas, totalCount, resumenGlobal, matriculasParaNota] = await Promise.all([
     listarNotasAdmin({ ...filterCommon, limit: PAGE_SIZE, offset }),
     countNotasAdmin(filterCommon),
     resumenNotasAdmin({ periodoId: selectedPeriodoId || undefined }),
+    listarMatriculasParaNotaAdmin(asignaturaId),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -103,6 +124,8 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
 
   return (
     <section className="space-y-5">
+      <RouteStateToast state={params.state} map={STATUS_MAP} />
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <header>
@@ -193,15 +216,92 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
         </div>
         {(q || asignaturaId) && (
           <div className="mt-2">
-            <a
+            <Link
               href={selectedPeriodoId ? `/admin/notas?periodoId=${selectedPeriodoId}` : "/admin/notas"}
               className="rounded-lg border border-gray-200 px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               Limpiar filtros
-            </a>
+            </Link>
           </div>
         )}
       </form>
+
+      <article className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-base font-semibold text-text-primary dark:text-white">
+            Registrar nota
+          </h2>
+          <p className="text-sm text-text-secondary dark:text-gray-400">
+            Crea calificaciones para alumnos matriculados en la seccion seleccionada, incluso si aun no existen notas.
+          </p>
+        </div>
+
+        {!asignaturaId ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            Selecciona una seccion en el filtro superior para habilitar el registro de notas.
+          </div>
+        ) : matriculasParaNota.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-text-secondary dark:border-gray-700 dark:text-gray-400">
+            No hay alumnos activos matriculados en esta seccion.
+          </div>
+        ) : (
+          <form action={crearNotaAdminFormAction} className="mt-4 grid gap-3 md:grid-cols-[minmax(260px,1fr)_120px_160px_auto] md:items-end">
+            <input type="hidden" name="redirectTo" value={currentHref} />
+            <input type="hidden" name="asignaturaId" value={asignaturaId} />
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Alumno
+              </span>
+              <select
+                name="matriculaId"
+                required
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="">Seleccionar alumno</option>
+                {matriculasParaNota.map((m) => (
+                  <option key={m.matriculaId} value={m.matriculaId}>
+                    {m.alumnoApellido} {m.alumnoNombre}
+                    {m.alumnoRut ? ` - ${formatearRut(m.alumnoRut)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Nota
+              </span>
+              <input
+                name="nota"
+                type="number"
+                min="1"
+                max="7"
+                step="0.1"
+                required
+                placeholder="1.0 - 7.0"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary dark:text-gray-400">
+                Fecha
+              </span>
+              <input
+                name="fechaRegistro"
+                type="date"
+                required
+                defaultValue={todayInputValue()}
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-text-primary focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </label>
+            <button
+              type="submit"
+              className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark active:scale-[0.98]"
+            >
+              Crear nota
+            </button>
+          </form>
+        )}
+      </article>
 
       {notas.length === 0 ? (
         <article className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -217,12 +317,12 @@ export default async function AdminNotasPage({ searchParams }: AdminNotasPagePro
               : "Las notas aparecerán aquí cuando los docentes comiencen a registrar calificaciones en sus clases."}
           </p>
           {(q || asignaturaId) && (
-            <a
+            <Link
               href="/admin/notas"
               className="mt-4 rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
             >
               Ver todas las notas
-            </a>
+            </Link>
           )}
         </article>
       ) : (

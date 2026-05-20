@@ -12,6 +12,8 @@ import type { SeccionOption } from "./BeneficiosCursoForm";
 type Props = {
   secciones: SeccionOption[];
   initialQuery: string;
+  initialPeriodoId: string;
+  initialCursoId: string;
   initialAsignaturaId: string;
 };
 
@@ -21,11 +23,13 @@ const fieldLabelClass =
 export function BeneficiosPersonaFilter({
   secciones,
   initialQuery,
+  initialPeriodoId,
+  initialCursoId,
   initialAsignaturaId,
 }: Props) {
   const selectedInitial = secciones.find((s) => s.id === initialAsignaturaId) ?? null;
-  const [periodoId, setPeriodoId] = useState(selectedInitial?.periodoId ?? "");
-  const [cursoId, setCursoId] = useState(selectedInitial?.cursoId ?? "");
+  const [periodoId, setPeriodoId] = useState(selectedInitial?.periodoId ?? initialPeriodoId);
+  const [cursoId, setCursoId] = useState(selectedInitial?.cursoId ?? initialCursoId);
   const [asignaturaId, setAsignaturaId] = useState(initialAsignaturaId);
 
   const periodos = useMemo(() => {
@@ -73,7 +77,6 @@ export function BeneficiosPersonaFilter({
 
   return (
     <form className="space-y-4">
-      {/* Búsqueda por persona */}
       <div>
         <label className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-gray-400">
           <Search className="h-3.5 w-3.5" />
@@ -85,18 +88,17 @@ export function BeneficiosPersonaFilter({
             name="q"
             type="search"
             defaultValue={initialQuery}
-            placeholder="Nombre, apellido, RUT o correo…"
+            placeholder="Nombre, apellido, RUT o correo..."
             className="h-12 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-3 text-sm text-text-primary placeholder:text-gray-400 transition focus:border-primary focus:outline-0 focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             inputMode="search"
           />
         </div>
       </div>
 
-      {/* Acotar por sección */}
       <div>
         <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-gray-400">
           <Layers className="h-3.5 w-3.5" />
-          Acotar por sección
+          Acotar por seccion
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
@@ -108,7 +110,7 @@ export function BeneficiosPersonaFilter({
               options={periodos}
               placeholder="Todos los periodos"
               emptyLabel="Todos los periodos"
-              searchPlaceholder="Buscar periodo…"
+              searchPlaceholder="Buscar periodo..."
               allowClear
               autoSubmit={false}
               countLabel="periodos"
@@ -129,7 +131,7 @@ export function BeneficiosPersonaFilter({
               options={cursos}
               placeholder="Todos los cursos"
               emptyLabel="Todos los cursos"
-              searchPlaceholder="Buscar curso…"
+              searchPlaceholder="Buscar curso..."
               allowClear
               autoSubmit={false}
               countLabel="cursos"
@@ -141,20 +143,20 @@ export function BeneficiosPersonaFilter({
           </div>
 
           <div>
-            <label className={fieldLabelClass}>Sección</label>
+            <label className={fieldLabelClass}>Seccion</label>
             <EntityFilterSelect
               key={`seccion-${periodoId}-${cursoId}-${asignaturaId}`}
               name="asignaturaId"
               defaultValue={asignaturaId}
               options={seccionesFiltradas.map((s) => ({
                 id: s.id,
-                label: `${s.cursoNombre ?? "Curso"} · ${s.nombre}`,
+                label: `${s.cursoNombre ?? "Curso"} - ${s.nombre}`,
                 description: s.periodoNombre,
                 badge: `${s.matriculados} alumnos`,
               }))}
               placeholder="Todas las secciones"
               emptyLabel="Todas las secciones"
-              searchPlaceholder="Buscar sección…"
+              searchPlaceholder="Buscar seccion..."
               allowClear
               autoSubmit={false}
               countLabel="secciones"
@@ -164,7 +166,6 @@ export function BeneficiosPersonaFilter({
         </div>
       </div>
 
-      {/* Acciones */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
         <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-gray-400">
           <SlidersHorizontal className="h-3.5 w-3.5" />

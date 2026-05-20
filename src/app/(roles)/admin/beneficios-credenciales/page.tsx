@@ -25,7 +25,14 @@ const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = 
 };
 
 type PageProps = {
-  searchParams?: Promise<{ state?: string; q?: string; asignaturaId?: string; page?: string }>;
+  searchParams?: Promise<{
+    state?: string;
+    q?: string;
+    periodoId?: string;
+    cursoId?: string;
+    asignaturaId?: string;
+    page?: string;
+  }>;
 };
 
 export const metadata = { title: "Beneficios y Credenciales" };
@@ -53,6 +60,8 @@ function EstadoPill({ enabled }: { enabled: boolean }) {
 export default async function AdminBeneficiosCredencialesPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const q = typeof params.q === "string" ? params.q.trim() : "";
+  const periodoId = typeof params.periodoId === "string" ? params.periodoId : "";
+  const cursoId = typeof params.cursoId === "string" ? params.cursoId : "";
   const asignaturaId = typeof params.asignaturaId === "string" ? params.asignaturaId : "";
   const currentPage = Math.max(1, Number(params.page ?? "1") || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -60,11 +69,18 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
   const [alumnos, totalCount, secciones] = await Promise.all([
     listarAccesosDocumentosAdmin({
       query: q,
+      periodoId: periodoId || undefined,
+      cursoId: cursoId || undefined,
       asignaturaId: asignaturaId || undefined,
       limit: PAGE_SIZE,
       offset,
     }),
-    contarAccesosDocumentosAdmin({ query: q, asignaturaId: asignaturaId || undefined }),
+    contarAccesosDocumentosAdmin({
+      query: q,
+      periodoId: periodoId || undefined,
+      cursoId: cursoId || undefined,
+      asignaturaId: asignaturaId || undefined,
+    }),
     listarSeccionesParaAccesosAdmin(),
   ]);
 
@@ -72,6 +88,8 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
   const buildHref = (page: number) => {
     const qs = new URLSearchParams({ page: String(page) });
     if (q) qs.set("q", q);
+    if (periodoId) qs.set("periodoId", periodoId);
+    if (cursoId) qs.set("cursoId", cursoId);
     if (asignaturaId) qs.set("asignaturaId", asignaturaId);
     return `/admin/beneficios-credenciales?${qs.toString()}`;
   };
@@ -100,6 +118,8 @@ export default async function AdminBeneficiosCredencialesPage({ searchParams }: 
             <BeneficiosPersonaFilter
               secciones={secciones}
               initialQuery={q}
+              initialPeriodoId={periodoId}
+              initialCursoId={cursoId}
               initialAsignaturaId={asignaturaId}
             />
           </article>

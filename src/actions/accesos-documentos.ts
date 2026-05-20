@@ -59,6 +59,8 @@ export type AlumnoAccesoDocumentoRow = {
 
 export async function contarAccesosDocumentosAdmin(options?: {
   query?: string;
+  periodoId?: string;
+  cursoId?: string;
   asignaturaId?: string;
 }): Promise<number> {
   const actorResult = await requireActionActor("admin_accesos_documentos_count", ["admin"]);
@@ -82,6 +84,12 @@ export async function contarAccesosDocumentosAdmin(options?: {
   if (options?.asignaturaId) {
     conditions.push(eq(matriculas.asignaturaId, options.asignaturaId));
   }
+  if (options?.cursoId) {
+    conditions.push(eq(asignaturas.cursoId, options.cursoId));
+  }
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
+  }
   const rows = await db
     .selectDistinct({ id: usuarios.id })
     .from(usuarios)
@@ -89,12 +97,15 @@ export async function contarAccesosDocumentosAdmin(options?: {
       matriculas,
       and(eq(matriculas.alumnoId, usuarios.id), eq(matriculas.activa, true), isNull(matriculas.eliminadoAt)),
     )
+    .leftJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
     .where(and(...conditions));
   return rows.length;
 }
 
 export async function listarAccesosDocumentosAdmin(options?: {
   query?: string;
+  periodoId?: string;
+  cursoId?: string;
   asignaturaId?: string;
   limit?: number;
   offset?: number;
@@ -122,6 +133,14 @@ export async function listarAccesosDocumentosAdmin(options?: {
 
   if (options?.asignaturaId) {
     conditions.push(eq(matriculas.asignaturaId, options.asignaturaId));
+  }
+
+  if (options?.cursoId) {
+    conditions.push(eq(asignaturas.cursoId, options.cursoId));
+  }
+
+  if (options?.periodoId) {
+    conditions.push(eq(asignaturas.periodoId, options.periodoId));
   }
 
   const rows = await db

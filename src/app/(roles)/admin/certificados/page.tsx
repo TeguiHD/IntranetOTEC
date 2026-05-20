@@ -1,4 +1,6 @@
 import {
+  borrarCertificadoFormAction,
+  borrarCertificadosEmitidosFormAction,
   countCertificadosAdmin,
   emitirCertificadoFormAction,
   invalidarCertificadoFormAction,
@@ -14,6 +16,8 @@ const PAGE_SIZE = 20;
 const STATUS_MAP: Record<string, { tone: "success" | "error"; text: string }> = {
   certificado_emitido: { tone: "success", text: "Certificado emitido correctamente." },
   certificado_invalidado: { tone: "success", text: "Certificado invalidado." },
+  certificado_borrado: { tone: "success", text: "Certificado borrado correctamente." },
+  certificados_borrados: { tone: "success", text: "Certificados emitidos borrados correctamente." },
   already_invalidated: { tone: "success", text: "El certificado ya estaba invalidado." },
   matricula_not_found: { tone: "error", text: "Matrícula no encontrada." },
   error: { tone: "error", text: "No fue posible completar la acción." },
@@ -109,6 +113,38 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
             Emitir
           </button>
         </form>
+      </div>
+
+      <div className="rounded-2xl border border-red-200/80 bg-red-50 p-5 shadow-sm dark:border-red-900/40 dark:bg-red-950/20">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-red-900 dark:text-red-100">
+              Borrar certificados emitidos
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-red-800/80 dark:text-red-200/80">
+              Elimina de forma general los certificados del filtro actual. Si no hay filtro,
+              borrara todos los certificados emitidos.
+            </p>
+          </div>
+          <form action={borrarCertificadosEmitidosFormAction} className="flex flex-col gap-2 sm:min-w-72">
+            <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
+            <label className="flex items-start gap-2 text-xs font-medium text-red-900 dark:text-red-100">
+              <input
+                name="confirmarBorrado"
+                type="checkbox"
+                required
+                className="mt-0.5 h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+              />
+              Confirmo que quiero borrar {filterTipo ? `certificados de ${TIPO_LABELS[filterTipo]}` : "todos los certificados"}.
+            </label>
+            <button
+              type="submit"
+              className="h-10 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+            >
+              Borrar emitidos
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Filter */}
@@ -221,6 +257,17 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
                               </button>
                             </form>
                           )}
+                          <form action={borrarCertificadoFormAction} className="inline">
+                            <input type="hidden" name="id" value={c.id} />
+                            <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
+                            <input type="hidden" name="page" value={String(currentPage)} />
+                            <button
+                              type="submit"
+                              className="rounded-lg px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"
+                            >
+                              Borrar
+                            </button>
+                          </form>
                         </div>
                       </td>
                     </tr>
@@ -278,6 +325,17 @@ export default async function AdminCertificadosPage({ searchParams }: AdminCerti
                           </button>
                         </form>
                       )}
+                      <form action={borrarCertificadoFormAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <input type="hidden" name="filterTipo" value={filterTipo ?? ""} />
+                        <input type="hidden" name="page" value={String(currentPage)} />
+                        <button
+                          type="submit"
+                          className="rounded-lg px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"
+                        >
+                          Borrar
+                        </button>
+                      </form>
                     </div>
                   </div>
                 </div>

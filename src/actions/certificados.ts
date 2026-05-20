@@ -14,10 +14,6 @@ import { generarCodigoCertificadoAR, sanitizeCertificadoText } from "@/lib/certi
 import { INSTITUCION_OTEC } from "@/lib/institucion";
 import { logEvent } from "@/lib/observability/logger";
 
-import {
-  assertPeriodoAbiertoByCertificadoId,
-  assertPeriodoAbiertoByMatriculaId,
-} from "./_period-lock";
 import { resolvePagination, type PaginationInput } from "./_pagination";
 import { requireActionActor, type MutationResult } from "./_security";
 
@@ -198,11 +194,6 @@ export async function emitirCertificadoAction(input: {
       };
     }
 
-    const periodoCheck = await assertPeriodoAbiertoByMatriculaId(matricula.id);
-    if (!periodoCheck.ok) {
-      return periodoCheck.result;
-    }
-
     // Get alumno info for snapshot
     const [alumno] = await db
       .select({
@@ -315,11 +306,6 @@ export async function invalidarCertificadoAction(input: {
       return { ok: true, code: "already_invalidated" };
     }
 
-    const periodoCheck = await assertPeriodoAbiertoByCertificadoId(row.id);
-    if (!periodoCheck.ok) {
-      return periodoCheck.result;
-    }
-
     await db
       .update(certificados)
       .set({ valido: false })
@@ -352,6 +338,156 @@ export async function invalidarCertificadoAction(input: {
       ok: false,
       code: "invalidar_failed",
       message: "No fue posible invalidar el certificado.",
+    };
+  }
+}
+
+export async function borrarCertificadoAction(input: {
+  id: string;
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_certificado_borrar", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const idCheck = z.string().uuid().safeParse(input.id);
+  if (!idCheck.success) {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Certificado invalido.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const [row] = await db
+      .select({
+        id: certificados.id,
+        codigoUnico: certificados.codigoUnico,
+        tipo: certificados.tipo,
+        matriculaId: certificados.matriculaId,
+      })
+      .from(certificados)
+      .where(eq(certificados.id, idCheck.data))
+      .limit(1);
+
+    if (!row) {
+      return {
+        ok: false,
+        code: "certificado_not_found",
+        message: "Certificado no encontrado.",
+      };
+    }
+
+    await db.delete(certificados).where(eq(certificados.id, row.id));
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "invalidar_certificado",
+      entidad: "certificados",
+      entidadId: row.id,
+      payload: {
+        borrado: true,
+        codigoUnico: row.codigoUnico,
+        tipo: row.tipo,
+        matriculaId: row.matriculaId,
+      },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "certificado_borrado" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_certificado_borrar_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return {
+      ok: false,
+      code: "borrar_failed",
+      message: "No fue posible borrar el certificado.",
+    };
+  }
+}
+
+export async function borrarCertificadosEmitidosAction(input?: {
+  tipo?: "alumno_regular" | "termino_curso";
+}): Promise<MutationResult> {
+  const actorResult = await requireActionActor("admin_certificado_borrar_masivo", ["admin"]);
+
+  if (!actorResult.ok) {
+    return actorResult.result;
+  }
+
+  const tipo = input?.tipo;
+  if (tipo && tipo !== "alumno_regular" && tipo !== "termino_curso") {
+    return {
+      ok: false,
+      code: "invalid_input",
+      message: "Tipo de certificado invalido.",
+    };
+  }
+
+  const db = getDb();
+
+  try {
+    const whereClause = tipo ? eq(certificados.tipo, tipo) : undefined;
+
+    const countQuery = db.select({ total: count() }).from(certificados);
+    const [totalRow] = whereClause ? await countQuery.where(whereClause) : await countQuery;
+
+    const total = Number(totalRow?.total ?? 0);
+    if (total === 0) {
+      return { ok: true, code: "certificados_borrados" };
+    }
+
+    const deleted = whereClause
+      ? await db.delete(certificados).where(whereClause).returning({ id: certificados.id })
+      : await db.delete(certificados).returning({ id: certificados.id });
+
+    await registrarAudit({
+      correlationId: actorResult.actor.correlationId,
+      userId: actorResult.actor.userId,
+      userRol: actorResult.actor.userRol,
+      accion: "invalidar_certificado",
+      entidad: "certificados",
+      entidadId: tipo ?? "todos",
+      payload: {
+        borradoMasivo: true,
+        tipo: tipo ?? "todos",
+        total: deleted.length,
+      },
+      exitoso: true,
+    });
+
+    return { ok: true, code: "certificados_borrados" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    logEvent({
+      correlationId: actorResult.actor.correlationId,
+      action: "admin_certificado_borrar_masivo_failed",
+      result: "error",
+      userId: actorResult.actor.userId,
+      role: actorResult.actor.userRol,
+      details: { reason: message },
+    });
+
+    return {
+      ok: false,
+      code: "borrar_masivo_failed",
+      message: "No fue posible borrar los certificados emitidos.",
     };
   }
 }
@@ -789,4 +925,39 @@ export async function invalidarCertificadoFormAction(formData: FormData): Promis
   const tipoQuery = filterTipo ? `&tipo=${encodeURIComponent(filterTipo)}` : "";
 
   redirect(`/admin/certificados?state=${result.ok ? result.code : "error"}${tipoQuery}${pageQuery}`);
+}
+
+export async function borrarCertificadoFormAction(formData: FormData): Promise<void> {
+  const page = parsePageField(getStringField(formData, "page"));
+  const filterTipo = getStringField(formData, "filterTipo");
+
+  const result = await borrarCertificadoAction({
+    id: getStringField(formData, "id"),
+  });
+
+  revalidatePath("/admin/certificados");
+  revalidatePath("/alumno/certificados");
+  const pageQuery = page ? `&page=${page}` : "";
+  const tipoQuery = filterTipo ? `&tipo=${encodeURIComponent(filterTipo)}` : "";
+
+  redirect(`/admin/certificados?state=${result.ok ? result.code : "error"}${tipoQuery}${pageQuery}`);
+}
+
+export async function borrarCertificadosEmitidosFormAction(formData: FormData): Promise<void> {
+  const filterTipo = getStringField(formData, "filterTipo");
+  const confirmado = getStringField(formData, "confirmarBorrado") === "on";
+  const tipo =
+    filterTipo === "alumno_regular" || filterTipo === "termino_curso"
+      ? filterTipo
+      : undefined;
+
+  const result = confirmado
+    ? await borrarCertificadosEmitidosAction({ tipo })
+    : ({ ok: false, code: "invalid_input", message: "Debes confirmar el borrado." } as MutationResult);
+
+  revalidatePath("/admin/certificados");
+  revalidatePath("/alumno/certificados");
+  const tipoQuery = tipo ? `&tipo=${encodeURIComponent(tipo)}` : "";
+
+  redirect(`/admin/certificados?state=${result.ok ? result.code : "error"}${tipoQuery}`);
 }

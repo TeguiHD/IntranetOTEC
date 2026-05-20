@@ -61,7 +61,7 @@ export default async function AdminAsistenciasPage({ searchParams }: AdminAsiste
 
   const asignaturas = await listarAsignaturasAdmin(
     { limit: 1000, offset: 0 },
-    { incluirArchivadas: false, periodoId: selectedPeriodoId || undefined },
+    { incluirArchivadas: true, periodoId: selectedPeriodoId || undefined },
   );
 
   const requestedAsignaturaId = typeof params.asignaturaId === "string" ? params.asignaturaId : undefined;

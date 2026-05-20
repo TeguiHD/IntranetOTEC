@@ -88,7 +88,14 @@ export function BeneficiosCursoForm({ secciones }: Props) {
   );
 
   const seccionSeleccionada = secciones.find((s) => s.id === asignaturaId) ?? null;
-  const alcance = seccionSeleccionada?.matriculados ?? 0;
+  const alcance = seccionSeleccionada
+    ? seccionSeleccionada.matriculados
+    : seccionesFiltradas.reduce((total, seccion) => total + seccion.matriculados, 0);
+  const alcanceNombre = seccionSeleccionada
+    ? `${seccionSeleccionada.cursoNombre} · ${seccionSeleccionada.nombre}`
+    : periodoId || cursoId
+      ? "todos los alumnos del filtro seleccionado"
+      : "todos los alumnos con matricula activa";
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     if (bypassRef.current) {
@@ -96,7 +103,7 @@ export function BeneficiosCursoForm({ secciones }: Props) {
       return;
     }
     e.preventDefault();
-    if (!asignaturaId) return;
+    if (alcance <= 0) return;
     setConfirming(true);
   };
 
@@ -116,10 +123,13 @@ export function BeneficiosCursoForm({ secciones }: Props) {
       onSubmit={handleSubmit}
       className="mt-4 space-y-4"
     >
+      <input type="hidden" name="periodoId" value={periodoId} />
+      <input type="hidden" name="cursoId" value={cursoId} />
+
       {/* Selección de sección */}
       <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-800/40">
         <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary dark:text-gray-400">
-          1. Selecciona la sección
+          1. Selecciona el alcance
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
@@ -165,15 +175,14 @@ export function BeneficiosCursoForm({ secciones }: Props) {
           </div>
         </div>
         <div>
-          <label className={fieldLabelClass}>Sección destino *</label>
+          <label className={fieldLabelClass}>Sección destino</label>
           <select
             name="asignaturaId"
-            required
             value={asignaturaId}
             onChange={(e) => setAsignaturaId(e.target.value)}
             className={selectClass}
           >
-            <option value="">Seleccionar sección</option>
+            <option value="">Todos los alumnos del filtro</option>
             {seccionesFiltradas.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.cursoNombre} · {s.nombre} ({s.matriculados})
@@ -260,7 +269,7 @@ export function BeneficiosCursoForm({ secciones }: Props) {
       </div>
 
       {/* Preview de alcance */}
-      {seccionSeleccionada ? (
+      {alcance > 0 ? (
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 dark:border-primary/40 dark:bg-primary/10">
           <div className="flex items-start gap-2.5">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary dark:bg-primary/30 dark:text-primary-light">
@@ -271,7 +280,7 @@ export function BeneficiosCursoForm({ secciones }: Props) {
                 {alcance.toLocaleString("es-CL")} alumno{alcance === 1 ? "" : "s"}
               </p>
               <p className="mt-0.5 text-[11px] text-text-secondary dark:text-gray-400">
-                de <span className="font-semibold">{seccionSeleccionada.cursoNombre} · {seccionSeleccionada.nombre}</span>
+                de <span className="font-semibold">{alcanceNombre}</span>
               </p>
               <p className="mt-1.5 text-[11px] text-primary dark:text-primary-light">
                 Acción: <strong>{accionVerbo}</strong> · {tipoOption.label}
@@ -292,7 +301,7 @@ export function BeneficiosCursoForm({ secciones }: Props) {
             <strong>{accionVerbo}</strong> {tipoOption.label.toLowerCase()} para{" "}
             <strong>{alcance.toLocaleString("es-CL")}</strong> alumno
             {alcance === 1 ? "" : "s"} de{" "}
-            <em>{seccionSeleccionada?.cursoNombre} · {seccionSeleccionada?.nombre}</em>. Esta
+            <em>{alcanceNombre}</em>. Esta
             acción afecta inmediatamente lo que ven en su dashboard.
           </p>
           <div className="flex gap-2 pt-1">
@@ -316,11 +325,11 @@ export function BeneficiosCursoForm({ secciones }: Props) {
 
       <button
         type="submit"
-        disabled={!asignaturaId || confirming}
+        disabled={alcance <= 0 || confirming}
         className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
       >
         <IdCard className="h-4 w-4" />
-        Aplicar al curso
+        Aplicar al alcance
       </button>
     </form>
   );

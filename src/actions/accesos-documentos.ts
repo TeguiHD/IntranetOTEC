@@ -19,6 +19,10 @@ import { registrarAudit } from "@/lib/audit";
 import { requireActionActor, type MutationResult } from "./_security";
 
 const uuidSchema = z.string().uuid();
+const optionalUuidSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  uuidSchema.optional(),
+);
 
 const accesoInputSchema = z.object({
   alumnoId: uuidSchema,
@@ -27,7 +31,9 @@ const accesoInputSchema = z.object({
 });
 
 const accesoCursoInputSchema = z.object({
-  asignaturaId: uuidSchema,
+  periodoId: optionalUuidSchema,
+  cursoId: optionalUuidSchema,
+  asignaturaId: optionalUuidSchema,
   beneficioHabilitado: z.boolean().optional(),
   credencialHabilitada: z.boolean().optional(),
 }).refine(
@@ -332,15 +338,40 @@ export async function actualizarAccesosCursoAction(
   }
 
   const db = getDb();
-  const [seccion] = await db
-    .select({ id: asignaturas.id })
-    .from(asignaturas)
-    .where(and(eq(asignaturas.id, parsed.data.asignaturaId), isNull(asignaturas.eliminadoAt)))
-    .limit(1);
 
-  if (!seccion) {
-    return { ok: false, code: "not_found", message: "Curso no encontrado." };
+  if (parsed.data.asignaturaId) {
+    const [seccion] = await db
+      .select({ id: asignaturas.id })
+      .from(asignaturas)
+      .where(and(eq(asignaturas.id, parsed.data.asignaturaId), isNull(asignaturas.eliminadoAt)))
+      .limit(1);
+
+    if (!seccion) {
+      return { ok: false, code: "not_found", message: "Curso no encontrado." };
+    }
   }
+
+  const scopeConditions: SQL[] = [
+    sql`m.activa = true`,
+    sql`m.eliminado_at is null`,
+    sql`u.rol = 'alumno'`,
+    sql`u.eliminado_at is null`,
+    sql`a.eliminado_at is null`,
+  ];
+
+  if (parsed.data.asignaturaId) {
+    scopeConditions.push(sql`m.asignatura_id = ${parsed.data.asignaturaId}`);
+  }
+
+  if (parsed.data.cursoId) {
+    scopeConditions.push(sql`a.curso_id = ${parsed.data.cursoId}`);
+  }
+
+  if (parsed.data.periodoId) {
+    scopeConditions.push(sql`a.periodo_id = ${parsed.data.periodoId}`);
+  }
+
+  const whereScope = sql.join(scopeConditions, sql` and `);
 
   await db.execute(sql`
     insert into alumno_accesos_documentos (
@@ -358,13 +389,14 @@ export async function actualizarAccesosCursoAction(
       ${actorResult.actor.userId},
       now(),
       now()
-    from matriculas m
+    from (
+      select distinct m.alumno_id
+      from matriculas m
+      inner join asignaturas a on a.id = m.asignatura_id
+      inner join usuarios u on u.id = m.alumno_id
+      where ${whereScope}
+    ) m
     inner join usuarios u on u.id = m.alumno_id
-    where m.asignatura_id = ${parsed.data.asignaturaId}
-      and m.activa = true
-      and m.eliminado_at is null
-      and u.rol = 'alumno'
-      and u.eliminado_at is null
     on conflict (alumno_id) do update set
       beneficio_habilitado = ${parsed.data.beneficioHabilitado === undefined
         ? sql`alumno_accesos_documentos.beneficio_habilitado`
@@ -382,9 +414,12 @@ export async function actualizarAccesosCursoAction(
     userRol: actorResult.actor.userRol,
     accion: "editar",
     entidad: "alumno_accesos_documentos",
-    entidadId: parsed.data.asignaturaId,
+    entidadId: parsed.data.asignaturaId ?? parsed.data.cursoId ?? parsed.data.periodoId,
     payload: {
       alcance: "curso",
+      periodoId: parsed.data.periodoId,
+      cursoId: parsed.data.cursoId,
+      asignaturaId: parsed.data.asignaturaId,
       beneficioHabilitado: parsed.data.beneficioHabilitado,
       credencialHabilitada: parsed.data.credencialHabilitada,
     },
@@ -411,6 +446,8 @@ export async function actualizarAccesosCursoFormAction(formData: FormData): Prom
   const habilitado = getBooleanField(formData, "habilitado");
 
   const result = await actualizarAccesosCursoAction({
+    periodoId: getStringField(formData, "periodoId"),
+    cursoId: getStringField(formData, "cursoId"),
     asignaturaId: getStringField(formData, "asignaturaId"),
     beneficioHabilitado: tipoAcceso === "beneficio" || tipoAcceso === "ambos" ? habilitado : undefined,
     credencialHabilitada: tipoAcceso === "credencial" || tipoAcceso === "ambos" ? habilitado : undefined,

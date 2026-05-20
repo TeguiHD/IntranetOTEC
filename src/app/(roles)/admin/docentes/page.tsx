@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { and, count, inArray, isNull } from "drizzle-orm";
+import Link from "next/link";
 
 import {
   countUsuariosPorRol,
@@ -151,12 +152,12 @@ export default async function AdminDocentesPage({
                     Buscar
                   </button>
                   {searchQuery ? (
-                    <a
+                    <Link
                       href="/admin/docentes"
                       className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                       Limpiar
-                    </a>
+                    </Link>
                   ) : null}
                 </div>
               </div>

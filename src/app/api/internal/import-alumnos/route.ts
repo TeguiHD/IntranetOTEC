@@ -573,15 +573,10 @@ export async function POST(request: Request) {
     }
 
     const [
-      existingCourseTemplates,
       existingSections,
       existingCourseCodes,
       existingSectionCodes,
     ] = await Promise.all([
-      db
-        .select({ id: cursos.id, codigo: cursos.codigo })
-        .from(cursos)
-        .where(isNull(cursos.eliminadoAt)),
       db
         .select({
           id: asignaturas.id,

@@ -54,6 +54,16 @@ const COURSE_STOPWORDS = new Set([
   "al",
 ]);
 
+const WEEKDAY_TOKENS = new Set([
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+]);
+
 export const normalizeWhitespace = (value: string): string =>
   value.replace(/\s+/g, " ").trim();
 
@@ -161,11 +171,43 @@ const hasSharedLongToken = (a: string[], b: string[]): boolean => {
   return a.some((token) => token.length >= 5 && setB.has(token));
 };
 
+const getScheduleTokens = (tokens: string[]): Set<string> =>
+  new Set(
+    tokens.filter((token) =>
+      WEEKDAY_TOKENS.has(token) || /^\d{1,2}$/.test(token) || /^\d{3,4}$/.test(token),
+    ),
+  );
+
+const hasCompatibleScheduleTokens = (a: string[], b: string[]): boolean => {
+  const scheduleA = getScheduleTokens(a);
+  const scheduleB = getScheduleTokens(b);
+
+  if (scheduleA.size === 0 && scheduleB.size === 0) {
+    return true;
+  }
+
+  if (scheduleA.size !== scheduleB.size) {
+    return false;
+  }
+
+  for (const token of scheduleA) {
+    if (!scheduleB.has(token)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const computeSimilarity = (left: StrictGroup, right: StrictGroup): number => {
   const leftTokens = left.tokens;
   const rightTokens = right.tokens;
 
   if (leftTokens.length === 0 || rightTokens.length === 0) {
+    return 0;
+  }
+
+  if (!hasCompatibleScheduleTokens(leftTokens, rightTokens)) {
     return 0;
   }
 

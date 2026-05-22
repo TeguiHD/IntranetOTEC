@@ -572,7 +572,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const [existingCourseTemplates, existingSections, existingSectionCodes] = await Promise.all([
+    const [
+      existingCourseTemplates,
+      existingSections,
+      existingCourseCodes,
+      existingSectionCodes,
+    ] = await Promise.all([
       db
         .select({ id: cursos.id, codigo: cursos.codigo })
         .from(cursos)
@@ -598,15 +603,17 @@ export async function POST(request: Request) {
           ),
         ),
       db
+        .select({ codigo: cursos.codigo })
+        .from(cursos),
+      db
         .select({ codigo: asignaturas.codigo })
-        .from(asignaturas)
-        .where(isNull(asignaturas.eliminadoAt)),
+        .from(asignaturas),
     ]);
 
     const cursoTemplateMap = new Map<string, CourseTemplateRef>();
     const courseCodeSet = new Set<string>();
 
-    for (const course of existingCourseTemplates) {
+    for (const course of existingCourseCodes) {
       courseCodeSet.add(course.codigo);
     }
 

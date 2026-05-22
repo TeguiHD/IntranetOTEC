@@ -445,6 +445,13 @@ const buildCourseTemplateIdentityKey = (
   diasHora: string,
 ): string => `${toCourseIdentityNameKey(cursoKey)}|${buildScheduleVariantKey(fechaInicio, diasHora)}`;
 
+const buildSectionIdentityKey = (
+  cursoId: string,
+  periodoId: string,
+  fechaInicio: string,
+  diasHora: string,
+): string => `${cursoId}|${periodoId}|${buildScheduleVariantKey(fechaInicio, diasHora)}`;
+
 const extractScheduleFromDescription = (description: string | null): string => {
   if (!description) {
     return "";
@@ -653,10 +660,19 @@ export async function POST(request: Request) {
     }
 
     const [
+      existingCourseTemplates,
       existingSections,
       existingCourseCodes,
       existingSectionCodes,
     ] = await Promise.all([
+      db
+        .select({
+          id: cursos.id,
+          codigo: cursos.codigo,
+          nombre: cursos.nombre,
+        })
+        .from(cursos)
+        .where(isNull(cursos.eliminadoAt)),
       db
         .select({
           id: asignaturas.id,
@@ -688,29 +704,28 @@ export async function POST(request: Request) {
     const cursoTemplateMap = new Map<string, CourseTemplateRef>();
     const courseCodeSet = new Set<string>();
 
+    for (const course of existingCourseTemplates) {
+      const courseKey = buildCourseStrictKey(course.nombre);
+      if (courseKey && !cursoTemplateMap.has(courseKey)) {
+        cursoTemplateMap.set(courseKey, {
+          id: course.id,
+          codigo: course.codigo,
+        });
+      }
+    }
+
     for (const course of existingCourseCodes) {
       courseCodeSet.add(course.codigo);
     }
 
     const sectionMap = new Map<string, string>();
     for (const section of existingSections) {
-      const normalizedCourseName = buildCourseStrictKey(section.cursoNombre);
-      if (normalizedCourseName) {
-        const identityKey = buildCourseTemplateIdentityKey(
-          normalizedCourseName,
-          section.fechaInicio,
-          extractScheduleFromDescription(section.descripcion),
-        );
-
-        if (!cursoTemplateMap.has(identityKey)) {
-          cursoTemplateMap.set(identityKey, {
-            id: section.cursoId,
-            codigo: section.cursoCodigo,
-          });
-        }
-      }
-
-      const key = `${section.cursoId}|${section.periodoId}|${section.turno}`;
+      const key = buildSectionIdentityKey(
+        section.cursoId,
+        section.periodoId,
+        section.fechaInicio,
+        extractScheduleFromDescription(section.descripcion),
+      );
       if (!sectionMap.has(key)) {
         sectionMap.set(key, section.id);
       }
@@ -775,7 +790,7 @@ export async function POST(request: Request) {
       }
 
       let template =
-        (row.cursoIdentityKey ? cursoTemplateMap.get(row.cursoIdentityKey) : undefined)
+        (row.cursoKey ? cursoTemplateMap.get(row.cursoKey) : undefined)
         ?? undefined;
 
       if (!template) {
@@ -803,12 +818,17 @@ export async function POST(request: Request) {
         createdCourseIds.push(cursoId);
       }
 
-      if (row.cursoIdentityKey) {
-        cursoTemplateMap.set(row.cursoIdentityKey, template);
+      if (row.cursoKey) {
+        cursoTemplateMap.set(row.cursoKey, template);
       }
 
       const turno = inferTurnoFromDiasHora(row.diasHora);
-      const sectionKey = `${template.id}|${selectedPeriod.id}|${turno}`;
+      const sectionKey = buildSectionIdentityKey(
+        template.id,
+        selectedPeriod.id,
+        row.fechaInicio,
+        row.diasHora,
+      );
 
       if (sectionMap.has(sectionKey)) {
         continue;
@@ -834,7 +854,7 @@ export async function POST(request: Request) {
         fechaInicio: row.fechaInicio,
         fechaFin: row.fechaInicio,
         duracionMeses: 6,
-        estado: "borrador",
+        estado: "activo",
         docenteId: null,
         createdBy: adminId,
       });
@@ -883,11 +903,15 @@ export async function POST(request: Request) {
       }
 
       const template =
-        (row.cursoIdentityKey ? cursoTemplateMap.get(row.cursoIdentityKey) : undefined)
+        (row.cursoKey ? cursoTemplateMap.get(row.cursoKey) : undefined)
         ?? null;
-      const turno = inferTurnoFromDiasHora(row.diasHora);
       const asignaturaId = template
-        ? sectionMap.get(`${template.id}|${selectedPeriod.id}|${turno}`) ?? null
+        ? sectionMap.get(buildSectionIdentityKey(
+          template.id,
+          selectedPeriod.id,
+          row.fechaInicio,
+          row.diasHora,
+        )) ?? null
         : null;
 
       if (!asignaturaId) {

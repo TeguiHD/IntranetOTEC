@@ -21,12 +21,32 @@ const sanitizeHeader = (value: string, index: number): string => {
   return cleaned;
 };
 
-const normalizeCellValue = (value: unknown): string => {
+const isTimeOnlyFormat = (numFmt: string | undefined): boolean => {
+  const normalized = String(numFmt ?? "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  const withoutQuotedText = normalized.replace(/"[^"]*"/g, "");
+  return /h{1,2}/.test(withoutQuotedText) && !/[dy]/.test(withoutQuotedText);
+};
+
+const formatTimeOnlyDate = (value: Date): string => {
+  const hours = String(value.getUTCHours()).padStart(2, "0");
+  const minutes = String(value.getUTCMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
+const normalizeCellValue = (value: unknown, numFmt?: string): string => {
   if (value === null || value === undefined) {
     return "";
   }
 
   if (value instanceof Date) {
+    if (isTimeOnlyFormat(numFmt)) {
+      return formatTimeOnlyDate(value);
+    }
+
     return value.toISOString();
   }
 
@@ -172,7 +192,8 @@ const parseXlsxBuffer = async (buffer: Buffer): Promise<SpreadsheetRow[]> => {
 
     for (let col = 1; col <= totalColumns; col += 1) {
       const header = headers[col] ?? `col_${col}`;
-      const value = sanitizeToken(normalizeCellValue(row.getCell(col).value));
+      const cell = row.getCell(col);
+      const value = sanitizeToken(normalizeCellValue(cell.value, cell.numFmt));
 
       if (value.length > 0) {
         hasData = true;

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 type PreviewStatus = "ok" | "warning" | "error";
 type PeriodStatus = "planificado" | "activo" | "cerrado";
 type PeriodFilter = "todos" | PeriodStatus;
+type ReplaceScope = "sections" | "period";
 
 type PeriodOption = {
   id: string;
@@ -65,6 +66,7 @@ type ImportResult = {
   enrollmentsClosed: number;
   studentsRetired: number;
   autoCredentialsCreated: number;
+  replaceScope: ReplaceScope;
   errors: string[];
   warnings: string[];
   total: number;
@@ -204,6 +206,7 @@ export default function AdminImportarPage() {
   const [newPeriod, setNewPeriod] = useState<NewPeriodDraft>(buildDefaultNewPeriodDraft());
   const [isCreatingPeriod, setIsCreatingPeriod] = useState(false);
   const [replaceActiveEnrollments, setReplaceActiveEnrollments] = useState(true);
+  const [replaceScope, setReplaceScope] = useState<ReplaceScope>("sections");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -439,6 +442,7 @@ export default function AdminImportarPage() {
         formData.append("file", file);
         formData.append("periodoId", periodId);
         formData.append("replaceActiveEnrollments", String(replaceActiveEnrollments));
+        formData.append("replaceScope", replaceScope);
 
         const response = await fetch("/api/internal/import-alumnos/preview", {
           method: "POST",
@@ -520,12 +524,18 @@ export default function AdminImportarPage() {
       toast.error("La previsualizacion no tiene filas validas para importar.");
       return;
     }
+    if (preview.errorRows > 0) {
+      toast.error("Corrige las filas con error antes de confirmar la importacion.");
+      return;
+    }
 
     startTransition(async () => {
       try {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("periodoId", periodId);
+        formData.append("replaceActiveEnrollments", String(replaceActiveEnrollments));
+        formData.append("replaceScope", replaceScope);
 
         const response = await fetch("/api/internal/import-alumnos/confirm", {
           method: "POST",
@@ -549,6 +559,7 @@ export default function AdminImportarPage() {
           enrollmentsClosed: Number(data.enrollmentsClosed ?? 0),
           studentsRetired: Number(data.studentsRetired ?? 0),
           autoCredentialsCreated: Number(data.autoCredentialsCreated ?? 0),
+          replaceScope: data.replaceScope === "period" ? "period" : "sections",
           errors: Array.isArray(data.errors) ? data.errors.map((item: unknown) => String(item)) : [],
           warnings: Array.isArray(data.warnings) ? data.warnings.map((item: unknown) => String(item)) : [],
           total: Number(data.total ?? 0),
@@ -745,6 +756,7 @@ export default function AdminImportarPage() {
                 <input
                   type="checkbox"
                   checked={replaceActiveEnrollments}
+                  disabled={replaceScope === "period"}
                   onChange={(event) => setReplaceActiveEnrollments(event.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-amber-300 text-primary focus:ring-primary"
                 />
@@ -755,6 +767,40 @@ export default function AdminImportarPage() {
                   </span>
                 </span>
               </label>
+              <div className="grid max-w-2xl gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900">
+                <p className="font-semibold text-text-primary dark:text-gray-100">Alcance de reemplazo</p>
+                <label className="flex cursor-pointer items-start gap-2 text-text-secondary dark:text-gray-300">
+                  <input
+                    type="radio"
+                    name="replaceScope"
+                    value="sections"
+                    checked={replaceScope === "sections"}
+                    onChange={() => setReplaceScope("sections")}
+                    className="mt-0.5 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span>
+                    <span className="block font-medium text-text-primary dark:text-gray-100">Solo secciones del Excel</span>
+                    <span className="block text-xs">Cierra alumnos ausentes solo en las secciones importadas.</span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 text-text-secondary dark:text-gray-300">
+                  <input
+                    type="radio"
+                    name="replaceScope"
+                    value="period"
+                    checked={replaceScope === "period"}
+                    onChange={() => {
+                      setReplaceActiveEnrollments(true);
+                      setReplaceScope("period");
+                    }}
+                    className="mt-0.5 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span>
+                    <span className="block font-medium text-text-primary dark:text-gray-100">Todo el periodo</span>
+                    <span className="block text-xs">El periodo queda alineado con este Excel completo.</span>
+                  </span>
+                </label>
+              </div>
             </div>
             <button
               type="button"
@@ -778,7 +824,7 @@ export default function AdminImportarPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isPending || !preview?.canImport || !periodId}
+              disabled={isPending || !preview?.canImport || (preview?.errorRows ?? 0) > 0 || !periodId}
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-6 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-[background-color,border-color,color,box-shadow,opacity,transform] hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] disabled:opacity-50"
             >
               {isPending ? (

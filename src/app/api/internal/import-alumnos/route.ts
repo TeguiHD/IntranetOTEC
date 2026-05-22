@@ -49,6 +49,7 @@ type CourseTemplateRef = {
 };
 
 type Turno = "manana" | "tarde" | "vespertino";
+type ReplaceScope = "sections" | "period";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 10_000;
@@ -515,6 +516,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const periodoIdRaw = formData.get("periodoId");
     const replaceActiveEnrollments = formData.get("replaceActiveEnrollments") === "true";
+    const replaceScopeRaw = formData.get("replaceScope");
+    const replaceScope: ReplaceScope = replaceScopeRaw === "period" ? "period" : "sections";
     const file = formData.get("file");
 
     if (typeof periodoIdRaw !== "string" || !periodoIdRaw.trim()) {
@@ -1062,23 +1065,41 @@ export async function POST(request: Request) {
       }
     }
 
-    if (replaceActiveEnrollments && importedStudentsBySection.size > 0) {
+    if ((replaceActiveEnrollments || replaceScope === "period") && importedStudentsBySection.size > 0) {
       const now = new Date();
       const importedSectionIds = Array.from(importedStudentsBySection.keys());
-      const activeRows = await tx
-        .select({
-          id: matriculas.id,
-          alumnoId: matriculas.alumnoId,
-          asignaturaId: matriculas.asignaturaId,
-        })
-        .from(matriculas)
-        .where(
-          and(
-            inArray(matriculas.asignaturaId, importedSectionIds),
-            eq(matriculas.activa, true),
-            isNull(matriculas.eliminadoAt),
-          ),
-        );
+      const activeRows =
+        replaceScope === "period"
+          ? await tx
+            .select({
+              id: matriculas.id,
+              alumnoId: matriculas.alumnoId,
+              asignaturaId: matriculas.asignaturaId,
+            })
+            .from(matriculas)
+            .innerJoin(asignaturas, eq(matriculas.asignaturaId, asignaturas.id))
+            .where(
+              and(
+                eq(asignaturas.periodoId, selectedPeriod.id),
+                eq(matriculas.activa, true),
+                isNull(matriculas.eliminadoAt),
+                isNull(asignaturas.eliminadoAt),
+              ),
+            )
+          : await tx
+            .select({
+              id: matriculas.id,
+              alumnoId: matriculas.alumnoId,
+              asignaturaId: matriculas.asignaturaId,
+            })
+            .from(matriculas)
+            .where(
+              and(
+                inArray(matriculas.asignaturaId, importedSectionIds),
+                eq(matriculas.activa, true),
+                isNull(matriculas.eliminadoAt),
+              ),
+            );
 
       const enrollmentIdsToClose = activeRows
         .filter((row) => !importedStudentsBySection.get(row.asignaturaId)?.has(row.alumnoId))
@@ -1156,6 +1177,7 @@ export async function POST(request: Request) {
         studentsRetired,
         autoCredentialsCreated,
         replaceActiveEnrollments,
+        replaceScope,
         erroresCount: errors.length,
         warningsCount: warnings.length,
         total: parsedRows.length,
@@ -1178,6 +1200,7 @@ export async function POST(request: Request) {
       enrollmentsClosed,
       studentsRetired,
       autoCredentialsCreated,
+      replaceScope,
       errors,
       warnings,
       total: parsedRows.length,

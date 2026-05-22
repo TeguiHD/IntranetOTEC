@@ -14,6 +14,7 @@ import {
   normalizeWhitespace,
 } from "@/lib/import-course-normalization";
 import {
+  esRutExtranjero,
   formatearRut,
   normalizarRut,
   validarRut,
@@ -72,9 +73,20 @@ const buildCourseTemplateIdentityKey = (
   diasHora: string,
 ): string => `${toCourseIdentityNameKey(cursoKey)}|${buildScheduleVariantKey(fechaInicio, diasHora)}`;
 
-const CURSO_KEYS = new Set(["curso", "asignatura", "materia"]);
+const CURSO_KEYS = new Set([
+  "curso",
+  "tipocurso",
+  "tipodecurso",
+  "asignatura",
+  "materia",
+  "programa",
+  "capacitacion",
+  "taller",
+]);
 const CODIGO_KEYS = new Set(["codigo", "codigocurso", "codcurso", "cod"]);
 const DIAS_HORA_KEYS = new Set(["diashora", "diasyhora", "horario", "diahora"]);
+const DIA_KEYS = new Set(["dia", "dias", "diaclase", "diasclase", "diadelasemana"]);
+const HORA_KEYS = new Set(["hora", "horas", "horainicio", "horariodeinicio"]);
 const NOMBRE_KEYS = new Set([
   "nombre",
   "nombres",
@@ -89,8 +101,26 @@ const APELLIDO_KEYS = new Set([
   "apellidos",
   "primerapellido",
   "apellidopaterno",
+  "segundoapellido",
+  "apellidomaterno",
 ]);
-const RUT_KEYS = new Set(["rut", "identificador", "credencial", "rutcredencial"]);
+const RUT_KEYS = new Set([
+  "rut",
+  "rutalumno",
+  "rutestudiante",
+  "identificador",
+  "credencial",
+  "rutcredencial",
+]);
+const FOREIGN_ID_KEYS = new Set([
+  "rutextranjero",
+  "identificadorextranjero",
+  "credencialextranjera",
+  "documento",
+  "documentoidentidad",
+  "dni",
+  "pasaporte",
+]);
 const TELEFONO_KEYS = new Set([
   "numero",
   "numerocelular",
@@ -121,6 +151,58 @@ const getRowField = (row: SpreadsheetRow, aliases: Set<string>): string => {
   }
 
   return "";
+};
+
+const getRowFields = (row: SpreadsheetRow, aliases: Set<string>): string[] => {
+  const values: string[] = [];
+
+  for (const [key, value] of Object.entries(row)) {
+    if (!aliases.has(normalizeLookupKey(key))) {
+      continue;
+    }
+
+    const normalizedValue = normalizeWhitespace(String(value ?? ""));
+    if (normalizedValue) {
+      values.push(normalizedValue);
+    }
+  }
+
+  return values;
+};
+
+const buildDiasHora = (row: SpreadsheetRow): string => {
+  const combined = getRowField(row, DIAS_HORA_KEYS);
+  if (combined) {
+    return combined;
+  }
+
+  return [getRowField(row, DIA_KEYS), getRowField(row, HORA_KEYS)]
+    .filter((value) => value.length > 0)
+    .join(" ");
+};
+
+const buildNombreCompletoFromRow = (row: SpreadsheetRow): string => {
+  const nombreField = getRowField(row, NOMBRE_KEYS);
+  const apellidoFields = getRowFields(row, APELLIDO_KEYS);
+  return [nombreField, ...apellidoFields]
+    .filter((value) => value.length > 0)
+    .join(" ");
+};
+
+const buildRutRawFromRow = (row: SpreadsheetRow): string => {
+  const foreignIdentifier = getRowField(row, FOREIGN_ID_KEYS);
+  if (foreignIdentifier) {
+    const normalized = foreignIdentifier.trim().toUpperCase();
+    return esRutExtranjero(normalized) ? normalized : `EXT-${normalized.replace(/^EXT[-\s]*/i, "")}`;
+  }
+
+  const genericIdentifier = getRowField(row, RUT_KEYS);
+  if (genericIdentifier && /[a-zA-Z]/.test(genericIdentifier) && !validarRut(normalizarRut(genericIdentifier))) {
+    const normalized = genericIdentifier.trim().toUpperCase();
+    return esRutExtranjero(normalized) ? normalized : `EXT-${normalized.replace(/^EXT[-\s]*/i, "")}`;
+  }
+
+  return genericIdentifier;
 };
 
 const splitNombreCompleto = (raw: string): { nombre: string; apellido: string } => {
@@ -412,13 +494,9 @@ export async function POST(request: Request) {
       const row = rawRow as SpreadsheetRow;
       const codigoCurso = getRowField(row, CODIGO_KEYS);
       const curso = getRowField(row, CURSO_KEYS);
-      const diasHora = getRowField(row, DIAS_HORA_KEYS);
-      const nombreField = getRowField(row, NOMBRE_KEYS);
-      const apellidoField = getRowField(row, APELLIDO_KEYS);
-      const nombreCompleto = apellidoField
-        ? `${nombreField} ${apellidoField}`.trim()
-        : nombreField;
-      const rutRaw = getRowField(row, RUT_KEYS);
+      const diasHora = buildDiasHora(row);
+      const nombreCompleto = buildNombreCompletoFromRow(row);
+      const rutRaw = buildRutRawFromRow(row);
       const telefonoRaw = getRowField(row, TELEFONO_KEYS);
       const fechaRaw = getRowField(row, FECHA_KEYS);
       const telefono = normalizePhone(telefonoRaw);

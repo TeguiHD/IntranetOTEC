@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import bcrypt from "bcryptjs";
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
@@ -433,6 +433,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const periodoIdRaw = formData.get("periodoId");
+    const replaceActiveEnrollments = formData.get("replaceActiveEnrollments") === "true";
     const file = formData.get("file");
 
     if (typeof periodoIdRaw !== "string" || !periodoIdRaw.trim()) {
@@ -678,8 +679,12 @@ export async function POST(request: Request) {
     let created = 0;
     let updated = 0;
     let enrollmentsCreated = 0;
+    let enrollmentsReactivated = 0;
+    let enrollmentsClosed = 0;
+    let studentsRetired = 0;
     let autoCredentialsCreated = 0;
     const errors: string[] = [];
+    const importedStudentsBySection = new Map<string, Set<string>>();
 
     await db.transaction(async (tx) => {
     for (const row of parsedRows) {
@@ -925,22 +930,47 @@ export async function POST(request: Request) {
         }
 
         if (asignaturaId) {
-          const insertedEnrollment = await tx
-            .insert(matriculas)
-            .values({
-              id: randomUUID(),
-              alumnoId,
-              asignaturaId,
-              activa: true,
-              createdAt: now,
+          const [existingEnrollment] = await tx
+            .select({
+              id: matriculas.id,
+              activa: matriculas.activa,
+              eliminadoAt: matriculas.eliminadoAt,
             })
-            .onConflictDoNothing()
-            .returning({ id: matriculas.id });
+            .from(matriculas)
+            .where(and(eq(matriculas.alumnoId, alumnoId), eq(matriculas.asignaturaId, asignaturaId)))
+            .limit(1);
 
-          if (insertedEnrollment.length > 0) {
+          if (existingEnrollment) {
+            if (!existingEnrollment.activa || existingEnrollment.eliminadoAt) {
+              await tx
+                .update(matriculas)
+                .set({
+                  activa: true,
+                  eliminadoAt: null,
+                  eliminadoPor: null,
+                })
+                .where(eq(matriculas.id, existingEnrollment.id));
+              enrollmentsReactivated += 1;
+            }
+          } else {
+            const insertedEnrollment = await tx
+              .insert(matriculas)
+              .values({
+                id: randomUUID(),
+                alumnoId,
+                asignaturaId,
+                activa: true,
+                createdAt: now,
+              })
+              .returning({ id: matriculas.id });
+
             enrollmentsCreated += 1;
             createdEnrollmentIds.push(insertedEnrollment[0].id);
           }
+
+          const sectionStudents = importedStudentsBySection.get(asignaturaId) ?? new Set<string>();
+          sectionStudents.add(alumnoId);
+          importedStudentsBySection.set(asignaturaId, sectionStudents);
         }
       } catch (rowError) {
         const msg = rowError instanceof Error ? rowError.message : "unknown";
@@ -949,6 +979,77 @@ export async function POST(request: Request) {
         } else {
           errors.push(`Fila ${lineNum}: Error inesperado.`);
           throw rowError;
+        }
+      }
+    }
+
+    if (replaceActiveEnrollments && importedStudentsBySection.size > 0) {
+      const now = new Date();
+      const importedSectionIds = Array.from(importedStudentsBySection.keys());
+      const activeRows = await tx
+        .select({
+          id: matriculas.id,
+          alumnoId: matriculas.alumnoId,
+          asignaturaId: matriculas.asignaturaId,
+        })
+        .from(matriculas)
+        .where(
+          and(
+            inArray(matriculas.asignaturaId, importedSectionIds),
+            eq(matriculas.activa, true),
+            isNull(matriculas.eliminadoAt),
+          ),
+        );
+
+      const enrollmentIdsToClose = activeRows
+        .filter((row) => !importedStudentsBySection.get(row.asignaturaId)?.has(row.alumnoId))
+        .map((row) => row.id);
+      const removedStudentIds = Array.from(
+        new Set(
+          activeRows
+            .filter((row) => !importedStudentsBySection.get(row.asignaturaId)?.has(row.alumnoId))
+            .map((row) => row.alumnoId),
+        ),
+      );
+
+      if (enrollmentIdsToClose.length > 0) {
+        await tx
+          .update(matriculas)
+          .set({
+            activa: false,
+            eliminadoAt: now,
+            eliminadoPor: adminId,
+          })
+          .where(inArray(matriculas.id, enrollmentIdsToClose));
+        enrollmentsClosed = enrollmentIdsToClose.length;
+      }
+
+      if (removedStudentIds.length > 0) {
+        const studentsWithActiveEnrollments = await tx
+          .select({ alumnoId: matriculas.alumnoId })
+          .from(matriculas)
+          .where(
+            and(
+              inArray(matriculas.alumnoId, removedStudentIds),
+              eq(matriculas.activa, true),
+              isNull(matriculas.eliminadoAt),
+            ),
+          );
+        const stillActive = new Set(studentsWithActiveEnrollments.map((row) => row.alumnoId));
+        const studentsToRetire = removedStudentIds.filter((id) => !stillActive.has(id));
+
+        if (studentsToRetire.length > 0) {
+          await tx
+            .update(usuarios)
+            .set({
+              activo: false,
+              estadoAlumno: "retirado",
+              eliminadoAt: now,
+              eliminadoPor: adminId,
+              updatedAt: now,
+            })
+            .where(and(inArray(usuarios.id, studentsToRetire), eq(usuarios.rol, "alumno")));
+          studentsRetired = studentsToRetire.length;
         }
       }
     }
@@ -971,7 +1072,11 @@ export async function POST(request: Request) {
         coursesCreated,
         sectionsCreated,
         enrollmentsCreated,
+        enrollmentsReactivated,
+        enrollmentsClosed,
+        studentsRetired,
         autoCredentialsCreated,
+        replaceActiveEnrollments,
         erroresCount: errors.length,
         warningsCount: warnings.length,
         total: parsedRows.length,
@@ -990,6 +1095,9 @@ export async function POST(request: Request) {
       sectionsCreated,
       period: selectedPeriod,
       enrollmentsCreated,
+      enrollmentsReactivated,
+      enrollmentsClosed,
+      studentsRetired,
       autoCredentialsCreated,
       errors,
       warnings,

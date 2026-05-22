@@ -61,6 +61,9 @@ type ImportResult = {
   updated: number;
   coursesCreated: number;
   enrollmentsCreated: number;
+  enrollmentsReactivated: number;
+  enrollmentsClosed: number;
+  studentsRetired: number;
   autoCredentialsCreated: number;
   errors: string[];
   warnings: string[];
@@ -200,6 +203,7 @@ export default function AdminImportarPage() {
   const [periodSearch, setPeriodSearch] = useState("");
   const [newPeriod, setNewPeriod] = useState<NewPeriodDraft>(buildDefaultNewPeriodDraft());
   const [isCreatingPeriod, setIsCreatingPeriod] = useState(false);
+  const [replaceActiveEnrollments, setReplaceActiveEnrollments] = useState(true);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -434,6 +438,7 @@ export default function AdminImportarPage() {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("periodoId", periodId);
+        formData.append("replaceActiveEnrollments", String(replaceActiveEnrollments));
 
         const response = await fetch("/api/internal/import-alumnos/preview", {
           method: "POST",
@@ -540,6 +545,9 @@ export default function AdminImportarPage() {
           updated: Number(data.updated ?? 0),
           coursesCreated: Number(data.coursesCreated ?? 0),
           enrollmentsCreated: Number(data.enrollmentsCreated ?? 0),
+          enrollmentsReactivated: Number(data.enrollmentsReactivated ?? 0),
+          enrollmentsClosed: Number(data.enrollmentsClosed ?? 0),
+          studentsRetired: Number(data.studentsRetired ?? 0),
           autoCredentialsCreated: Number(data.autoCredentialsCreated ?? 0),
           errors: Array.isArray(data.errors) ? data.errors.map((item: unknown) => String(item)) : [],
           warnings: Array.isArray(data.warnings) ? data.warnings.map((item: unknown) => String(item)) : [],
@@ -554,7 +562,7 @@ export default function AdminImportarPage() {
           toast.warning(`Importacion completada con ${normalizedResult.warnings.length} advertencia(s).`);
         } else {
           toast.success(
-            `Importacion exitosa: ${normalizedResult.created} creados, ${normalizedResult.updated} actualizados y ${normalizedResult.enrollmentsCreated} matriculas nuevas.`,
+            `Importacion exitosa: ${normalizedResult.created} creados, ${normalizedResult.updated} actualizados, ${normalizedResult.enrollmentsCreated} matriculas nuevas y ${normalizedResult.enrollmentsClosed} cerradas.`,
           );
         }
       } catch {
@@ -728,9 +736,25 @@ export default function AdminImportarPage() {
 
         {file && (
           <div className="mt-4 flex flex-wrap justify-end gap-3">
-            <div className="mr-auto flex min-h-11 items-center gap-2 rounded-xl bg-emerald-50 px-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
-              <CheckCircle2 className="h-4 w-4" />
-              El importador previsualiza antes de crear alumnos o matrículas.
+            <div className="mr-auto grid gap-2">
+              <div className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-50 px-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <CheckCircle2 className="h-4 w-4" />
+                El importador previsualiza antes de crear alumnos o matriculas.
+              </div>
+              <label className="flex max-w-2xl cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
+                <input
+                  type="checkbox"
+                  checked={replaceActiveEnrollments}
+                  onChange={(event) => setReplaceActiveEnrollments(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-amber-300 text-primary focus:ring-primary"
+                />
+                <span>
+                  <span className="block font-semibold">Reemplazar matriculas activas de las secciones importadas</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+                    Los alumnos que no vengan en el Excel saldran de esas secciones. Si quedan sin cursos activos, pasaran a retirados.
+                  </span>
+                </span>
+              </label>
             </div>
             <button
               type="button"
@@ -788,7 +812,7 @@ export default function AdminImportarPage() {
             ({formatDisplayDate(preview.period.fechaInicio)} al {formatDisplayDate(preview.period.fechaFin)})
           </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-8">
             <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-center dark:border-gray-800 dark:bg-gray-800/50">
               <p className="text-2xl font-bold text-primary">{preview.totalRows}</p>
               <p className="text-xs text-text-secondary dark:text-gray-400">Total filas</p>
@@ -920,6 +944,18 @@ export default function AdminImportarPage() {
             <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-center dark:border-gray-800 dark:bg-gray-800/50">
               <p className="text-2xl font-bold text-success">{result.enrollmentsCreated}</p>
               <p className="text-xs text-text-secondary dark:text-gray-400">Matriculas nuevas</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-center dark:border-gray-800 dark:bg-gray-800/50">
+              <p className="text-2xl font-bold text-primary">{result.enrollmentsReactivated}</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">Matriculas reactivadas</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-center dark:border-gray-800 dark:bg-gray-800/50">
+              <p className="text-2xl font-bold text-warning">{result.enrollmentsClosed}</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">Matriculas cerradas</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-center dark:border-gray-800 dark:bg-gray-800/50">
+              <p className="text-2xl font-bold text-warning">{result.studentsRetired}</p>
+              <p className="text-xs text-text-secondary dark:text-gray-400">Alumnos retirados</p>
             </div>
             <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 text-center dark:border-gray-800 dark:bg-gray-800/50">
               <p className="text-2xl font-bold text-warning">{result.autoCredentialsCreated}</p>
